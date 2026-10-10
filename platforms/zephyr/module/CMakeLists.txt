@@ -81,6 +81,14 @@ foreach(function
 	zephyr_ld_options(-Wl,--wrap=${function})
 endforeach()
 
+zephyr_library_named(px4_tty)
+zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_tty.c)
+
+if(CONFIG_PX4_SERIAL)
+	# open() opens the serial ports, see px4_tty.c
+	zephyr_ld_options(-Wl,--wrap=open)
+endif()
+
 if(CONFIG_PX4_SHELL)
 	zephyr_library_named(px4_shell)
 	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_shell.c)
