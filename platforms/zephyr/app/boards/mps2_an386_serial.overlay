@@ -1,0 +1,12 @@
+/* A serial port on the second UART, which QEMU connects to a TCP port, see mps2_an386_serial.conf */
+
+/ {
+	px4-serial-ports {
+		compatible = "px4,serial-ports";
+
+		telem1 {
+			uart = <&uart1>;
+			path = "/dev/ttyS1";
+		};
+	};
+};
