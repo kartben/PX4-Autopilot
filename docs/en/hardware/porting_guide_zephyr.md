@@ -121,6 +121,11 @@ uart:~$ px4 mavlink start -d /dev/ttyS1 -b 115200
 
 Then add a TCP link to `127.0.0.1:5760` in _QGroundControl_.
 
+The QEMU board has a RAM disk in the 16 MiB PSRAM of the emulated board (`boards/mps2_an386.overlay`), mounted at `/SD:`.
+PX4 keeps its parameters there, and the SIH configuration also its missions and a log of each flight, in `/SD:/log`.
+QEMU keeps the files when the board reboots (`px4 reboot`), but not when QEMU restarts.
+List them with `fs ls /SD:`.
+
 ## Building for Other Boards
 
 To build the application for another Zephyr board:
@@ -142,7 +147,8 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/platform](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/platform) tests the platform layer: time, callouts from interrupts, tasks, work queues, uORB and parameters.
 - [tests/sensors](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/sensors) tests the sensor driver with Zephyr's sensor emulators, on emulated SPI and I2C buses.
 - [tests/serial](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/serial) tests the serial ports, termios and `device::Serial` on an emulated UART.
-- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), and connect to PX4 with MAVLink over a serial port.
+- [tests/storage](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/storage) tests the parameter file and the file functions of PX4 on a RAM disk.
+- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log and that a parameter is kept across a reboot, and connect to PX4 with MAVLink over a serial port.
 
 ## Adding a Board
 
@@ -244,6 +250,35 @@ The NXP VMU RT1170 has the serial ports of FMU-v6XRT and a USB port.
 Its PX4 board configuration ([boards/zephyr/vmu_rt1170](https://github.com/PX4/PX4-Autopilot/tree/main/boards/zephyr/vmu_rt1170)) starts MAVLink on `/dev/ttyS2` (TELEM1) and USB.
 MAVLink only runs over UDP if the Zephyr configuration has the network stack (`CONFIG_NET_SOCKETS`).
 
+### Storage
+
+PX4 keeps its parameters, missions and logs on the FAT file system mounted at the root path of the PX4 board configuration (`CONFIG_BOARD_ROOT_PATH`), which is `/SD:` for the Zephyr boards.
+Mount it with a [devicetree fstab](https://docs.zephyrproject.org/latest/services/storage/file_system/index.html) entry:
+
+```dts
+/ {
+	fstab {
+		compatible = "zephyr,fstab";
+
+		sd {
+			compatible = "zephyr,fstab,fatfs";
+			mount-point = "/SD:";
+			automount;
+			disk-access;
+		};
+	};
+};
+```
+
+The FAT mount point is the name of the Zephyr disk: here the `SD` disk of an SD card (`zephyr,sdmmc-disk`) or of a RAM disk (`zephyr,ram-disk`).
+The `PX4_STORAGE` Kconfig option then enables the FAT file system with long file names, and enough file descriptors for PX4.
+A RAM disk is formatted the first time it is mounted, but an SD card never is: format it with a FAT file system on a computer.
+
+At startup, PX4 loads the parameters from `/SD:/parameters.bson`, and saves them there when they change.
+Without storage, the parameters are kept in RAM only.
+
+The NXP VMU RT1170 mounts its microSD card.
+
 ## Footprint
 
 [Tools/footprint.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/footprint.py) breaks down the flash and static RAM of PX4 firmware by component, for NuttX and Zephyr builds alike.
@@ -290,8 +325,8 @@ Only the operating system rows compare the two systems, as the builds differ in 
 
 ## Limitations
 
-- PX4 only flies in simulation: there are no actuator outputs, RC input or logging.
-- Parameters are kept in RAM only.
+- PX4 only flies in simulation: there are no actuator outputs or RC input.
+- Storage is on FAT file systems only, and the logs have no CPU load of the tasks.
 - Sensors are polled: the IMU FIFOs are not used.
 - Serial ports use the interrupt-driven UART API, without DMA, and have no single-wire, inverted or swapped modes.
 - The GPS driver does not build, as its protocol parsers define `MIN` and `MAX`, which Zephyr defines too.
@@ -304,7 +339,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 - Read the IMU FIFOs with the Zephyr sensor streaming API.
 - Actuator outputs with the Zephyr PWM API.
 - Device files and termios for UARTs in Zephyr itself, instead of the PX4 platform layer.
-- Parameter and log storage on the Zephyr file systems or ZMS.
+- Parameters in flash, with ZMS, on boards without an SD card.
 - Dynamic modules as Zephyr loadable extensions (below).
 
 ### Loadable Modules
