@@ -40,7 +40,7 @@ set(px4_git_included true)
 # Check all submodules once per configure, whether the build started from
 # make, an IDE or CMake directly.
 execute_process(
-	COMMAND Tools/check_submodules.sh
+	COMMAND Tools/check_submodules.sh ${PX4_GIT_SUBMODULES}
 	WORKING_DIRECTORY ${PX4_SOURCE_DIR}
 	RESULT_VARIABLE check_submodules_result
 	)
