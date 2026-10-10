@@ -17,3 +17,9 @@ tests:
       regex:
         - "HW arch: ZEPHYR_GENERIC"
         - "OS: Zephyr"
+  px4.app.vmu_rt1170:
+    build_only: true
+    platform_allow:
+      - vmu_rt1170/mimxrt1176/cm7
+    integration_platforms:
+      - vmu_rt1170/mimxrt1176/cm7
