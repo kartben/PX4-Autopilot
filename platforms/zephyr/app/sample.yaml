@@ -29,3 +29,9 @@ tests:
     harness_config:
       pytest_root:
         - "pytest/test_sih.py"
+  px4.app.vmu_rt1170:
+    build_only: true
+    platform_allow:
+      - vmu_rt1170/mimxrt1176/cm7
+    integration_platforms:
+      - vmu_rt1170/mimxrt1176/cm7
