@@ -89,6 +89,11 @@ if(CONFIG_PX4_SERIAL)
 	zephyr_ld_options(-Wl,--wrap=open)
 endif()
 
+if(CONFIG_PX4_CAN)
+	zephyr_library_named(px4_can)
+	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_can.c)
+endif()
+
 if(CONFIG_PX4_SHELL)
 	zephyr_library_named(px4_shell)
 	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_shell.c)
