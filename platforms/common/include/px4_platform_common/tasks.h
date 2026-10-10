@@ -65,7 +65,12 @@ typedef int px4_task_t;
 #include <sched.h>
 
 /** Default scheduler type */
+#if defined(__PX4_ZEPHYR)
+// SCHED_FIFO threads are cooperative on Zephyr
+#define SCHED_DEFAULT	SCHED_RR
+#else
 #define SCHED_DEFAULT	SCHED_FIFO
+#endif
 
 #if defined(__PX4_LINUX) || defined(__PX4_DARWIN) || defined(__PX4_CYGWIN) || defined(__PX4_ROS2)
 
@@ -78,6 +83,12 @@ typedef int px4_task_t;
 #define SCHED_PRIORITY_MAX 255
 #define SCHED_PRIORITY_MIN 0
 #define SCHED_PRIORITY_DEFAULT 20
+
+#elif defined(__PX4_ZEPHYR)
+
+#define SCHED_PRIORITY_MAX (CONFIG_NUM_PREEMPT_PRIORITIES - 1)
+#define SCHED_PRIORITY_MIN 0
+#define SCHED_PRIORITY_DEFAULT (SCHED_PRIORITY_MAX / 2)
 
 #else
 #error "No target OS defined"
