@@ -34,20 +34,23 @@
 #include <px4_platform_common/tasks.h>
 #include <drivers/drv_hrt.h>
 
-#include <nuttx/config.h>
-
 #include <cstdlib>
 #include <cstring>
 #include <cctype>
+#include <climits>
 #include <fcntl.h>
 #include <dirent.h>
 #include <pthread.h>
+#include <sys/stat.h>
 #include <mathlib/mathlib.h>
 #include <systemlib/err.h>
 #include <parameters/param.h>
 #include <version/version.h>
 
+#if defined(__PX4_NUTTX)
+#include <nuttx/config.h>
 #include <arch/chip/chip.h>
+#endif
 
 #include "uavcan_main.hpp"
 #include "uavcan_servers.hpp"
@@ -192,6 +195,20 @@ void UavcanServers::check_nfs()
 }
 #endif
 
+static bool is_file(const char *dir, const struct dirent *entry)
+{
+#if defined(__PX4_ZEPHYR)
+	// struct dirent has no d_type on Zephyr
+	char path[PATH_MAX];
+	struct stat st;
+	const int len = snprintf(path, sizeof(path), "%s/%s", dir, entry->d_name);
+
+	return (len > 0) && (len < (int)sizeof(path)) && (stat(path, &st) == 0) && S_ISREG(st.st_mode);
+#else
+	return DIRENT_ISFILE(entry->d_type);
+#endif
+}
+
 void UavcanServers::migrateFWFromRoot(const char *sd_path, const char *sd_root_path)
 {
 	/*
@@ -234,7 +251,7 @@ void UavcanServers::migrateFWFromRoot(const char *sd_path, const char *sd_root_p
 	struct dirent *dev_dirent = NULL;
 
 	while ((dev_dirent = readdir(sd_root_dir)) != nullptr && bin_count < MaxBinFiles) {
-		if (DIRENT_ISFILE(dev_dirent->d_type) && strstr(dev_dirent->d_name, ".bin") != nullptr) {
+		if (is_file(sd_root_path, dev_dirent) && strstr(dev_dirent->d_name, ".bin") != nullptr) {
 			size_t filename_len = strlen(dev_dirent->d_name);
 			size_t srcpath_len = sd_root_path_len + 1 + filename_len;
 
