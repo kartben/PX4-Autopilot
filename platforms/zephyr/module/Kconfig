@@ -65,6 +65,28 @@ config ZVFS_OPEN_ADD_SIZE_PX4_SERIAL
 	help
 	  File descriptors added for the serial ports.
 
+config PX4_STORAGE
+	bool "Storage for PX4"
+	default y
+	depends on DT_HAS_ZEPHYR_FSTAB_FATFS_ENABLED
+	select FILE_SYSTEM
+	select FAT_FILESYSTEM_ELM
+	select FS_FATFS_LFN
+	select POSIX_FILE_SYSTEM
+	imply FILE_SYSTEM_MKFS if DT_HAS_ZEPHYR_RAM_DISK_ENABLED
+	help
+	  Keep the parameters, missions and logs of PX4 on the FAT file system
+	  of the devicetree fstab, mounted at the root path of the PX4 board
+	  configuration, for example /SD:. A RAM disk is formatted when it is
+	  first mounted, an SD card never.
+
+config ZVFS_OPEN_ADD_SIZE_PX4_STORAGE
+	int "Files open at the same time"
+	default 8
+	depends on PX4_STORAGE
+	help
+	  File descriptors added for the files of PX4.
+
 config PX4_STACK_OVERHEAD
 	int "Stack overhead"
 	default 1024
@@ -110,6 +132,9 @@ configdefault POSIX_THREAD_THREADS_MAX
 
 configdefault MAX_PTHREAD_MUTEX_COUNT
 	default 64
+
+configdefault FS_FATFS_NUM_FILES
+	default 8 if PX4_STORAGE
 
 configdefault MAX_PTHREAD_COND_COUNT
 	default 64

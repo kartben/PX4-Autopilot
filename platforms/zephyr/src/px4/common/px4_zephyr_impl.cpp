@@ -78,6 +78,12 @@ int access(const char *pathname, int mode)
 	return stat(pathname, &st);
 }
 
+// there are no symbolic links
+int lstat(const char *path, struct stat *buf)
+{
+	return stat(path, buf);
+}
+
 int truncate(const char *path, off_t length)
 {
 	const int fd = open(path, O_WRONLY);
