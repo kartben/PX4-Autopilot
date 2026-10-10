@@ -134,6 +134,9 @@ function(px4_add_module)
 			endforeach()
 		endif()
 
+	elseif(DYNAMIC AND (${PX4_PLATFORM} STREQUAL "zephyr"))
+		message(FATAL_ERROR "${MODULE}: dynamic modules are not supported on Zephyr yet")
+
 	elseif(DYNAMIC AND MAIN AND (${PX4_PLATFORM} STREQUAL "posix"))
 		add_library(${MODULE} SHARED ${SRCS})
 		target_compile_definitions(${MODULE} PRIVATE ${MAIN}_main=px4_module_main)
