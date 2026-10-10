@@ -2419,7 +2419,7 @@ Mavlink::task_main(int argc, char *argv[])
 	bool err_flag = false;
 	int myoptind = 1;
 	const char *myoptarg = nullptr;
-#if defined(CONFIG_NET) || defined(__PX4_POSIX)
+#if defined(MAVLINK_UDP)
 	int temp_int_arg;
 #endif
 
