@@ -51,6 +51,12 @@ if(CONFIG_ARCH_CHIP)
 	elseif(${CONFIG_ARCH_CHIP} MATCHES "stm32")
 		set(UAVCAN_DRIVER "stm32")
 	endif()
+elseif(${PX4_PLATFORM} MATCHES "zephyr")
+	if(NOT CONFIG_PX4_CAN)
+		message(FATAL_ERROR "DroneCAN needs the CAN buses of a px4,can-buses devicetree node")
+	endif()
+
+	set(UAVCAN_DRIVER "zephyr")
 endif()
 
 if(NOT DEFINED UAVCAN_DRIVER)
@@ -61,7 +67,8 @@ if(NOT config_uavcan_num_ifaces)
 	message(FATAL_ERROR "config_uavcan_num_ifaces not set")
 endif()
 
-if(CONFIG_LIB_TFLM)
+if(CONFIG_LIB_TFLM OR ${PX4_PLATFORM} MATCHES "zephyr")
+	# the C++ library provides it
 	set(UAVCAN_IMPLEMENT_PLACEMENT_NEW 0)
 else()
 	set(UAVCAN_IMPLEMENT_PLACEMENT_NEW 1)
