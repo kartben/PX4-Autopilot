@@ -37,6 +37,7 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(px4_serial_test)
 
 target_sources(app PRIVATE
+	src/serial.cpp
 	src/test_uart.c
 	src/tty.c
 )
