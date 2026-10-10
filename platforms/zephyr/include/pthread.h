@@ -34,9 +34,12 @@
 #pragma once
 
 #ifdef __cplusplus
-// <zephyr/kernel.h> is included here, and its struct device conflicts with namespace device
+// the Zephyr headers that declare struct device are included here, as it conflicts with namespace device
 #define device zephyr_device
 #include_next <pthread.h>
+#if defined(CONFIG_NET_SOCKETS)
+#include <zephyr/net/socket.h>
+#endif
 #undef device
 #else
 #include_next <pthread.h>
