@@ -1,0 +1,56 @@
+description: |
+  Zephyr sensors published to uORB by the PX4 zephyr_sensors driver.
+
+  Each child node selects a sensor device and how PX4 uses it:
+
+    #include <dt-bindings/px4/rotation.h>
+
+    / {
+      px4-sensors {
+        compatible = "px4,sensors";
+
+        imu0 {
+          sensor = <&icm42688>;
+          type = "imu";
+          rotation = <PX4_ROTATION_ROLL_180>;
+        };
+
+        mag0 {
+          sensor = <&ist8310>;
+          type = "mag";
+          external;
+        };
+      };
+    };
+
+compatible: "px4,sensors"
+
+child-binding:
+  description: A sensor published to uORB.
+  properties:
+    sensor:
+      type: phandle
+      required: true
+      description: Sensor device, which implements the Zephyr sensor API.
+    type:
+      type: string
+      required: true
+      enum:
+        - "imu"
+        - "accel"
+        - "gyro"
+        - "mag"
+        - "baro"
+      description: |
+        Measurements published: imu publishes sensor_accel and sensor_gyro,
+        accel sensor_accel, gyro sensor_gyro, mag sensor_mag and baro
+        sensor_baro.
+    rotation:
+      type: int
+      default: 0
+      description: |
+        Rotation from the sensor frame to the board frame, one of the
+        PX4_ROTATION_* values in dt-bindings/px4/rotation.h.
+    external:
+      type: boolean
+      description: The sensor is not on the flight controller board.
