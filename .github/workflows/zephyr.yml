@@ -43,7 +43,7 @@ jobs:
           west packages pip --install
 
       - name: Run twister
-        run: west twister -T PX4-Autopilot/platforms/zephyr -p mps2/an386 --inline-logs
+        run: west twister -T PX4-Autopilot/platforms/zephyr -p mps2/an386 -p vmu_rt1170/mimxrt1176/cm7 --inline-logs
 
       - name: Upload twister results
         if: failure()
