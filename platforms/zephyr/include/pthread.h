@@ -33,7 +33,11 @@
 
 #pragma once
 
-// <zephyr/kernel.h> is included here, and its struct device conflicts with namespace device in C++
+#ifdef __cplusplus
+// <zephyr/kernel.h> is included here, and its struct device conflicts with namespace device
 #define device zephyr_device
 #include_next <pthread.h>
 #undef device
+#else
+#include_next <pthread.h>
+#endif
