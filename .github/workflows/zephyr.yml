@@ -1,0 +1,57 @@
+name: Zephyr
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths-ignore:
+      - 'docs/**'
+  pull_request:
+    branches:
+      - '**'
+    paths-ignore:
+      - 'docs/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  twister:
+    name: Twister
+    runs-on: [runs-on,runner=4cpu-linux-x64,image=ubuntu24-full-x64,"run-id=${{ github.run_id }}",spot=false]
+    container:
+      # the CI image of the Zephyr release in platforms/zephyr/west.yml
+      image: ghcr.io/zephyrproject-rtos/ci:v0.29.1
+    steps:
+      - uses: runs-on/action@v2
+      - uses: actions/checkout@v6
+        with:
+          path: PX4-Autopilot
+          fetch-depth: 1
+
+      - name: Configure Git Safe Directory
+        run: git config --system --add safe.directory '*'
+
+      - name: Set up the west workspace
+        run: |
+          west init -l --mf platforms/zephyr/west.yml PX4-Autopilot
+          west update --narrow --fetch-opt=--depth=1
+          west packages pip --install
+
+      - name: Run twister
+        run: west twister -T PX4-Autopilot/platforms/zephyr -p mps2/an386 --inline-logs
+
+      - name: Upload twister results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: twister-out
+          path: |
+            twister-out/twister.json
+            twister-out/**/build.log
+            twister-out/**/handler.log
+          retention-days: 7
