@@ -35,6 +35,16 @@ config PX4_SHELL
 	help
 	  Run PX4 commands from the Zephyr shell, e.g. "px4 uorb status".
 
+config PX4_SENSORS
+	bool "Sensors for PX4"
+	default y
+	depends on DT_HAS_PX4_SENSORS_ENABLED
+	select SENSOR
+	select SENSOR_ASYNC_API
+	help
+	  Enable the Zephyr sensor API for the sensors in the px4,sensors
+	  devicetree node, which the PX4 zephyr_sensors driver publishes.
+
 config PX4_STACK_OVERHEAD
 	int "Stack overhead"
 	default 1024
