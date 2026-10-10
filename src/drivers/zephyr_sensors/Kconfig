@@ -1,0 +1,6 @@
+menuconfig DRIVERS_ZEPHYR_SENSORS
+	bool "zephyr_sensors"
+	default n
+	depends on PLATFORM_ZEPHYR
+	---help---
+		Publish the Zephyr sensors listed in the px4,sensors devicetree node

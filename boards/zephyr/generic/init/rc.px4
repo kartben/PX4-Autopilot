@@ -1,1 +1,3 @@
 ver all
+zephyr_sensors start
+sensors start
