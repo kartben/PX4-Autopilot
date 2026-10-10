@@ -54,7 +54,9 @@
 #include <parameters/param.h>
 #include <version/version.h>
 
+#if defined(__PX4_NUTTX)
 #include <arch/chip/chip.h>
+#endif
 
 #include <uORB/topics/esc_status.h>
 
