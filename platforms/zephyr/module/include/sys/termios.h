@@ -34,8 +34,8 @@
 /**
  * @file termios.h
  *
- * Terminal interface. Zephyr has no terminal devices: tcgetattr(),
- * tcsetattr(), tcflush() and tcdrain() fail with ENOTTY.
+ * Terminal interface, for the serial ports of the px4,serial-ports
+ * devicetree node. The other file descriptors are not terminals.
  */
 
 #pragma once
@@ -135,6 +135,13 @@ struct termios {
 #define B57600   57600
 #define B115200  115200
 #define B230400  230400
+#define B460800  460800
+#define B500000  500000
+#define B921600  921600
+#define B1000000 1000000
+#define B1500000 1500000
+#define B2000000 2000000
+#define B3000000 3000000
 
 speed_t cfgetispeed(const struct termios *termios_p);
 speed_t cfgetospeed(const struct termios *termios_p);
