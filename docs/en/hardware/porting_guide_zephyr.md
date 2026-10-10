@@ -4,7 +4,7 @@
 
 ::: warning
 The Zephyr port is experimental.
-It provides the PX4 platform layer and sensors, but PX4 does not yet fly on Zephyr (see [Limitations](#limitations)).
+PX4 only flies in simulation on Zephyr, as there are no actuator outputs or RC input yet (see [Limitations](#limitations)).
 :::
 
 PX4 can run on the [Zephyr RTOS](https://zephyrproject.org/), using the Zephyr drivers for the board and its sensors.
@@ -24,6 +24,7 @@ A Zephyr application that sets `CONFIG_PX4=y` gets PX4 built into it:
   PX4 tasks and work queues are preemptible Zephyr threads, and the high-resolution timer counts the cycles of the system timer, with its callouts on the kernel tick (100 kHz by default).
   PX4 is built with `-O2`, as on NuttX, instead of the `-Os` of Zephyr.
 - The application calls `px4_zephyr_start()`, which initialises PX4 and runs the commands of the board's `init/rc.px4` startup script, one per line.
+  A board configuration with a [label](porting_guide_config.md#px4-kconfig-label-inheritance) runs `init/rc.<label>.px4` instead, if it exists.
 - The `px4` command of the Zephyr shell runs PX4 commands, for example `px4 uorb status`.
 
 The PX4 options of the Zephyr configuration are:
@@ -31,7 +32,7 @@ The PX4 options of the Zephyr configuration are:
 | Option                      | Description                                                                                         |
 | --------------------------- | --------------------------------------------------------------------------------------------------- |
 | `CONFIG_PX4`                | Build PX4 into the application.                                                                     |
-| `CONFIG_PX4_BOARD_CONFIG`   | PX4 board configuration to build instead of the default one, for example `zephyr_generic`.          |
+| `CONFIG_PX4_BOARD_CONFIG`   | PX4 board configuration to build instead of the default one, for example `zephyr_generic_sih`.      |
 | `CONFIG_PX4_SHELL`          | Add the `px4` shell command (enabled with the shell).                                               |
 | `CONFIG_PX4_SENSORS`        | Enable the Zephyr sensor API for the sensors in the devicetree (enabled by the `px4,sensors` node). |
 | `CONFIG_PX4_STACK_OVERHEAD` | Bytes added to the stack of each PX4 task and work queue.                                           |
@@ -84,6 +85,31 @@ Work Queue: 3  threads                          RATE        INTERVAL
 
 Exit QEMU with **Ctrl+A**, **X**.
 
+## Flying in Simulation (SIH)
+
+PX4 flies a quadcopter in QEMU with the [SIH](../sim_sih/index.md) simulator, which runs in PX4 itself, as on a flight controller (airframe 1100):
+
+```sh
+west build -b mps2/an386 PX4-Autopilot/platforms/zephyr/app -t run -- -DFILE_SUFFIX=sih
+```
+
+or `make zephyr_sih`.
+
+The `sih` [file suffix](https://docs.zephyrproject.org/latest/develop/application/index.html#application-file-suffixes) selects `prj_sih.conf`, which builds the `zephyr_generic_sih` PX4 board configuration ([sih.px4board](https://github.com/PX4/PX4-Autopilot/blob/main/boards/zephyr/generic/sih.px4board) and [rc.sih.px4](https://github.com/PX4/PX4-Autopilot/blob/main/boards/zephyr/generic/init/rc.sih.px4)), and `boards/mps2_an386_sih.conf`.
+The emulated CPU runs at 250 MHz, the speed of a flight controller.
+
+Fly from the Zephyr shell:
+
+```sh
+uart:~$ px4 commander takeoff
+uart:~$ px4 listener vehicle_local_position
+uart:~$ px4 commander land
+```
+
+or with _QGroundControl_ on the host, which connects automatically: MAVLink is sent over UDP to port 14550 of the host, with [QEMU user networking](https://docs.zephyrproject.org/latest/connectivity/networking/qemu_user_setup.html).
+
+## Building for Other Boards
+
 To build the application for another Zephyr board:
 
 ```sh
@@ -102,7 +128,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 
 - [tests/platform](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/platform) tests the platform layer: time, callouts from interrupts, tasks, work queues, uORB and parameters.
 - [tests/sensors](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/sensors) tests the sensor driver with Zephyr's sensor emulators, on emulated SPI and I2C buses.
-- The application test checks that PX4 starts.
+- The application tests check that PX4 starts, and fly the SIH quadcopter: take off, hover and land.
 
 ## Adding a Board
 
@@ -163,7 +189,8 @@ The generic board configuration starts `zephyr_sensors` and the [sensors](../mod
 
 ## Limitations
 
-- PX4 does not fly on Zephyr yet: there are no actuator outputs, RC input, MAVLink or logging.
+- PX4 only flies in simulation: there are no actuator outputs, RC input or logging.
+- MAVLink is only sent over UDP, not over serial ports.
 - Parameters are kept in RAM only.
 - Sensors are polled: the IMU FIFOs are not used.
 - Dynamic modules (`DYNAMIC` in `px4_add_module()`) are not supported.
@@ -174,7 +201,7 @@ The generic board configuration starts `zephyr_sensors` and the [sensors](../mod
 
 - Read the IMU FIFOs with the Zephyr sensor streaming API.
 - Actuator outputs with the Zephyr PWM API.
-- MAVLink over UART and UDP with Zephyr networking.
+- MAVLink over serial ports.
 - Parameter and log storage on the Zephyr file systems or ZMS.
 - Dynamic modules as Zephyr loadable extensions (below).
 
