@@ -1,4 +1,4 @@
-/* Sensor orientation and serial ports as in boards/px4/fmu-v6xrt/init/rc.board_sensors */
+/* Sensor orientation and serial ports as in boards/px4/fmu-v6xrt/init/rc.board_sensors, and the SD card */
 
 #include <dt-bindings/px4/rotation.h>
 
@@ -90,6 +90,17 @@
 		usb {
 			uart = <&cdc_acm_uart0>;
 			path = "/dev/ttyACM0";
+		};
+	};
+
+	fstab {
+		compatible = "zephyr,fstab";
+
+		sd {
+			compatible = "zephyr,fstab,fatfs";
+			mount-point = "/SD:";
+			automount;
+			disk-access;
 		};
 	};
 };
