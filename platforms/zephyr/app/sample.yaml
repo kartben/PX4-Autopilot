@@ -35,3 +35,11 @@ tests:
       - vmu_rt1170/mimxrt1176/cm7
     integration_platforms:
       - vmu_rt1170/mimxrt1176/cm7
+  px4.app.sih.vmu_rt1170:
+    build_only: true
+    platform_allow:
+      - vmu_rt1170/mimxrt1176/cm7
+    integration_platforms:
+      - vmu_rt1170/mimxrt1176/cm7
+    extra_args:
+      - FILE_SUFFIX=sih
