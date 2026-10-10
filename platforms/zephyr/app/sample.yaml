@@ -29,6 +29,7 @@ tests:
     harness_config:
       pytest_root:
         - "pytest/test_sih.py"
+      pytest_dut_scope: session
   px4.app.sih.mavlink_serial:
     platform_allow:
       - mps2/an386
