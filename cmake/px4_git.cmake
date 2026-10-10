@@ -53,7 +53,8 @@ endif()
 #	px4_add_git_submodule
 #
 #	This function adds a target for a git submodule, which
-#	Tools/check_submodules.sh has already checked out.
+#	Tools/check_submodules.sh has already checked out. A build that only
+#	checks the submodules of PX4_GIT_SUBMODULES checks this one here.
 #
 #	Usage:
 #		px4_add_git_submodule(TARGET <target> PATH <path>)
@@ -73,6 +74,22 @@ function(px4_add_git_submodule)
 		ONE_VALUE TARGET PATH
 		REQUIRED TARGET PATH
 		ARGN ${ARGN})
+
+	if(DEFINED PX4_GIT_SUBMODULES)
+		get_filename_component(submodule ${PATH} ABSOLUTE)
+		file(RELATIVE_PATH submodule ${PX4_SOURCE_DIR} ${submodule})
+
+		if(NOT submodule IN_LIST PX4_GIT_SUBMODULES)
+			execute_process(
+				COMMAND Tools/check_submodules.sh ${submodule}
+				WORKING_DIRECTORY ${PX4_SOURCE_DIR}
+				RESULT_VARIABLE check_submodules_result
+				)
+			if(NOT check_submodules_result EQUAL 0)
+				message(FATAL_ERROR "Tools/check_submodules.sh ${submodule} failed")
+			endif()
+		endif()
+	endif()
 
 	add_custom_target(${TARGET})
 endfunction()
