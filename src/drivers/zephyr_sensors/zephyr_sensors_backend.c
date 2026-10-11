@@ -71,6 +71,8 @@ DT_FOREACH_CHILD_STATUS_OKAY(SENSORS_NODE, SENSOR_IODEV_DEFINE)
 	 : HAS_COMPAT(node, asahi_kasei_akm09918c) ? DRV_MAG_DEVTYPE_AK09918                      \
 	 : HAS_COMPAT(node, bosch_bmm150)         ? DRV_MAG_DEVTYPE_BMM150                        \
 	 : HAS_COMPAT(node, isentek_ist8310)      ? DRV_MAG_DEVTYPE_IST8310                       \
+	 : HAS_COMPAT(node, pni_rm3100)           ? DRV_MAG_DEVTYPE_RM3100                        \
+	 : HAS_COMPAT(node, st_lis3mdl_magn)      ? DRV_MAG_DEVTYPE_LIS3MDL                       \
 	 : HAS_COMPAT(node, bosch_bmp388)         ? DRV_BARO_DEVTYPE_BMP388                       \
 	 : HAS_COMPAT(node, bosch_bmp390)         ? DRV_BARO_DEVTYPE_BMP390                       \
 	 : HAS_COMPAT(node, bosch_bmp581)         ? DRV_BARO_DEVTYPE_BMP581                       \
