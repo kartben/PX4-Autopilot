@@ -79,7 +79,6 @@ public:
 private:
 	static constexpr size_t MAX_SENSORS{16};
 
-	static constexpr hrt_abstime IMU_INTERVAL{1_ms};
 	static constexpr hrt_abstime MAG_INTERVAL{10_ms};
 	static constexpr hrt_abstime BARO_INTERVAL{20_ms};
 	static constexpr hrt_abstime BATTERY_INTERVAL{100_ms};

@@ -88,6 +88,16 @@ static uint32_t device_id(const zephyr_sensor_info &info)
 	return id.devid;
 }
 
+// IMUs are read at the rate of the rate controller, as the IMU drivers of PX4 read their FIFO
+static hrt_abstime imu_interval()
+{
+	int32_t rate_hz = 0;
+	param_get(param_find("IMU_GYRO_RATEMAX"), &rate_hz);
+
+	// the limits of PX4Gyroscope::get_max_rate_hz()
+	return 1_s / math::constrain(rate_hz, static_cast<int32_t>(100), static_cast<int32_t>(4000));
+}
+
 bool ZephyrSensors::add_sensor(size_t index)
 {
 	Sensor &sensor = _sensors[_sensor_count];
@@ -114,17 +124,17 @@ bool ZephyrSensors::add_sensor(size_t index)
 	case ZEPHYR_SENSOR_TYPE_IMU:
 		sensor.accel = new PX4Accelerometer(id, rotation, external);
 		sensor.gyro = new PX4Gyroscope(id, rotation, external);
-		sensor.interval = IMU_INTERVAL;
+		sensor.interval = imu_interval();
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_ACCEL:
 		sensor.accel = new PX4Accelerometer(id, rotation, external);
-		sensor.interval = IMU_INTERVAL;
+		sensor.interval = imu_interval();
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_GYRO:
 		sensor.gyro = new PX4Gyroscope(id, rotation, external);
-		sensor.interval = IMU_INTERVAL;
+		sensor.interval = imu_interval();
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_MAG:
@@ -411,10 +421,11 @@ int ZephyrSensors::print_usage(const char *reason)
 ### Description
 Publishes the Zephyr sensors listed in the px4,sensors devicetree node to uORB.
 
-Each sensor is read through the Zephyr sensor API, at 1 kHz for IMUs, 100 Hz for
-magnetometers, 50 Hz for barometers and 10 Hz for power monitors, which publish
-the status of a battery. Smart batteries are read at 10 Hz through the Zephyr fuel
-gauge API, and publish the state of charge measured by their fuel gauge.
+Each sensor is read through the Zephyr sensor API, IMUs at the rate of the rate
+controller (IMU_GYRO_RATEMAX), magnetometers at 100 Hz, barometers at 50 Hz and
+power monitors, which publish the status of a battery, at 10 Hz. Smart batteries
+are read at 10 Hz through the Zephyr fuel gauge API, and publish the state of
+charge measured by their fuel gauge.
 
 The sensors whose device has the zephyr,deferred-init devicetree property are
 optional, like the compass of a GPS module: they are initialized when the driver
