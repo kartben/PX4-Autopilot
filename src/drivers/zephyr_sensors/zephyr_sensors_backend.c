@@ -54,6 +54,7 @@
 #define GYRO_CHANNELS {SENSOR_CHAN_GYRO_XYZ, 0}
 #define MAG_CHANNELS {SENSOR_CHAN_MAGN_XYZ, 0}
 #define BARO_CHANNELS {SENSOR_CHAN_PRESS, 0}, {SENSOR_CHAN_AMBIENT_TEMP, 0}
+#define POWER_CHANNELS {SENSOR_CHAN_VOLTAGE, 0}, {SENSOR_CHAN_CURRENT, 0}
 
 #define SENSOR_IODEV_DEFINE(node)                                                                  \
 	SENSOR_DT_READ_IODEV(SENSOR_IODEV(node), SENSOR_DEVICE_NODE(node),                         \
@@ -99,6 +100,7 @@ struct sensor_entry {
 	uint8_t rotation;
 	bool external;
 	bool deferred;
+	uint8_t battery;
 };
 
 #define SENSOR_ENTRY(node)                                                                         \
@@ -114,6 +116,7 @@ struct sensor_entry {
 														   .rotation = DT_PROP(node, rotation),                                               \
 																   .external = DT_PROP(node, external),                                               \
 																		   .deferred = DT_PROP_OR(SENSOR_DEVICE_NODE(node), zephyr_deferred_init, false),     \
+																				   .battery = DT_PROP(node, battery),                                                \
 	},
 
 static const struct sensor_entry sensors[] = {
@@ -176,6 +179,7 @@ int zephyr_sensors_get_info(size_t index, struct zephyr_sensor_info *info)
 	info->address = sensor->address;
 	info->devtype = sensor->devtype;
 	info->rotation = sensor->rotation;
+	info->battery = sensor->battery;
 	info->external = sensor->external;
 	info->optional = sensor->deferred;
 
@@ -288,6 +292,15 @@ int zephyr_sensors_read(size_t index, struct zephyr_sensor_sample *sample)
 		if (ret == 0) {
 			decode_q31(decoder, SENSOR_CHAN_AMBIENT_TEMP, &sample->temperature,
 				   &temperature_timestamp_ns);
+		}
+
+		break;
+
+	case ZEPHYR_SENSOR_TYPE_POWER:
+		ret = decode_q31(decoder, SENSOR_CHAN_VOLTAGE, &sample->voltage, &timestamp_ns);
+
+		if (ret == 0) {
+			ret = decode_q31(decoder, SENSOR_CHAN_CURRENT, &sample->current, &timestamp_ns);
 		}
 
 		break;
