@@ -36,6 +36,7 @@
 #include <drivers/drv_hrt.h>
 #include <drivers/drv_sensor.h>
 #include <lib/drivers/device/Device.hpp>
+#include <mathlib/mathlib.h>
 #include <parameters/param.h>
 #include <px4_zephyr.h>
 #include <uORB/Subscription.hpp>
@@ -180,6 +181,33 @@ ZTEST(px4_sensors, test_imu)
 	zassert_within(gyro.y, GYRO[0], GYRO_TOLERANCE, "y %f", (double)gyro.y);
 	zassert_within(gyro.z, GYRO[2], GYRO_TOLERANCE, "z %f", (double)gyro.z);
 	zassert_equal(gyro.device_id, accel.device_id);
+}
+
+ZTEST(px4_sensors, test_imu_interval)
+{
+	// the IMU is read on time while the barometer, on another bus, converts
+	uORB::Subscription subscription{ORB_ID(sensor_accel)};
+	sensor_accel_s accel{};
+	hrt_abstime last_sample = 0;
+	hrt_abstime max_interval = 0;
+	int samples = 0;
+
+	// the queue of sensor_accel holds the samples of more than 4 ms
+	for (int i = 0; i < SAMPLE_TIMEOUT_MS / 4; i++) {
+		while (subscription.update(&accel)) {
+			if (last_sample != 0) {
+				max_interval = math::max(max_interval, accel.timestamp_sample - last_sample);
+			}
+
+			last_sample = accel.timestamp_sample;
+			samples++;
+		}
+
+		k_sleep(K_MSEC(4));
+	}
+
+	zassert_true(samples > 10, "%d samples", samples);
+	zassert_true(max_interval < BARO_CONVERSION_TIME_MS * 1000, "%" PRIu64 " us between samples", max_interval);
 }
 
 static void check_mag(hrt_abstime after = 0)
