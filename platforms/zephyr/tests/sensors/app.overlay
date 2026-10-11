@@ -40,6 +40,10 @@
 		compatible = "vnd,baro";
 	};
 
+	power_monitor: power-monitor {
+		compatible = "vnd,power-monitor";
+	};
+
 	px4-sensors {
 		compatible = "px4,sensors";
 
@@ -64,6 +68,12 @@
 		baro0 {
 			sensor = <&baro>;
 			type = "baro";
+		};
+
+		power0 {
+			sensor = <&power_monitor>;
+			type = "power";
+			battery = <2>;
 		};
 	};
 };
