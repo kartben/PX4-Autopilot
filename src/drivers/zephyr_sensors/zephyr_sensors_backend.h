@@ -55,6 +55,7 @@ enum zephyr_sensor_type {
 	ZEPHYR_SENSOR_TYPE_MAG,
 	ZEPHYR_SENSOR_TYPE_BARO,
 	ZEPHYR_SENSOR_TYPE_POWER,
+	ZEPHYR_SENSOR_TYPE_FUEL_GAUGE,
 };
 
 enum zephyr_sensor_bus_type {
@@ -83,8 +84,17 @@ struct zephyr_sensor_sample {
 	float mag[3];		/* Gauss */
 	float pressure;		/* Pa */
 	float voltage;		/* V */
-	float current;		/* A */
+	float current;		/* A, positive while discharging, NAN if not measured */
 	float temperature;	/* degrees Celsius, NAN if not measured */
+
+	/* measured by fuel gauges, NAN or 0 if not measured */
+	float average_current;		/* A, positive while discharging */
+	float remaining;		/* state of charge, from 0 to 1 */
+	float remaining_capacity;	/* mAh */
+	float full_capacity;		/* mAh */
+	float time_remaining;		/* s */
+	uint16_t cycle_count;
+	uint8_t state_of_health;	/* % */
 };
 
 size_t zephyr_sensors_count(void);
