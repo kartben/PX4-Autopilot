@@ -46,10 +46,13 @@ child-binding:
         - "mag"
         - "baro"
         - "power"
+        - "fuel-gauge"
       description: |
         Measurements published: imu publishes sensor_accel and sensor_gyro,
         accel sensor_accel, gyro sensor_gyro, mag sensor_mag, baro
-        sensor_baro, and power the battery_status of a power monitor.
+        sensor_baro, power the battery_status of a power monitor, and
+        fuel-gauge the battery_status of a smart battery, whose device
+        implements the Zephyr fuel gauge API instead of the sensor API.
     rotation:
       type: int
       default: 0
@@ -63,5 +66,5 @@ child-binding:
       type: int
       default: 1
       description: |
-        Battery measured by a power monitor, from 1, which selects its BATn_*
-        parameters.
+        Battery measured by a power monitor or a fuel gauge, from 1, which
+        selects the BATn_* parameters of a power monitor.

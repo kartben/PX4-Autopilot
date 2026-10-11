@@ -56,6 +56,7 @@ ZephyrSensors::~ZephyrSensors()
 		delete _sensors[i].mag;
 		delete _sensors[i].baro;
 		delete _sensors[i].battery;
+		delete _sensors[i].fuel_gauge;
 	}
 
 	perf_free(_cycle_perf);
@@ -138,6 +139,11 @@ bool ZephyrSensors::add_sensor(size_t index)
 
 	case ZEPHYR_SENSOR_TYPE_POWER:
 		sensor.battery = new Battery(sensor.info.battery, this, BATTERY_INTERVAL, battery_status_s::SOURCE_POWER_MODULE);
+		sensor.interval = BATTERY_INTERVAL;
+		break;
+
+	case ZEPHYR_SENSOR_TYPE_FUEL_GAUGE:
+		sensor.fuel_gauge = new uORB::PublicationMulti<battery_status_s> {ORB_ID(battery_status)};
 		sensor.interval = BATTERY_INTERVAL;
 		break;
 	}
@@ -224,6 +230,10 @@ void ZephyrSensors::Run()
 				sensor.battery->updateCurrent(-1.f);
 				sensor.battery->updateAndPublishBatteryStatus(hrt_absolute_time());
 			}
+
+			if (sensor.fuel_gauge && (hrt_elapsed_time(&sensor.last_sample) > BATTERY_TIMEOUT)) {
+				publish_fuel_gauge(sensor, nullptr, hrt_absolute_time());
+			}
 		}
 	}
 
@@ -275,6 +285,72 @@ void ZephyrSensors::publish(Sensor &sensor, const zephyr_sensor_sample &sample)
 		sensor.battery->updateCurrent(sample.current);
 		sensor.battery->updateAndPublishBatteryStatus(sample.timestamp_us);
 	}
+
+	if (sensor.fuel_gauge) {
+		publish_fuel_gauge(sensor, &sample, sample.timestamp_us);
+	}
+}
+
+// the battery status measured by a fuel gauge, or a disconnected battery without a sample
+void ZephyrSensors::publish_fuel_gauge(Sensor &sensor, const zephyr_sensor_sample *sample, hrt_abstime timestamp)
+{
+	battery_status_s status{};
+	status.timestamp = timestamp;
+	status.id = sensor.info.battery;
+	status.current_a = -1.f;
+	status.current_average_a = -1.f;
+	status.discharged_mah = -1.f;
+	status.remaining = -1.f;
+	status.time_remaining_s = NAN;
+	status.temperature = NAN;
+
+	if (sample) {
+		status.connected = true;
+		status.voltage_v = sample->voltage;
+		status.temperature = sample->temperature;
+		status.time_remaining_s = sample->time_remaining;
+		status.cycle_count = sample->cycle_count;
+		status.state_of_health = sample->state_of_health;
+
+		if (PX4_ISFINITE(sample->current)) {
+			status.current_a = sample->current;
+		}
+
+		if (PX4_ISFINITE(sample->average_current)) {
+			status.current_average_a = sample->average_current;
+		}
+
+		if (PX4_ISFINITE(sample->full_capacity)) {
+			status.capacity = static_cast<uint16_t>(math::constrain(sample->full_capacity, 0.f, (float)UINT16_MAX));
+		}
+
+		if (PX4_ISFINITE(sample->remaining_capacity)) {
+			if (!PX4_ISFINITE(sensor.initial_remaining_capacity)) {
+				sensor.initial_remaining_capacity = sample->remaining_capacity;
+			}
+
+			status.discharged_mah = sensor.initial_remaining_capacity - sample->remaining_capacity;
+		}
+
+		if (PX4_ISFINITE(sample->remaining)) {
+			status.remaining = math::constrain(sample->remaining, 0.f, 1.f);
+
+			if (status.remaining > _param_bat_low_thr.get()) {
+				status.warning = battery_status_s::WARNING_NONE;
+
+			} else if (status.remaining > _param_bat_crit_thr.get()) {
+				status.warning = battery_status_s::WARNING_LOW;
+
+			} else if (status.remaining > _param_bat_emergen_thr.get()) {
+				status.warning = battery_status_s::WARNING_CRITICAL;
+
+			} else {
+				status.warning = battery_status_s::WARNING_EMERGENCY;
+			}
+		}
+	}
+
+	sensor.fuel_gauge->publish(status);
 }
 
 int ZephyrSensors::print_status()
@@ -337,7 +413,8 @@ Publishes the Zephyr sensors listed in the px4,sensors devicetree node to uORB.
 
 Each sensor is read through the Zephyr sensor API, at 1 kHz for IMUs, 100 Hz for
 magnetometers, 50 Hz for barometers and 10 Hz for power monitors, which publish
-the status of a battery.
+the status of a battery. Smart batteries are read at 10 Hz through the Zephyr fuel
+gauge API, and publish the state of charge measured by their fuel gauge.
 
 The sensors whose device has the zephyr,deferred-init devicetree property are
 optional, like the compass of a GPS module: they are initialized when the driver
