@@ -42,17 +42,21 @@
 #include "zephyr_sensors_backend.h"
 
 #include <drivers/drv_hrt.h>
+#include <lib/battery/battery.h>
 #include <lib/drivers/accelerometer/PX4Accelerometer.hpp>
 #include <lib/drivers/barometer/PX4Barometer.hpp>
 #include <lib/drivers/gyroscope/PX4Gyroscope.hpp>
 #include <lib/drivers/magnetometer/PX4Magnetometer.hpp>
 #include <lib/perf/perf_counter.h>
 #include <px4_platform_common/module.h>
+#include <px4_platform_common/module_params.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
+#include <uORB/SubscriptionInterval.hpp>
+#include <uORB/topics/parameter_update.h>
 
 using namespace time_literals;
 
-class ZephyrSensors : public ModuleBase, public px4::ScheduledWorkItem
+class ZephyrSensors : public ModuleBase, public ModuleParams, public px4::ScheduledWorkItem
 {
 public:
 	static Descriptor desc;
@@ -76,18 +80,24 @@ private:
 	static constexpr hrt_abstime IMU_INTERVAL{1_ms};
 	static constexpr hrt_abstime MAG_INTERVAL{10_ms};
 	static constexpr hrt_abstime BARO_INTERVAL{20_ms};
+	static constexpr hrt_abstime BATTERY_INTERVAL{100_ms};
+
+	// a battery is disconnected when its power monitor can't be read for this long
+	static constexpr hrt_abstime BATTERY_TIMEOUT{2_s};
 
 	struct Sensor {
 		size_t index{0};
 		zephyr_sensor_info info{};
 		hrt_abstime interval{0};
 		hrt_abstime next_read{0};
+		hrt_abstime last_sample{0};
 		uint32_t error_count{0};
 
 		PX4Accelerometer *accel{nullptr};
 		PX4Gyroscope *gyro{nullptr};
 		PX4Magnetometer *mag{nullptr};
 		PX4Barometer *baro{nullptr};
+		Battery *battery{nullptr};
 	};
 
 	void Run() override;
@@ -98,6 +108,8 @@ private:
 	Sensor _sensors[MAX_SENSORS] {};
 	size_t _sensor_count{0};
 	hrt_abstime _interval{0};
+
+	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
 	perf_counter_t _cycle_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
 	perf_counter_t _read_error_perf{perf_alloc(PC_COUNT, MODULE_NAME": read error")};
