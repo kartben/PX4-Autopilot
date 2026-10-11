@@ -96,6 +96,7 @@ struct sensor_entry {
 	uint8_t devtype;
 	uint8_t rotation;
 	bool external;
+	bool deferred;
 };
 
 #define SENSOR_ENTRY(node)                                                                         \
@@ -110,6 +111,7 @@ struct sensor_entry {
 												   .devtype = SENSOR_DEVTYPE(node),                                                   \
 														   .rotation = DT_PROP(node, rotation),                                               \
 																   .external = DT_PROP(node, external),                                               \
+																		   .deferred = DT_PROP_OR(SENSOR_DEVICE_NODE(node), zephyr_deferred_init, false),     \
 	},
 
 static const struct sensor_entry sensors[] = {
@@ -173,6 +175,12 @@ int zephyr_sensors_get_info(size_t index, struct zephyr_sensor_info *info)
 	info->devtype = sensor->devtype;
 	info->rotation = sensor->rotation;
 	info->external = sensor->external;
+	info->optional = sensor->deferred;
+
+	if (sensor->deferred && !device_is_ready(sensor->dev)) {
+		/* a device that doesn't respond stays not ready */
+		(void)device_init(sensor->dev);
+	}
 
 	return device_is_ready(sensor->dev) ? 0 : -ENODEV;
 }
