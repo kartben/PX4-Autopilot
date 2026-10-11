@@ -270,6 +270,18 @@ ZTEST(px4_can, test_stopped)
 	zassert_equal(status.tx_errors, tx_errors + 1);
 }
 
+ZTEST(px4_can, test_close)
+{
+	const struct px4_can_frame f = frame(0x700, 1);
+
+	zassert_ok(px4_can_close(0));
+	zassert_ok(px4_can_close(0));
+	atomic_clear(&events);
+
+	zassert_equal(px4_can_send(0, &f, false), -ENETDOWN);
+	zassert_equal(atomic_get(&events), 0);
+}
+
 ZTEST(px4_can, test_normal_mode)
 {
 	const struct px4_can_frame f = frame(0x600, 1);
