@@ -87,6 +87,18 @@
 			type = "power";
 			battery = <2>;
 		};
+
+		power1-smart-battery {
+			sensor = <&power1_sbs>;
+			type = "fuel-gauge";
+			battery = <1>;
+		};
+
+		power2-smart-battery {
+			sensor = <&power2_sbs>;
+			type = "fuel-gauge";
+			battery = <2>;
+		};
 	};
 
 	/* lpuart6 is the RC input, read by the futaba,sbus input driver */
@@ -157,7 +169,10 @@
 	};
 };
 
-/* compasses of GPS modules on GPS1 and the power module on POWER1, used if they respond */
+/*
+ * compasses of GPS modules on GPS1, and the power module or smart battery on POWER1, used if
+ * they respond
+ */
 &lpi2c1 {
 	rm3100: rm3100@20 {
 		compatible = "pni,rm3100";
@@ -189,11 +204,17 @@
 		rshunt-micro-ohms = <500>;
 		current-lsb-microamps = <625>;
 	};
+
+	power1_sbs: sbs-gauge@b {
+		compatible = "sbs,sbs-gauge-new-api";
+		reg = <0xb>;
+		zephyr,deferred-init;
+	};
 };
 
 /*
  * digital power modules on POWER1 and POWER2, with the shunts and current ranges of the
- * INA226_* and INA228_* parameters
+ * INA226_* and INA228_* parameters, and the smart battery on POWER2
  */
 &lpi2c2 {
 	power2_ina226: ina226@41 {
@@ -213,6 +234,12 @@
 		zephyr,deferred-init;
 		rshunt-micro-ohms = <500>;
 		current-lsb-microamps = <625>;
+	};
+
+	power2_sbs: sbs-gauge@b {
+		compatible = "sbs,sbs-gauge-new-api";
+		reg = <0xb>;
+		zephyr,deferred-init;
 	};
 };
 
