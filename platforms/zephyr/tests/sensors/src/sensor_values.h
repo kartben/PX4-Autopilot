@@ -48,6 +48,9 @@ void sensor_values_set_power(float voltage, float current);
 /* the power monitor fails to read while it is lost */
 void sensor_values_set_power_lost(bool lost);
 
+/* the current of the fuel gauge is negative while discharging */
+int sensor_values_set_fuel_gauge(float voltage, float current);
+
 #ifdef __cplusplus
 }
 #endif
