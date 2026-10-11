@@ -23,6 +23,10 @@ description: |
       };
     };
 
+  A sensor that may not be connected, like the compass of a GPS module, has
+  the zephyr,deferred-init property on its device: the zephyr_sensors driver
+  initializes it when it starts, and leaves it out if it doesn't respond.
+
 compatible: "px4,sensors"
 
 child-binding:

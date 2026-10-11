@@ -71,7 +71,7 @@ public:
 	int print_status() override;
 
 private:
-	static constexpr size_t MAX_SENSORS{8};
+	static constexpr size_t MAX_SENSORS{16};
 
 	static constexpr hrt_abstime IMU_INTERVAL{1_ms};
 	static constexpr hrt_abstime MAG_INTERVAL{10_ms};
