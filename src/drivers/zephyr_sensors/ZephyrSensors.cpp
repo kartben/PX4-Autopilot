@@ -42,27 +42,6 @@ static_assert(PX4_ROTATION_ROLL_90_PITCH_315 == ROTATION_MAX - 1, "dt-bindings/p
 
 ModuleBase::Descriptor ZephyrSensors::desc{task_spawn, custom_command, print_usage};
 
-ZephyrSensors::ZephyrSensors() :
-	ModuleParams(nullptr),
-	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default)
-{
-}
-
-ZephyrSensors::~ZephyrSensors()
-{
-	for (size_t i = 0; i < _sensor_count; i++) {
-		delete _sensors[i].accel;
-		delete _sensors[i].gyro;
-		delete _sensors[i].mag;
-		delete _sensors[i].baro;
-		delete _sensors[i].battery;
-		delete _sensors[i].fuel_gauge;
-	}
-
-	perf_free(_cycle_perf);
-	perf_free(_read_error_perf);
-}
-
 static uint32_t device_id(const zephyr_sensor_info &info)
 {
 	device::Device::DeviceId id{};
@@ -98,107 +77,115 @@ static hrt_abstime imu_interval()
 	return 1_s / math::constrain(rate_hz, static_cast<int32_t>(100), static_cast<int32_t>(4000));
 }
 
-bool ZephyrSensors::add_sensor(size_t index)
+SensorBus::SensorBus(ZephyrSensors &module, const zephyr_sensor_info &info) :
+	ModuleParams(nullptr),
+	ScheduledWorkItem(MODULE_NAME, px4::device_bus_to_wq(device_id(info))),
+	_module(module),
+	_bus_type(info.bus_type),
+	_bus(info.bus),
+	_queue_name(px4::device_bus_to_wq(device_id(info)).name)
 {
-	Sensor &sensor = _sensors[_sensor_count];
-	const int ret = zephyr_sensors_get_info(index, &sensor.info);
+}
 
-	if (ret != 0) {
-		if (!sensor.info.optional) {
-			PX4_ERR("%s not ready (%d)", sensor.info.name, ret);
-		}
+SensorBus::~SensorBus()
+{
+	for (size_t i = 0; i < _sensor_count; i++) {
+		delete _sensors[i]->accel;
+		delete _sensors[i]->gyro;
+		delete _sensors[i]->mag;
+		delete _sensors[i]->baro;
+		delete _sensors[i]->battery;
+		delete _sensors[i]->fuel_gauge;
+		delete _sensors[i];
+	}
 
+	perf_free(_cycle_perf);
+	perf_free(_read_error_perf);
+}
+
+bool SensorBus::has(const zephyr_sensor_info &info) const
+{
+	return (info.bus_type == _bus_type) && (info.bus == _bus);
+}
+
+bool SensorBus::add_sensor(size_t index, const zephyr_sensor_info &info)
+{
+	Sensor *sensor = new Sensor{};
+
+	if ((sensor == nullptr) || (_sensor_count >= MAX_SENSORS)) {
+		delete sensor;
 		return false;
 	}
 
-	if (sensor.info.rotation >= ROTATION_MAX) {
-		PX4_ERR("%s: invalid rotation %u", sensor.info.name, sensor.info.rotation);
-		return false;
-	}
+	sensor->index = index;
+	sensor->info = info;
 
-	const uint32_t id = device_id(sensor.info);
-	const Rotation rotation = static_cast<Rotation>(sensor.info.rotation);
-	const bool external = sensor.info.external;
+	const uint32_t id = device_id(info);
+	const Rotation rotation = static_cast<Rotation>(info.rotation);
+	const bool external = info.external;
 
-	switch (sensor.info.type) {
+	switch (info.type) {
 	case ZEPHYR_SENSOR_TYPE_IMU:
-		sensor.accel = new PX4Accelerometer(id, rotation, external);
-		sensor.gyro = new PX4Gyroscope(id, rotation, external);
-		sensor.interval = imu_interval();
+		sensor->accel = new PX4Accelerometer(id, rotation, external);
+		sensor->gyro = new PX4Gyroscope(id, rotation, external);
+		sensor->interval = imu_interval();
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_ACCEL:
-		sensor.accel = new PX4Accelerometer(id, rotation, external);
-		sensor.interval = imu_interval();
+		sensor->accel = new PX4Accelerometer(id, rotation, external);
+		sensor->interval = imu_interval();
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_GYRO:
-		sensor.gyro = new PX4Gyroscope(id, rotation, external);
-		sensor.interval = imu_interval();
+		sensor->gyro = new PX4Gyroscope(id, rotation, external);
+		sensor->interval = imu_interval();
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_MAG:
-		sensor.mag = new PX4Magnetometer(id, rotation, external);
-		sensor.interval = MAG_INTERVAL;
+		sensor->mag = new PX4Magnetometer(id, rotation, external);
+		sensor->interval = MAG_INTERVAL;
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_BARO:
-		sensor.baro = new PX4Barometer(id, external);
-		sensor.interval = BARO_INTERVAL;
+		sensor->baro = new PX4Barometer(id, external);
+		sensor->interval = BARO_INTERVAL;
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_POWER:
-		sensor.battery = new Battery(sensor.info.battery, this, BATTERY_INTERVAL, battery_status_s::SOURCE_POWER_MODULE);
-		sensor.interval = BATTERY_INTERVAL;
+		sensor->battery = new Battery(info.battery, this, BATTERY_INTERVAL, battery_status_s::SOURCE_POWER_MODULE);
+		sensor->interval = BATTERY_INTERVAL;
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_FUEL_GAUGE:
-		sensor.fuel_gauge = new uORB::PublicationMulti<battery_status_s> {ORB_ID(battery_status)};
-		sensor.interval = BATTERY_INTERVAL;
+		sensor->fuel_gauge = new uORB::PublicationMulti<battery_status_s> {ORB_ID(battery_status)};
+		sensor->interval = BATTERY_INTERVAL;
 		break;
 	}
 
-	sensor.index = index;
-	_sensor_count++;
+	_sensors[_sensor_count++] = sensor;
 
 	return true;
 }
 
-int ZephyrSensors::init()
+void SensorBus::start()
 {
-	for (size_t index = 0; index < zephyr_sensors_count(); index++) {
-		if (_sensor_count >= MAX_SENSORS) {
-			PX4_WARN("only %zu sensors supported", MAX_SENSORS);
-			break;
-		}
-
-		add_sensor(index);
-	}
-
-	if (_sensor_count == 0) {
-		return PX4_ERROR;
-	}
-
-	// the sensors are read in turn, on the work queue of the first one's bus
-	ChangeWorkQueue(px4::device_bus_to_wq(device_id(_sensors[0].info)));
-
-	hrt_abstime interval = _sensors[0].interval;
+	hrt_abstime interval = _sensors[0]->interval;
 
 	for (size_t i = 1; i < _sensor_count; i++) {
-		interval = math::min(interval, _sensors[i].interval);
+		interval = math::min(interval, _sensors[i]->interval);
 	}
 
 	_interval = interval;
 	ScheduleOnInterval(interval);
-
-	return PX4_OK;
 }
 
-void ZephyrSensors::Run()
+void SensorBus::Run()
 {
-	if (should_exit()) {
+	if (_module.should_exit()) {
 		ScheduleClear();
-		exit_and_cleanup(desc);
+
+		// the module deletes the buses when the last one stops
+		_module.bus_stopped();
 		return;
 	}
 
@@ -211,7 +198,7 @@ void ZephyrSensors::Run()
 	perf_begin(_cycle_perf);
 
 	for (size_t i = 0; i < _sensor_count; i++) {
-		Sensor &sensor = _sensors[i];
+		Sensor &sensor = *_sensors[i];
 		const hrt_abstime start = hrt_absolute_time();
 
 		// a read due before the middle of the period of the bus is done now: the jitter of the
@@ -250,7 +237,7 @@ void ZephyrSensors::Run()
 	perf_end(_cycle_perf);
 }
 
-void ZephyrSensors::publish(Sensor &sensor, const zephyr_sensor_sample &sample)
+void SensorBus::publish(Sensor &sensor, const zephyr_sensor_sample &sample)
 {
 	const bool has_temperature = PX4_ISFINITE(sample.temperature);
 
@@ -302,7 +289,7 @@ void ZephyrSensors::publish(Sensor &sensor, const zephyr_sensor_sample &sample)
 }
 
 // the battery status measured by a fuel gauge, or a disconnected battery without a sample
-void ZephyrSensors::publish_fuel_gauge(Sensor &sensor, const zephyr_sensor_sample *sample, hrt_abstime timestamp)
+void SensorBus::publish_fuel_gauge(Sensor &sensor, const zephyr_sensor_sample *sample, hrt_abstime timestamp)
 {
 	battery_status_s status{};
 	status.timestamp = timestamp;
@@ -363,18 +350,105 @@ void ZephyrSensors::publish_fuel_gauge(Sensor &sensor, const zephyr_sensor_sampl
 	sensor.fuel_gauge->publish(status);
 }
 
-int ZephyrSensors::print_status()
+void SensorBus::print_status() const
 {
+	PX4_INFO("%s", _queue_name);
 	perf_print_counter(_cycle_perf);
 	perf_print_counter(_read_error_perf);
 
 	for (size_t i = 0; i < _sensor_count; i++) {
-		const Sensor &sensor = _sensors[i];
+		const Sensor &sensor = *_sensors[i];
 		PX4_INFO("%s: device id %" PRIu32 ", every %" PRIu64 " us, %" PRIu32 " errors", sensor.info.name,
 			 device_id(sensor.info), sensor.interval, sensor.error_count);
 	}
+}
+
+ZephyrSensors::~ZephyrSensors()
+{
+	for (size_t i = 0; i < _bus_count; i++) {
+		delete _buses[i];
+	}
+}
+
+int ZephyrSensors::init()
+{
+	for (size_t index = 0; index < zephyr_sensors_count(); index++) {
+		if (_sensor_count >= SensorBus::MAX_SENSORS) {
+			PX4_WARN("only %zu sensors supported", SensorBus::MAX_SENSORS);
+			break;
+		}
+
+		zephyr_sensor_info info{};
+		const int ret = zephyr_sensors_get_info(index, &info);
+
+		if (ret != 0) {
+			if (!info.optional) {
+				PX4_ERR("%s not ready (%d)", info.name, ret);
+			}
+
+			continue;
+		}
+
+		if (info.rotation >= ROTATION_MAX) {
+			PX4_ERR("%s: invalid rotation %u", info.name, info.rotation);
+			continue;
+		}
+
+		SensorBus *bus = nullptr;
+
+		for (size_t i = 0; (i < _bus_count) && (bus == nullptr); i++) {
+			if (_buses[i]->has(info)) {
+				bus = _buses[i];
+			}
+		}
+
+		if (bus == nullptr) {
+			bus = new SensorBus(*this, info);
+
+			if (bus == nullptr) {
+				PX4_ERR("alloc failed");
+				return PX4_ERROR;
+			}
+
+			_buses[_bus_count++] = bus;
+		}
+
+		if (!bus->add_sensor(index, info)) {
+			PX4_ERR("alloc failed");
+			return PX4_ERROR;
+		}
+
+		_sensor_count++;
+	}
+
+	if (_sensor_count == 0) {
+		return PX4_ERROR;
+	}
+
+	// the sensors of each bus are read in turn, on the work queue of the bus
+	_running_buses.store(_bus_count);
+
+	for (size_t i = 0; i < _bus_count; i++) {
+		_buses[i]->start();
+	}
+
+	return PX4_OK;
+}
+
+int ZephyrSensors::print_status()
+{
+	for (size_t i = 0; i < _bus_count; i++) {
+		_buses[i]->print_status();
+	}
 
 	return 0;
+}
+
+void ZephyrSensors::bus_stopped()
+{
+	if (_running_buses.fetch_sub(1) == 1) {
+		exit_and_cleanup(desc);
+	}
 }
 
 int ZephyrSensors::task_spawn(int argc, char *argv[])
@@ -426,6 +500,9 @@ controller (IMU_GYRO_RATEMAX), magnetometers at 100 Hz, barometers at 50 Hz and
 power monitors, which publish the status of a battery, at 10 Hz. Smart batteries
 are read at 10 Hz through the Zephyr fuel gauge API, and publish the state of
 charge measured by their fuel gauge.
+
+The sensors of each bus are read in turn on the work queue of the bus, so that a
+slow bus doesn't delay the sensors of the other buses.
 
 The sensors whose device has the zephyr,deferred-init devicetree property are
 optional, like the compass of a GPS module: they are initialized when the driver
