@@ -158,7 +158,7 @@ west twister -T PX4-Autopilot/platforms/zephyr -p mps2/an386
 or `make zephyr_tests`, which also builds the application for the boards that are only build-tested.
 
 - [tests/platform](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/platform) tests the platform layer: time, callouts from interrupts, tasks, work queues, uORB and parameters.
-- [tests/sensors](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/sensors) tests the sensor driver with Zephyr's sensor emulators, on emulated SPI and I2C buses, and with a sensor that doesn't respond.
+- [tests/sensors](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/sensors) tests the sensor driver with Zephyr's sensor emulators, on emulated SPI and I2C buses, with a sensor that doesn't respond and with a power monitor.
 - [tests/serial](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/serial) tests the serial ports, termios and `device::Serial` on an emulated UART.
 - [tests/storage](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/storage) tests the parameter file and the file functions of PX4 on a RAM disk.
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
@@ -204,19 +204,21 @@ The `zephyr_sensors` driver publishes the sensors listed in the `px4,sensors` de
 };
 ```
 
-| Property   | Description                                                                                                      |
-| ---------- | ---------------------------------------------------------------------------------------------------------------- |
-| `sensor`   | The Zephyr sensor device.                                                                                        |
-| `type`     | `imu` (publishes [SensorAccel] and [SensorGyro]), `accel`, `gyro`, `mag` ([SensorMag]) or `baro` ([SensorBaro]). |
-| `rotation` | Rotation from the sensor frame to the board frame, one of the `PX4_ROTATION_*` values. Default: none.            |
-| `external` | The sensor is not on the flight controller board.                                                                |
+| Property   | Description                                                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sensor`   | The Zephyr sensor device.                                                                                                                   |
+| `type`     | `imu` (publishes [SensorAccel] and [SensorGyro]), `accel`, `gyro`, `mag` ([SensorMag]), `baro` ([SensorBaro]) or `power` ([BatteryStatus]). |
+| `rotation` | Rotation from the sensor frame to the board frame, one of the `PX4_ROTATION_*` values. Default: none.                                       |
+| `external` | The sensor is not on the flight controller board.                                                                                           |
+| `battery`  | Battery measured by a power monitor, which selects its `BATn_*` parameters. Default: 1.                                                     |
 
 [SensorAccel]: ../msg_docs/SensorAccel.md
 [SensorGyro]: ../msg_docs/SensorGyro.md
 [SensorMag]: ../msg_docs/SensorMag.md
 [SensorBaro]: ../msg_docs/SensorBaro.md
+[BatteryStatus]: ../msg_docs/BatteryStatus.md
 
-The driver reads the sensors with the Zephyr sensor API, which works with any Zephyr sensor driver, at 1 kHz for IMUs, 100 Hz for magnetometers and 50 Hz for barometers.
+The driver reads the sensors with the Zephyr sensor API, which works with any Zephyr sensor driver, at 1 kHz for IMUs, 100 Hz for magnetometers, 50 Hz for barometers and 10 Hz for power monitors.
 The device IDs are made from the bus, the address and the sensor model, as for the PX4 drivers.
 
 A sensor that may not be connected, such as the compass of a GPS module, has the `zephyr,deferred-init` property on its device, so that Zephyr doesn't initialize it at boot.
@@ -234,6 +236,10 @@ For example, the overlay of the NXP VMU RT1170 lists the IST8310, RM3100 and LIS
 ```
 
 These sensors need different addresses on a bus, and Zephyr drivers that check the identity of the chip before they configure it.
+
+A power monitor, such as the TI INA226 or INA228 of a digital power module, publishes the voltage and current of a battery, which is disconnected when the power monitor can't be read for 2 seconds.
+Its shunt resistor and current resolution are properties of its Zephyr device, instead of the `INA226_*` and `INA228_*` parameters, and battery 2 is published if [BAT2_SOURCE](../advanced_config/parameter_reference.md#BAT2_SOURCE) selects a power module, as with NuttX.
+The NXP VMU RT1170 probes INA226 and INA228 power modules on POWER1 and POWER2.
 
 The generic board configuration starts `zephyr_sensors` and the [sensors](../modules/modules_system.md#sensors) module.
 
