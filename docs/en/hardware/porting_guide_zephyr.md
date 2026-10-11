@@ -327,38 +327,42 @@ Its startup script doesn't start it, as Zephyr startup scripts can't check `UAVC
 [Tools/footprint.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/footprint.py) breaks down the flash and static RAM of PX4 firmware by component, for NuttX and Zephyr builds alike.
 Each section of the ELF file counts as flash, RAM or both, as in the PX4 flash analysis, and the linker map file gives the library or object file that each byte comes from.
 
-For example, to compare the two operating systems on the NXP i.MX RT1176, with the NuttX build of FMU-v6XRT and the SIH configuration on the VMU RT1170:
+For example, to compare the two operating systems on the NXP i.MX RT1176, with the NuttX build of FMU-v6XRT and the SIH configuration on the VMU RT1170, as is and matched to the NuttX build ([footprint.conf](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/zephyr/app/footprint.conf)):
 
 ```sh
 make -C PX4-Autopilot px4_fmu-v6xrt_default
 west build -b vmu_rt1170/mimxrt1176/cm7 -d build-sih PX4-Autopilot/platforms/zephyr/app -- -DFILE_SUFFIX=sih -DCONFIG_SIZE_OPTIMIZATIONS=y
-PX4-Autopilot/Tools/footprint.py PX4-Autopilot/build/px4_fmu-v6xrt_default/px4_fmu-v6xrt_default.elf build-sih/zephyr/zephyr.elf
+west build -b vmu_rt1170/mimxrt1176/cm7 -d build-matched PX4-Autopilot/platforms/zephyr/app -- -DFILE_SUFFIX=sih -DEXTRA_CONF_FILE=footprint.conf -DCONFIG_SIZE_OPTIMIZATIONS=y
+PX4-Autopilot/Tools/footprint.py PX4-Autopilot/build/px4_fmu-v6xrt_default/px4_fmu-v6xrt_default.elf build-sih/zephyr/zephyr.elf build-matched/zephyr/zephyr.elf
 ```
 
 At the time of writing, with Zephyr 4.5.0-rc1, this gives (in KiB):
 
-| Component                      | NuttX flash | NuttX RAM | Zephyr flash | Zephyr RAM |
-| ------------------------------ | ----------: | --------: | -----------: | ---------: |
-| Kernel and POSIX API           |          35 |        59 |           47 |         33 |
-| Drivers and HAL                |          67 |        60 |          121 |         50 |
-| Shell and logging              |          48 |         1 |           20 |          6 |
-| File systems                   |          35 |         1 |           16 |          2 |
-| Networking                     |          34 |         9 |           29 |         17 |
-| C library and compiler runtime |          51 |         6 |           43 |          0 |
-| Operating system               |         271 |       136 |          275 |        108 |
-| PX4 platform layer             |          33 |        17 |           11 |         13 |
-| PX4 startup scripts (ROMFS)    |         177 |         0 |            0 |          0 |
-| PX4 modules and libraries      |        1924 |       224 |          888 |         15 |
-| Other and alignment            |           8 |         1 |           15 |          9 |
-| Total                          |        2414 |       378 |         1189 |        145 |
+| Component                      | NuttX flash | NuttX RAM | Zephyr flash | Zephyr RAM | Matched flash | Matched RAM |
+| ------------------------------ | ----------: | --------: | -----------: | ---------: | ------------: | ----------: |
+| Kernel and POSIX API           |          35 |        59 |           47 |         33 |            45 |          33 |
+| Drivers and HAL                |          67 |        60 |          131 |         55 |           113 |          55 |
+| Shell and logging              |          48 |         1 |           20 |          6 |            21 |          11 |
+| File systems                   |          35 |         1 |           16 |          2 |            14 |           2 |
+| Networking                     |          34 |         9 |           29 |         17 |            93 |          32 |
+| C library and compiler runtime |          51 |         6 |           43 |          0 |            42 |           0 |
+| Operating system               |         271 |       136 |          286 |        113 |           328 |         133 |
+| PX4 platform layer             |          33 |        17 |           11 |         13 |            11 |          13 |
+| PX4 startup scripts (ROMFS)    |         177 |         0 |            0 |          0 |             0 |           0 |
+| PX4 modules and libraries      |        1924 |       224 |          888 |         15 |           888 |          15 |
+| Other and alignment            |           8 |         1 |           15 |          9 |            15 |           9 |
+| Total                          |        2414 |       378 |         1200 |        150 |          1242 |         170 |
 
 Only the operating system rows compare the two systems, as the builds differ in other ways:
 
-- The NuttX build has all the modules and drivers of FMU-v6XRT, and the Zephyr build the multicopter flight stack, with SIH, MAVLink and the logger.
-  The sensor drivers are PX4 modules with NuttX, and Zephyr drivers with Zephyr, where they take 28 KiB of flash.
-- NuttX is configured with the FAT, compressed ROM and proc file systems, the SD card, USB, CAN, TCP and its shell, nsh.
-  The Zephyr build has the FAT file system, the SD card, USB, Ethernet with UDP, and the Zephyr shell and logging.
-  The buffers of its 7 serial ports (10.5 KiB) are in the PX4 platform layer.
+- The NuttX build has all the modules and drivers of FMU-v6XRT, and the Zephyr builds the multicopter flight stack, with SIH, MAVLink and the logger.
+  The sensor drivers are PX4 modules with NuttX, and Zephyr drivers with Zephyr, where they take 28 KiB of flash, or 21 KiB without their log messages.
+- NuttX is configured with the FAT, compressed ROM and proc file systems, the SD card, USB, CAN sockets, Ethernet with TCP, UDP, DHCP and DNS, and its shell, nsh, also over telnet.
+  The Zephyr build has the FAT file system, the SD card, USB, the three CAN buses, Ethernet with UDP, and the Zephyr shell and logging.
+  The matched build adds TCP, DHCP, DNS, IGMP, the shell over telnet and the network commands of the shell, which count as networking (29 KiB of flash).
+  Like NuttX, whose subsystems have no debug output, it also leaves out the log messages of the Zephyr subsystems, which take 27 KiB of flash.
+- The other NuttX features aren't matched: the startup scripts are built into the firmware instead of a compressed ROM file system, PX4 uses the Zephyr CAN API instead of CAN sockets, and there is no proc file system nor CPU load of the tasks.
+- The buffers of the 7 serial ports of the Zephyr builds (10.5 KiB) are in the PX4 platform layer.
 - NuttX copies the most used PX4 code (226 KiB) to the ITCM, the fast instruction memory of the Cortex-M7, so that this code also counts as RAM.
 - The RAM is the static RAM.
   NuttX uses the rest of the memory as its heap.
