@@ -178,4 +178,12 @@ configdefault SHELL_STATS
 configdefault SHELL_STACK_SIZE
 	default 4096 if PX4_SHELL
 
+# the sensors of each bus are read at the same time, and most sensor drivers read on the RTIO work
+# queue
+configdefault RTIO_WORKQ_THREADS_POOL
+	default 8 if PX4_SENSORS
+
+configdefault RTIO_WORKQ_POOL_ITEMS
+	default 8 if PX4_SENSORS
+
 endif # PX4
