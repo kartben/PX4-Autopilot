@@ -2,6 +2,7 @@ empy>=3.3,<4
 jinja2>=2.8
 jsonschema
 kconfiglib
+nunavut>=1.1.0
 packaging
 pymavlink
 pyros-genmsg
