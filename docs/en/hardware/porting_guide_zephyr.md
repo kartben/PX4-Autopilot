@@ -158,7 +158,7 @@ west twister -T PX4-Autopilot/platforms/zephyr -p mps2/an386
 or `make zephyr_tests`, which also builds the application for the boards that are only build-tested.
 
 - [tests/platform](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/platform) tests the platform layer: time, callouts from interrupts, tasks, work queues, uORB and parameters.
-- [tests/sensors](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/sensors) tests the sensor driver with Zephyr's sensor emulators, on emulated SPI and I2C buses.
+- [tests/sensors](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/sensors) tests the sensor driver with Zephyr's sensor emulators, on emulated SPI and I2C buses, and with a sensor that doesn't respond.
 - [tests/serial](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/serial) tests the serial ports, termios and `device::Serial` on an emulated UART.
 - [tests/storage](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/storage) tests the parameter file and the file functions of PX4 on a RAM disk.
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
@@ -218,6 +218,22 @@ The `zephyr_sensors` driver publishes the sensors listed in the `px4,sensors` de
 
 The driver reads the sensors with the Zephyr sensor API, which works with any Zephyr sensor driver, at 1 kHz for IMUs, 100 Hz for magnetometers and 50 Hz for barometers.
 The device IDs are made from the bus, the address and the sensor model, as for the PX4 drivers.
+
+A sensor that may not be connected, such as the compass of a GPS module, has the `zephyr,deferred-init` property on its device, so that Zephyr doesn't initialize it at boot.
+`zephyr_sensors` initializes it when it starts, and leaves it out if it doesn't respond, as PX4 probes the external buses with NuttX.
+For example, the overlay of the NXP VMU RT1170 lists the IST8310, RM3100 and LIS3MDL compasses on the GPS1 bus:
+
+```dts
+&lpi2c1 {
+	rm3100: rm3100@20 {
+		compatible = "pni,rm3100";
+		reg = <0x20>;
+		zephyr,deferred-init;
+	};
+};
+```
+
+These sensors need different addresses on a bus, and Zephyr drivers that check the identity of the chip before they configure it.
 
 The generic board configuration starts `zephyr_sensors` and the [sensors](../modules/modules_system.md#sensors) module.
 
