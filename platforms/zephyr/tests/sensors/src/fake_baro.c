@@ -38,8 +38,11 @@
 
 #define DT_DRV_COMPAT vnd_baro
 
+#include "sensor_values.h"
+
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
+#include <zephyr/kernel.h>
 
 struct fake_baro_data {
 	struct sensor_value pressure;
@@ -56,6 +59,7 @@ void fake_baro_set(const struct device *dev, float pressure_kpa, float temperatu
 
 static int fake_baro_sample_fetch(const struct device *dev, enum sensor_channel chan)
 {
+	k_msleep(BARO_CONVERSION_TIME_MS);
 	return 0;
 }
 
