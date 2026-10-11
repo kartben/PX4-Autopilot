@@ -42,6 +42,18 @@
 			type = "mag";
 		};
 
+		mag2 {
+			sensor = <&rm3100>;
+			type = "mag";
+			external;
+		};
+
+		mag3 {
+			sensor = <&lis3mdl>;
+			type = "mag";
+			external;
+		};
+
 		baro0 {
 			sensor = <&bmp388_0>;
 			type = "baro";
@@ -119,6 +131,25 @@
 			disk-access;
 		};
 	};
+};
+
+/* compasses of GPS modules on GPS1, used if they respond when PX4 starts */
+&lpi2c1 {
+	rm3100: rm3100@20 {
+		compatible = "pni,rm3100";
+		reg = <0x20>;
+		zephyr,deferred-init;
+	};
+
+	lis3mdl: lis3mdl@1e {
+		compatible = "st,lis3mdl-magn";
+		reg = <0x1e>;
+		zephyr,deferred-init;
+	};
+};
+
+&ist8310 {
+	zephyr,deferred-init;
 };
 
 &zephyr_udc0 {
