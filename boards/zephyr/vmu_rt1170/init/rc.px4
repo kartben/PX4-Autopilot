@@ -2,6 +2,7 @@
 ver all
 zephyr_sensors start
 sensors start
+zephyr_pwm_out start
 mavlink start -d /dev/ttyS2 -b 57600
 mavlink start -d /dev/ttyACM0
 mavlink boot_complete
