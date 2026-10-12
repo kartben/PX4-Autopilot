@@ -90,6 +90,38 @@ if(CONFIG_PX4_CAN)
 	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_can.c)
 endif()
 
+if(CONFIG_PX4_ITCM)
+	zephyr_linker_sources(ITCM_SECTION ${CMAKE_CURRENT_LIST_DIR}/itcm.ld)
+	zephyr_linker_sources(ITCM_SECTION ${CMAKE_CURRENT_LIST_DIR}/itcm_functions.ld)
+
+	# the kernel, context switches and interrupts, but not the startup code, which runs before
+	# the ITCM is loaded
+	foreach(lib kernel arch__arm__core__mpu drivers__timer)
+		zephyr_code_relocate(LIBRARY ${lib} LOCATION ITCM_TEXT NOKEEP)
+	endforeach()
+
+	zephyr_code_relocate(FILES
+		${ZEPHYR_BASE}/arch/arm/core/cortex_m/exc_exit.c
+		${ZEPHYR_BASE}/arch/arm/core/cortex_m/isr_wrapper.c
+		${ZEPHYR_BASE}/arch/arm/core/cortex_m/swap_helper.S
+		LOCATION ITCM_TEXT NOKEEP
+	)
+
+	# the libraries that run at the rate of the IMU, when they are built
+	foreach(lib
+		uORB cdev work_queue px4_work_queue perf
+		modules__sensors vehicle_imu vehicle_angular_velocity sensor_calibration data_validator
+		drivers_accelerometer drivers_gyroscope conversion
+		modules__mc_rate_control modules__mc_att_control AttitudeControl
+		modules__control_allocator mixer_module output_predictor
+		lat_lon_alt modules__simulation__simulator_sih
+	)
+		if(TARGET ${lib})
+			zephyr_code_relocate(LIBRARY ${lib} LOCATION ITCM_TEXT NOKEEP)
+		endif()
+	endforeach()
+endif()
+
 if(CONFIG_PX4_SHELL)
 	zephyr_library_named(px4_shell)
 	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_shell.c)
