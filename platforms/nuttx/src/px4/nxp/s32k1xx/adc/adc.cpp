@@ -97,7 +97,7 @@ int px4_arch_adc_init(uint32_t base_address)
 	rSC3(1) = ADC_SC3_CAL | ADC_SC3_CALF;
 
 	while ((rSC1A(1) & ADC_SC1_COCO) == 0) {
-		usleep(100);
+		px4_usleep(100);
 
 		if (rSC3(1) & ADC_SC3_CALF) {
 			return -1;

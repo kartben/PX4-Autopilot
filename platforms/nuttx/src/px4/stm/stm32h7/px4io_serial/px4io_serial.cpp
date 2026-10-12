@@ -387,7 +387,7 @@ ArchPX4IOSerial::_bus_exchange(IOPacket *_packet)
 				 * IDLE interrupt triggering right after we re-enable interrupts for the next
 				 * exchange
 				 */
-				usleep(100);
+				px4_usleep(100);
 				perf_count(_pc_timeouts);
 				perf_cancel(_pc_txns);    /* don't count this as a transaction */
 				break;

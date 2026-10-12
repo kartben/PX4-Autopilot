@@ -55,6 +55,7 @@
 #include <board_config.h>
 
 #include <px4_platform_common/micro_hal.h>
+#include <px4_platform_common/time.h>
 #include <systemlib/px4_macros.h>
 #include <drivers/drv_neopixel.h>
 
@@ -358,7 +359,7 @@ extern int neopixel_write(neopixel::NeoLEDData *led_data, int number_of_packages
 	// DMA in progress let it finish
 
 	while (rCR1 & GTIM_CR1_CEN) {
-		usleep(1);
+		px4_usleep(1);
 	}
 
 	// For the bits times to DMA

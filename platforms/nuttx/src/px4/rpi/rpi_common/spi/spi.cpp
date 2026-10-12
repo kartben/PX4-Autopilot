@@ -34,6 +34,7 @@
 #include <board_config.h>
 #include <systemlib/px4_macros.h>
 #include <px4_platform_common/spi.h>
+#include <px4_platform_common/time.h>
 #include <px4_arch/micro_hal.h>
 
 #include <stdint.h>
@@ -272,7 +273,7 @@ __EXPORT void board_spi_reset(int ms, int bus_mask)
 	board_control_spi_sensors_power(false, bus_mask);
 
 	// wait for the sensor rail to reach GND
-	usleep(ms * 1000);
+	px4_usleep(ms * 1000);
 	syslog(LOG_DEBUG, "reset done, %d ms\n", ms);
 
 	/* re-enable power */
@@ -281,7 +282,7 @@ __EXPORT void board_spi_reset(int ms, int bus_mask)
 	board_control_spi_sensors_power(true, bus_mask);
 
 	/* wait a bit before starting SPI, different times didn't influence results */
-	usleep(100);
+	px4_usleep(100);
 
 	/* reconfigure the SPI pins */
 	for (int bus = 0; bus < SPI_BUS_MAX_BUS_ITEMS; ++bus) {

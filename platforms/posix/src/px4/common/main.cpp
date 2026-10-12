@@ -646,7 +646,7 @@ void wait_to_exit()
 {
 	while (!_exit_requested) {
 		// needs to be a regular sleep not dependent on lockstep (not px4_usleep)
-		usleep(100000);
+		system_usleep(100000);
 	}
 }
 

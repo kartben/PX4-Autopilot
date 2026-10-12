@@ -127,12 +127,12 @@ int px4_arch_adc_init(uint32_t base_address)
 
 	while (guard != 0 && (rGS(base_address) & ADC_GC_CAL) == 0) {
 		guard--;
-		usleep(1);
+		px4_usleep(1);
 	}
 
 	while ((rGS(base_address) & ADC_GC_CAL) == ADC_GC_CAL) {
 
-		usleep(100);
+		px4_usleep(100);
 
 		if (rGS(base_address) & ADC_GS_CALF) {
 			return -1;

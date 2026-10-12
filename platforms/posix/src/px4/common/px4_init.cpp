@@ -53,14 +53,14 @@ int px4_platform_init(void)
 // MUORB has slightly different startup requirements
 #if defined(CONFIG_MODULES_MUORB_APPS)
 	//Put sleeper in here to allow wq to finish initializing before param_init is called
-	usleep(10000);
+	px4_usleep(10000);
 
 	uorb_start();
 
 	muorb_init();
 
 	// Give muorb some time to setup the DSP
-	usleep(100000);
+	px4_usleep(100000);
 
 	param_init();
 #else

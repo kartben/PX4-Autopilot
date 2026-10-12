@@ -35,6 +35,7 @@
 #include <px4_platform_common/console_buffer.h>
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/sem.h>
+#include <px4_platform_common/time.h>
 #include <pthread.h>
 #include <string.h>
 #include <fcntl.h>
@@ -101,7 +102,7 @@ void ConsoleBuffer::print(bool follow)
 
 
 		if (follow) {
-			usleep(10000);
+			px4_usleep(10000);
 		}
 	} while (follow);
 }
