@@ -220,6 +220,17 @@ void hrt_call_delay(struct hrt_call *entry, hrt_abstime delay)
 	entry->deadline = hrt_absolute_time() + delay;
 }
 
+int px4_usleep(useconds_t usec)
+{
+	// usleep() of Zephyr rejects a second or more, as POSIX allows
+	if (k_usleep(usec) > 0) {
+		errno = EINTR;
+		return -1;
+	}
+
+	return 0;
+}
+
 int px4_clock_gettime(clockid_t clk_id, struct timespec *tp)
 {
 	if (tp == nullptr) {

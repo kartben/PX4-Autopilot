@@ -38,6 +38,15 @@ __EXPORT int px4_pthread_cond_timedwait(pthread_cond_t *cond,
 					const struct timespec *abstime);
 __END_DECLS
 
+#elif defined(__PX4_ZEPHYR)
+
+__BEGIN_DECLS
+__EXPORT int px4_usleep(useconds_t usec);
+__END_DECLS
+
+#define px4_sleep system_sleep
+#define px4_pthread_cond_timedwait system_pthread_cond_timedwait
+
 #else
 
 #define px4_sleep system_sleep

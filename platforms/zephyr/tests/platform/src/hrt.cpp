@@ -66,6 +66,18 @@ ZTEST(px4_hrt, test_absolute_time)
 	zassert_within(hrt_absolute_time() / 1000, k_uptime_get(), 1);
 }
 
+ZTEST(px4_hrt, test_usleep)
+{
+	hrt_abstime start = hrt_absolute_time();
+	zassert_ok(px4_usleep(2000));
+	zassert_true(hrt_elapsed_time(&start) >= 2000);
+
+	// more than the second that usleep() takes
+	start = hrt_absolute_time();
+	zassert_ok(px4_usleep(1200000));
+	zassert_true(hrt_elapsed_time(&start) >= 1200000, "slept %llu us", hrt_elapsed_time(&start));
+}
+
 ZTEST(px4_hrt, test_call_after)
 {
 	callout_data data{};
