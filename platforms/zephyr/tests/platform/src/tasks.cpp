@@ -186,6 +186,41 @@ ZTEST(px4_tasks, test_resources_released)
 	}
 }
 
+static void *wait_thread(void *arg)
+{
+	px4_sem_wait(static_cast<px4_sem_t *>(arg));
+	return nullptr;
+}
+
+ZTEST(px4_tasks, test_attributes_destroyed)
+{
+	pthread_attr_t attr;
+	zassert_ok(pthread_attr_init(&attr));
+	zassert_ok(pthread_attr_setstacksize(&attr, 2048));
+
+	void *stack;
+	size_t size;
+	zassert_ok(pthread_attr_getstack(&attr, &stack, &size));
+
+	px4_sem_t sem;
+	px4_sem_init(&sem, 0, 0);
+	pthread_t thread;
+	zassert_ok(pthread_create(&thread, &attr, wait_thread, &sem));
+
+	// the thread keeps running on its stack once its attributes are destroyed
+	zassert_ok(pthread_attr_destroy(&attr));
+
+	k_thread_stack_t *other = k_thread_stack_alloc(size, 0);
+	zassert_not_null(other);
+	zassert_true(((uintptr_t)other >= (uintptr_t)stack + size) || ((uintptr_t)other + size <= (uintptr_t)stack),
+		     "stack of a running thread allocated again");
+	zassert_ok(k_thread_stack_free(other));
+
+	px4_sem_post(&sem);
+	zassert_ok(pthread_join(thread, nullptr));
+	px4_sem_destroy(&sem);
+}
+
 ZTEST(px4_tasks, test_run_command)
 {
 	char ver[] = "ver";

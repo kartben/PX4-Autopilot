@@ -89,6 +89,11 @@ if(CONFIG_PX4_SERIAL)
 	zephyr_ld_options(-Wl,--wrap=open)
 endif()
 
+zephyr_library_named(px4_pthread)
+zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_pthread.c)
+# pthread_attr_destroy() keeps the stacks that threads run on, see px4_pthread.c
+zephyr_ld_options(-Wl,--wrap=pthread_attr_destroy)
+
 if(CONFIG_PX4_CAN)
 	zephyr_library_named(px4_can)
 	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_can.c)
