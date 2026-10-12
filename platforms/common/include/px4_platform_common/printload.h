@@ -57,6 +57,11 @@ struct print_load_s {
 	uint64_t interval_start_time{0};
 	uint64_t last_times[CONFIG_FS_PROCFS_MAX_TASKS] {};
 	float interval_time_us{0.f};
+#if defined(__PX4_ZEPHYR)
+	const void *last_threads[CONFIG_FS_PROCFS_MAX_TASKS] {}; ///< threads of last_times
+	const void *threads[CONFIG_FS_PROCFS_MAX_TASKS] {}; ///< current sample, not on the stack of the caller
+	uint64_t times[CONFIG_FS_PROCFS_MAX_TASKS] {};
+#endif
 };
 
 __BEGIN_DECLS
