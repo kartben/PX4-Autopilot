@@ -188,6 +188,7 @@ ZTEST(px4_sensors, test_imu_interval)
 	// the IMU is read on time while the barometer, on another bus, converts
 	uORB::Subscription subscription{ORB_ID(sensor_accel)};
 	sensor_accel_s accel{};
+	const hrt_abstime start = hrt_absolute_time();
 	hrt_abstime last_sample = 0;
 	hrt_abstime max_interval = 0;
 	int samples = 0;
@@ -195,6 +196,12 @@ ZTEST(px4_sensors, test_imu_interval)
 	// the queue of sensor_accel holds the samples of more than 4 ms
 	for (int i = 0; i < SAMPLE_TIMEOUT_MS / 4; i++) {
 		while (subscription.update(&accel)) {
+			// the samples before the test, while the test framework printed to the console, which
+			// blocks the other threads on hardware, don't count
+			if (accel.timestamp_sample < start) {
+				continue;
+			}
+
 			if (last_sample != 0) {
 				max_interval = math::max(max_interval, accel.timestamp_sample - last_sample);
 			}
