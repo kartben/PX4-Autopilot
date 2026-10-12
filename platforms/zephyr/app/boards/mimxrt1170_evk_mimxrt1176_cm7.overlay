@@ -1,0 +1,42 @@
+/* USB serial port on USB OTG1, the microSD card and the CAN bus of the MIMXRT1170-EVK */
+
+/ {
+	px4-serial-ports {
+		compatible = "px4,serial-ports";
+
+		usb {
+			uart = <&cdc_acm_uart0>;
+			path = "/dev/ttyACM0";
+		};
+	};
+
+	px4-can-buses {
+		compatible = "px4,can-buses";
+
+		can1 {
+			can = <&flexcan3>;
+		};
+	};
+
+	fstab {
+		compatible = "zephyr,fstab";
+
+		sd {
+			compatible = "zephyr,fstab,fatfs";
+			mount-point = "/SD:";
+			automount;
+			disk-access;
+		};
+	};
+};
+
+&zephyr_udc0 {
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};
+
+/* in 1.8 V signalling, the SD card often fails to initialize after a warm reset */
+&usdhc1 {
+	no-1-8-v;
+};

@@ -96,3 +96,19 @@ tests:
     extra_args:
       - FILE_SUFFIX=sih
       - EXTRA_CONF_FILE=footprint.conf
+  px4.app.mimxrt1170_evk:
+    build_only: true
+    platform_allow:
+      - mimxrt1170_evk@A/mimxrt1176/cm7
+      - mimxrt1170_evk@B/mimxrt1176/cm7
+    integration_platforms:
+      - mimxrt1170_evk@B/mimxrt1176/cm7
+  px4.app.sih.mimxrt1170_evk:
+    build_only: true
+    platform_allow:
+      - mimxrt1170_evk@A/mimxrt1176/cm7
+      - mimxrt1170_evk@B/mimxrt1176/cm7
+    integration_platforms:
+      - mimxrt1170_evk@B/mimxrt1176/cm7
+    extra_args:
+      - FILE_SUFFIX=sih
