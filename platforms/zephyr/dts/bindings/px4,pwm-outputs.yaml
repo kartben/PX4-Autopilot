@@ -1,0 +1,37 @@
+description: |
+  PWM outputs of PX4, the main outputs in the order of the child nodes: the
+  first one is configured with PWM_MAIN_FUNC1, PWM_MAIN_DIS1 and so on, as
+  the PX4 zephyr_pwm_out driver drives them.
+
+  Many PWM controllers have one period for all their channels, such as an
+  STM32 timer or the channels A and B of an NXP FlexPWM submodule: outputs
+  on the same PWM device then need the same period.
+
+    #include <zephyr/dt-bindings/pwm/pwm.h>
+
+    / {
+      px4-pwm-outputs {
+        compatible = "px4,pwm-outputs";
+
+        main1 {
+          pwms = <&flexpwm1_pwm0 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+        };
+
+        main2 {
+          pwms = <&flexpwm1_pwm1 0 PWM_HZ(50) PWM_POLARITY_NORMAL>;
+        };
+      };
+    };
+
+compatible: "px4,pwm-outputs"
+
+child-binding:
+  description: A PWM output.
+  properties:
+    pwms:
+      type: phandle-array
+      required: true
+      description: |
+        PWM channel, with the period of the output, for example PWM_HZ(400)
+        for ESCs or PWM_HZ(50) for analog servos. The period is at least
+        2200 us, the longest pulse of the PWM_MAIN parameters.
