@@ -191,7 +191,7 @@ int BMP581::soft_reset()
 		return PX4_ERROR;
 	}
 
-	usleep(BMP5_DELAY_US_SOFT_RESET);
+	px4_usleep(BMP5_DELAY_US_SOFT_RESET);
 
 	if (intf == BMP5_SPI_INTF) {
 		/* Performing a single read via SPI of registers,

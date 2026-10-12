@@ -633,21 +633,21 @@ bool BMI088_Accelerometer::SelfTest()
 		PX4_WARN("Reset success");
 	}
 
-	usleep(100000);
+	px4_usleep(100000);
 	PX4_WARN("Accel on");
 
 	if (RegisterWrite(Register::ACC_PWR_CTRL, 0x04) == PX4_OK) {
 		PX4_WARN("Accel on success");
 	}
 
-	usleep(100000);
+	px4_usleep(100000);
 	PX4_WARN("Sensor ErrReg: 0x%02x", CheckSensorErrReg());
 	Configure();
-	usleep(1000000);
+	px4_usleep(1000000);
 	PX4_WARN("Sensor ErrReg: 0x%02x", CheckSensorErrReg());
 	const uint8_t ACC_CHIP_ID = RegisterRead(Register::ACC_CHIP_ID);
 	PX4_WARN("ACC_CHIP_ID: 0x%02x", ACC_CHIP_ID);
-	usleep(30000);
+	px4_usleep(30000);
 	PX4_WARN("Sensor ErrReg: 0x%02x", CheckSensorErrReg());
 
 	if (RegisterWrite(Register::ACC_PWR_CONF, 0) == PX4_OK) {
@@ -655,7 +655,7 @@ bool BMI088_Accelerometer::SelfTest()
 		PX4_WARN("ACC_PWR_CONF(0): 0x%02x", RegisterRead(Register::ACC_PWR_CONF));
 	}
 
-	usleep(2000000);
+	px4_usleep(2000000);
 	PX4_WARN("Sensor ErrReg: 0x%02x", CheckSensorErrReg());
 
 	if (RegisterWrite(Register::ACC_RANGE, 0x03) == PX4_OK) {
@@ -663,7 +663,7 @@ bool BMI088_Accelerometer::SelfTest()
 		PX4_WARN("ACC_RANGE(0x03): 0x%02x", RegisterRead(Register::ACC_RANGE));
 	}
 
-	usleep(100000);
+	px4_usleep(100000);
 	PX4_WARN("Sensor ErrReg: 0x%02x", CheckSensorErrReg());
 
 	if (RegisterWrite(Register::ACC_CONF, 0xA7) == PX4_OK) {
@@ -671,7 +671,7 @@ bool BMI088_Accelerometer::SelfTest()
 		PX4_WARN("ACC_CONF(0xA7): 0x%02x", RegisterRead(Register::ACC_CONF));
 	}
 
-	usleep(100000);
+	px4_usleep(100000);
 	PX4_WARN("Sensor ErrReg: 0x%02x", CheckSensorErrReg());
 
 	// Positive sel-test polarity
@@ -680,7 +680,7 @@ bool BMI088_Accelerometer::SelfTest()
 		PX4_WARN("ACC_SELF_TEST(0x0D): 0x%02x", RegisterRead(Register::ACC_SELF_TEST));
 	}
 
-	usleep(100000);
+	px4_usleep(100000);
 	PX4_WARN("Sensor ErrReg: 0x%02x", CheckSensorErrReg());
 
 	float *accel_mss = ReadAccelDataFIFO();
@@ -695,7 +695,7 @@ bool BMI088_Accelerometer::SelfTest()
 		PX4_WARN("ACC_SELF_TEST(0x09): 0x%02x", RegisterRead(Register::ACC_SELF_TEST));
 	}
 
-	usleep(600000);
+	px4_usleep(600000);
 	PX4_WARN("Sensor ErrReg: 0x%02x", CheckSensorErrReg());
 	float *accel_mss2 = ReadAccelDataFIFO();
 	PX4_WARN("Negative value");
@@ -729,7 +729,7 @@ bool BMI088_Accelerometer::SelfTest()
 
 	// Disable self-test
 	RegisterWrite(Register::ACC_SELF_TEST, 0x00);
-	usleep(60000);
+	px4_usleep(60000);
 
 	PX4_WARN("Sensor ErrReg: 0x%02x", CheckSensorErrReg());
 	// Reset
@@ -800,7 +800,7 @@ float *BMI088_Accelerometer::ReadAccelDataFIFO()
 	buffer[0] = 0x10 | 0x40;
 	RegisterWrite(Register::FIFO_CONFIG_1, buffer[0]);
 	PX4_WARN("FIFO_CONFIG_1(0x%02x): 0x%02x", buffer[0], RegisterRead(Register::FIFO_CONFIG_1));
-	usleep(1000000);
+	px4_usleep(1000000);
 
 	int fifo_fill_level = 0;
 

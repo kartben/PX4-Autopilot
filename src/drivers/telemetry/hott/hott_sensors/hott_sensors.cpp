@@ -84,7 +84,7 @@ send_poll(int uart, uint8_t *buffer, size_t size)
 		write(uart, &buffer[i], sizeof(buffer[i]));
 
 		/* Sleep before sending the next byte. */
-		usleep(POST_WRITE_DELAY_IN_USECS);
+		px4_usleep(POST_WRITE_DELAY_IN_USECS);
 	}
 
 	/* A hack the reads out what was written so the next read from the receiver doesn't get it. */
@@ -173,7 +173,7 @@ hott_sensors_thread_main(int argc, char *argv[])
 		send_poll(uart, buffer, size);
 
 		// The sensor will need a little time before it starts sending.
-		usleep(5000);
+		px4_usleep(5000);
 
 		recv_data(uart, &buffer[0], &size, &id);
 

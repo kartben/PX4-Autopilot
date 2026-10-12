@@ -64,7 +64,7 @@ int QShell::main()
 {
 	appState.setRunning(true);
 
-	usleep(2000);
+	px4_usleep(2000);
 
 	orb_sub_t sub_qshell_req = orb_subscribe(ORB_ID(qshell_req));
 
@@ -127,7 +127,7 @@ int QShell::main()
 			// Timing out is fine.
 		} else {
 			// Something is wrong.
-			usleep(10000);
+			px4_usleep(10000);
 		}
 	}
 

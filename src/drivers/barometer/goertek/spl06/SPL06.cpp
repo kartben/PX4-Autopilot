@@ -140,7 +140,7 @@ SPL06::init()
 	int8_t tries = 5;
 	// reset sensor
 	_interface->set_reg(SPL06_VALUE_RESET, SPL06_ADDR_RESET);
-	usleep(10000);
+	px4_usleep(10000);
 
 	// check id
 	if (_interface->get_reg(SPL06_ADDR_ID) != SPL06_VALUE_ID) {
@@ -155,7 +155,7 @@ SPL06::init()
 			break;
 		}
 
-		usleep(10000);
+		px4_usleep(10000);
 	}
 
 	if (tries < 0) {

@@ -212,7 +212,7 @@ void FXAS21002C::set_standby(int rate, bool standby_true)
 
 	int wait_ms = (1000 / rate) + 60 + 1;
 
-	usleep(wait_ms * 1000);
+	px4_usleep(wait_ms * 1000);
 }
 
 int FXAS21002C::set_samplerate(unsigned frequency)

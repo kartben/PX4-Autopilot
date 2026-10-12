@@ -496,7 +496,7 @@ int
 OSDatxxxx::reset()
 {
 	int ret = writeRegister(0x00, 0x02);
-	usleep(100);
+	px4_usleep(100);
 
 	return ret;
 }

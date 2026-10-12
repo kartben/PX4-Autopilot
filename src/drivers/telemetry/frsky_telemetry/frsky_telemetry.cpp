@@ -295,7 +295,7 @@ static int frsky_telemetry_thread_main(int argc, char *argv[])
 			/* traffic on the port, D type is 11 bytes per frame, SmartPort is only 2
 			 * Wait long enough for 11 bytes at 9600 baud
 			 */
-			usleep(50_ms);
+			px4_usleep(50_ms);
 			int nbytes = read(uart, &sbuf[0], sizeof(sbuf));
 			PX4_DEBUG("frsky input: %d bytes: %x %x, speed: %d", nbytes, sbuf[0], sbuf[1], baudRate);
 
@@ -369,7 +369,7 @@ static int frsky_telemetry_thread_main(int argc, char *argv[])
 			baudRate = SPORT;
 		}
 
-		usleep(100_ms);
+		px4_usleep(100_ms);
 		// flush buffer
 		read(uart, &sbuf[0], sizeof(sbuf));
 
@@ -452,7 +452,7 @@ static int frsky_telemetry_thread_main(int argc, char *argv[])
 			}
 
 			// allow a minimum of 500usec before reply
-			usleep(500);
+			px4_usleep(500);
 
 			sPort_update_topics();
 
@@ -658,7 +658,7 @@ static int frsky_telemetry_thread_main(int argc, char *argv[])
 		while (!thread_should_exit) {
 
 			/* Sleep 100 ms */
-			usleep(100000);
+			px4_usleep(100000);
 
 			/* parse incoming data */
 			int nbytes = read(uart, &sbuf[0], sizeof(sbuf));
@@ -743,7 +743,7 @@ int frsky_telemetry_main(int argc, char *argv[])
 						(char *const *)argv);
 
 		while (!thread_running) {
-			usleep(200);
+			px4_usleep(200);
 		}
 
 		return 0;
@@ -759,7 +759,7 @@ int frsky_telemetry_main(int argc, char *argv[])
 		thread_should_exit = true;
 
 		while (thread_running) {
-			usleep(1000000);
+			px4_usleep(1000000);
 			PX4_INFO(".");
 		}
 

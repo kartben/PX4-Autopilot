@@ -216,7 +216,7 @@ UavcanNode::~UavcanNode()
 
 		do {
 			/* wait 5ms - it should wake every 10ms or so worst-case */
-			usleep(5000);
+			px4_usleep(5000);
 
 			if (--i == 0) {
 				break;

@@ -100,7 +100,7 @@ CyphalNode::~CyphalNode()
 
 		do {
 			/* Wait for it to exit or timeout */
-			usleep(5000);
+			px4_usleep(5000);
 
 			if (--i == 0) {
 				PX4_ERR("Failed to Stop Task - reboot needed");

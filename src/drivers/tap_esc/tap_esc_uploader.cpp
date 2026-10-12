@@ -137,7 +137,7 @@ int TAP_ESC_UPLOADER::upload_id(uint8_t esc_id, int32_t fw_size)
 
 		} else {
 			/* send sync interval time: 50ms */
-			usleep(50000);
+			px4_usleep(50000);
 		}
 	}
 
@@ -217,7 +217,7 @@ int TAP_ESC_UPLOADER::upload_id(uint8_t esc_id, int32_t fw_size)
 		if (ret != OK) {
 			PX4_DEBUG("reboot failed,reboot again");
 			ret = reboot(esc_id);
-			usleep(2000);
+			px4_usleep(2000);
 
 			if (ret != OK) {
 				PX4_DEBUG("reboot failed");
@@ -277,7 +277,7 @@ int TAP_ESC_UPLOADER::upload(const char *filenames[])
 	// sleep for enough time for the TAP ESC chip to boot. This makes
 	// update more reliably startup TAP ESC again after upload
 	// set wait time for tap esc form reboot jump app(0.1269s measure by Saleae logic Analyzer)
-	usleep(130 * 1000);
+	px4_usleep(130 * 1000);
 
 	return ret;
 }
@@ -380,7 +380,7 @@ int TAP_ESC_UPLOADER::checkcrc(const char *filenames[])
 
 			} else {
 				/* send sync interval time: 50ms */
-				usleep(50000);
+				px4_usleep(50000);
 			}
 		}
 
@@ -446,7 +446,7 @@ int TAP_ESC_UPLOADER::checkcrc(const char *filenames[])
 			if (ret != OK) {
 				PX4_DEBUG("reboot failed,reboot again");
 				ret = reboot(esc_id);
-				usleep(2000);
+				px4_usleep(2000);
 
 				if (ret != OK) {
 					PX4_DEBUG("reboot failed");
@@ -469,7 +469,7 @@ int TAP_ESC_UPLOADER::checkcrc(const char *filenames[])
 	// sleep for enough time for the TAP ESC chip to boot. This makes
 	// update more reliably startup TAP ESC again after upload
 	// set wait time for tap esc form rebbot jump app(0.1269s measure by Saleae logic Analyzer)
-	usleep(130 * 1000);
+	px4_usleep(130 * 1000);
 
 	return ret;
 }

@@ -101,7 +101,7 @@ int ADIS16477::reset()
 	px4_arch_gpiowrite(GPIO_SPI1_RESET_ADIS16477, 0);
 
 	// The RST line must be in a low state for at least 10 μs to ensure a proper reset initiation and recovery.
-	usleep(10_us);
+	px4_usleep(10_us);
 
 	px4_arch_gpiowrite(GPIO_SPI1_RESET_ADIS16477, 1);
 #else
@@ -112,12 +112,12 @@ int ADIS16477::reset()
 #endif // GPIO_SPI1_RESET_ADIS16477
 
 	// Reset recovery time
-	usleep(193_ms);
+	px4_usleep(193_ms);
 
 
 	// Miscellaneous Control Register (MSC_CTRL)
 	static constexpr uint16_t MSC_CTRL_DEFAULT = 0x00C1;
-	usleep(100);
+	px4_usleep(100);
 	// verify
 	const uint16_t msc_ctrl = read_reg16(MSC_CTRL);
 
@@ -130,7 +130,7 @@ int ADIS16477::reset()
 	// Bartlett Window FIR Filter
 	static constexpr uint16_t FILT_CTRL_SETUP = 0x0004; // (disabled: 0x0000, 2 taps: 0x0001, 16 taps: 0x0004)
 	write_reg16(FILT_CTRL, FILT_CTRL_SETUP);
-	usleep(100);
+	px4_usleep(100);
 	// verify
 	const uint16_t filt_ctrl = read_reg16(FILT_CTRL);
 
@@ -144,7 +144,7 @@ int ADIS16477::reset()
 	//  set for 1000 samples per second
 	static constexpr uint16_t DEC_RATE_SETUP = 0x0001;
 	write_reg16(DEC_RATE, DEC_RATE_SETUP);
-	usleep(100);
+	px4_usleep(100);
 	// verify
 	const uint16_t dec_rate = read_reg16(DEC_RATE);
 
@@ -194,7 +194,7 @@ ADIS16477::self_test_memory()
 	uint8_t value[2] {};
 	value[0] = (1 << 4);
 	write_reg16(GLOB_CMD, (uint16_t)value[0]);
-	usleep(32_ms); // Flash Memory Test Time
+	px4_usleep(32_ms); // Flash Memory Test Time
 
 	// read DIAG_STAT to check result
 	uint16_t diag_stat = read_reg16(DIAG_STAT);
@@ -216,7 +216,7 @@ ADIS16477::self_test_sensor()
 	uint8_t value[2] {};
 	value[0] = (1 << 2);
 	write_reg16(GLOB_CMD, (uint16_t)value[0]);
-	usleep(14_ms); // Self Test Time
+	px4_usleep(14_ms); // Self Test Time
 
 	// read DIAG_STAT to check result
 	uint16_t diag_stat = read_reg16(DIAG_STAT);

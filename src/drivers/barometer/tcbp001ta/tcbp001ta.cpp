@@ -71,7 +71,7 @@ TCBP001TA::init()
 {
 	// reset sensor
 	_interface->set_reg(TCBP001TA_VALUE_RESET, TCBP001TA_ADDR_RESET);
-	usleep(10000);
+	px4_usleep(10000);
 
 	// check id
 	if (_interface->get_reg(TCBP001TA_ADDR_ID) != TCBP001TA_VALUE_ID) {

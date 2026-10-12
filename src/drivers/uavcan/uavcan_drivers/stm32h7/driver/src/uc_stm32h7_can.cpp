@@ -658,7 +658,7 @@ bool CanIface::waitCCCRBitStateChange(uint32_t mask, bool target_state)
 		}
 
 #if UAVCAN_STM32H7_NUTTX
-		::usleep(1000);
+		px4_usleep(1000);
 #endif
 	}
 

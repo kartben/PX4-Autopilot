@@ -486,7 +486,7 @@ bool CanIface::waitMsrINakBitStateChange(bool target_state)
 		}
 
 #if UAVCAN_STM32_NUTTX
-		::usleep(1000);
+		px4_usleep(1000);
 #endif
 	}
 

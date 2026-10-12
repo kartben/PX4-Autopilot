@@ -129,7 +129,7 @@ int MPL3115A2::reset()
 	int ret = 1;
 
 	while (ret == 1 && (rv & CTRL_REG1_RST) && max--) {
-		usleep(400);
+		px4_usleep(400);
 		ret = RegisterRead(MPL3115A2_CTRL_REG1, &rv);
 	}
 

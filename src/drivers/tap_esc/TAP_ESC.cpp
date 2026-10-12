@@ -73,7 +73,7 @@ int TAP_ESC::init()
 	hrt_abstime uptime_us = hrt_absolute_time();
 
 	if (uptime_us < MAX_BOOT_TIME_MS * 1000) {
-		usleep((MAX_BOOT_TIME_MS * 1000) - uptime_us);
+		px4_usleep((MAX_BOOT_TIME_MS * 1000) - uptime_us);
 	}
 
 	/* Issue Basic Config */
@@ -100,7 +100,7 @@ int TAP_ESC::init()
 	}
 
 	/* set wait time for tap esc configurate and write flash (0.02696s measure by Saleae logic Analyzer) */
-	usleep(30000);
+	px4_usleep(30000);
 
 	/* Verify All ESC got the config */
 	for (uint8_t cid = 0; cid < _channels_count; cid++) {
@@ -131,7 +131,7 @@ int TAP_ESC::init()
 
 			} else {
 				/* Give it time to come in */
-				usleep(1000);
+				px4_usleep(1000);
 			}
 		}
 
@@ -154,7 +154,7 @@ int TAP_ESC::init()
 		tap_esc_common::send_packet(_uart_fd, unlock_packet, -1);
 
 		/* Min Packet to Packet time is 1 Ms so use 2 */
-		usleep(2000);
+		px4_usleep(2000);
 	}
 
 	return 0;

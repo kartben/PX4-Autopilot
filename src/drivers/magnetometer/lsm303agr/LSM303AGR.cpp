@@ -131,7 +131,7 @@ bool LSM303AGR::self_test()
 	write_reg(CFG_REG_C_M, 0x10);
 
 	// sleep 20ms
-	usleep(20000);
+	px4_usleep(20000);
 
 	uint16_t OUTX_NOST = 0;
 	uint16_t OUTY_NOST = 0;
@@ -152,7 +152,7 @@ bool LSM303AGR::self_test()
 	write_reg(CFG_REG_C_M, 0x12);
 
 	// wait for 60ms
-	usleep(60000);
+	px4_usleep(60000);
 
 	// Check Zyxda
 	status_m = read_reg(STATUS_REG_M);

@@ -186,7 +186,7 @@ int rpi_rc_in_main(int argc, char **argv)
 
 		do {
 			// wait for 100ms
-			usleep(100000);
+			px4_usleep(100000);
 
 		} while (rc_input->is_running() && ++i < 30);
 

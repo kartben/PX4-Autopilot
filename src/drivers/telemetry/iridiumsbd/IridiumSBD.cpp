@@ -151,7 +151,7 @@ int IridiumSBD::init(int argc, char *argv[])
 			command_executed = true;
 
 		} else {
-			usleep(100000);
+			px4_usleep(100000);
 		}
 	}
 
@@ -167,7 +167,7 @@ int IridiumSBD::init(int argc, char *argv[])
 		write_at("AT&K0");
 
 		if (read_at_command() != SATCOM_RESULT_OK) {
-			usleep(100000);
+			px4_usleep(100000);
 
 		} else {
 			command_executed = true;
@@ -186,7 +186,7 @@ int IridiumSBD::init(int argc, char *argv[])
 		write_at("ATE0");
 
 		if (read_at_command() != SATCOM_RESULT_OK) {
-			usleep(100000);
+			px4_usleep(100000);
 
 		} else {
 			command_executed = true;
@@ -319,7 +319,7 @@ void IridiumSBD::run()
 
 		} else {
 			publish_iridium_status();
-			usleep(100000);	// 100ms
+			px4_usleep(100000);	// 100ms
 		}
 	}
 }

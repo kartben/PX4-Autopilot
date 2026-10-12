@@ -58,7 +58,7 @@ BMP280::init()
 {
 	// reset sensor
 	_interface->set_reg(BMP280_VALUE_RESET, BMP280_ADDR_RESET);
-	usleep(10000);
+	px4_usleep(10000);
 
 	// check id
 	if (_interface->get_reg(BMP280_ADDR_ID) != BMP280_VALUE_ID) {

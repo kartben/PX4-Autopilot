@@ -74,15 +74,15 @@ int LPS25H::reset()
 {
 	// Power on
 	int ret = write_reg(ADDR_CTRL_REG1, CTRL_REG1_PD);
-	usleep(1000);
+	px4_usleep(1000);
 
 	// Reset
 	ret = write_reg(ADDR_CTRL_REG2, CTRL_REG2_BOOT | CTRL_REG2_SWRESET);
-	usleep(5000);
+	px4_usleep(5000);
 
 	// Power on
 	ret = write_reg(ADDR_CTRL_REG1, CTRL_REG1_PD);
-	usleep(1000);
+	px4_usleep(1000);
 
 	return ret;
 }

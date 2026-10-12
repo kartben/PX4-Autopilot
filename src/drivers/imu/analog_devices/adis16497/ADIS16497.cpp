@@ -115,7 +115,7 @@ int ADIS16497::reset()
 	px4_arch_gpiowrite(GPIO_SPI1_RESET_ADIS16497, 0);
 
 	// The RST line must be in a low state for at least 10 μs to ensure a proper reset initiation and recovery.
-	usleep(10_us);
+	px4_usleep(10_us);
 
 	px4_arch_gpiowrite(GPIO_SPI1_RESET_ADIS16497, 1);
 #else
@@ -127,7 +127,7 @@ int ADIS16497::reset()
 #endif // GPIO_SPI1_RESET_ADIS16497
 
 	// Reset recovery time
-	usleep(210_ms);
+	px4_usleep(210_ms);
 
 	// Switch to configuration page
 	write_reg16(PAGE_ID, 0x03);
@@ -137,7 +137,7 @@ int ADIS16497::reset()
 
 	write_reg16(FNCTIO_CTRL, FNCTIO_CTRL_DEFAULT);
 
-	usleep(340_us);
+	px4_usleep(340_us);
 
 	const uint16_t fnctio_ctrl = read_reg16(FNCTIO_CTRL);
 
@@ -151,7 +151,7 @@ int ADIS16497::reset()
 
 	write_reg16(CONFIG, CONFIG_DEFAULT);
 
-	usleep(45_us);
+	px4_usleep(45_us);
 
 	const uint16_t config = read_reg16(CONFIG);
 
@@ -165,7 +165,7 @@ int ADIS16497::reset()
 
 	write_reg16(DEC_RATE, DEC_RATE_DEFAULT);
 
-	usleep(340_us);
+	px4_usleep(340_us);
 
 	const uint16_t dec_rate = read_reg16(DEC_RATE);
 
@@ -179,7 +179,7 @@ int ADIS16497::reset()
 
 	write_reg16(NULL_CNFG, NULL_CNFG_DEFAULT);
 
-	usleep(71_us);
+	px4_usleep(71_us);
 
 	const uint16_t null_cnfg = read_reg16(NULL_CNFG);
 
@@ -195,7 +195,7 @@ int ADIS16497::reset()
 	write_reg16(FILTR_BNK_0, FILTR_BNK_0_SETUP);
 	write_reg16(FILTR_BNK_1, FILTR_BNK_1_SETUP);
 
-	usleep(65_us);
+	px4_usleep(65_us);
 
 	const uint16_t filtr_bnk_0 = read_reg16(FILTR_BNK_0);
 
@@ -281,7 +281,7 @@ ADIS16497::self_test()
 	value[0] = (1 << 1);
 	write_reg16(GLOB_CMD, (uint16_t)value[0]);
 
-	usleep(20_ms); // Self test time
+	px4_usleep(20_ms); // Self test time
 
 	// Switch to output page
 	write_reg16(PAGE_ID, 0x0);

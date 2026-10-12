@@ -884,16 +884,16 @@ bool RCInput::bind_spektrum(int arg) const
 		dsm_bind(DSM_CMD_BIND_POWER_DOWN, 0);
 
 		dsm_bind(DSM_CMD_BIND_SET_RX_OUT, 0);
-		usleep(500000);
+		px4_usleep(500000);
 
 		dsm_bind(DSM_CMD_BIND_POWER_UP, 0);
-		usleep(72000);
+		px4_usleep(72000);
 
 		irqstate_t flags = px4_enter_critical_section();
 		dsm_bind(DSM_CMD_BIND_SEND_PULSES, arg);
 		px4_leave_critical_section(flags);
 
-		usleep(50000);
+		px4_usleep(50000);
 
 		dsm_bind(DSM_CMD_BIND_REINIT_UART, 0);
 

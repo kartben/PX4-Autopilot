@@ -150,7 +150,7 @@ SPA06::init()
 	int8_t tries = 5;
 	// reset sensor
 	_interface->set_reg(SPA06_VALUE_RESET, SPA06_ADDR_RESET);
-	usleep(10000);
+	px4_usleep(10000);
 
 	// check id
 	if (_interface->get_reg(SPA06_ADDR_ID) != SPA06_VALUE_ID) {
@@ -165,7 +165,7 @@ SPA06::init()
 			break;
 		}
 
-		usleep(10000);
+		px4_usleep(10000);
 	}
 
 	if (tries < 0) {

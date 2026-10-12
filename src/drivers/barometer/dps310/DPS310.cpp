@@ -90,7 +90,7 @@ DPS310::reset()
 {
 	// Soft Reset
 	RegisterSetBits(Register::RESET, RESET_BIT::SOFT_RST);
-	usleep(40000);	// 40 milliseconds
+	px4_usleep(40000);	// 40 milliseconds
 
 	const uint8_t mode_and_status = RegisterRead(Register::MEAS_CFG);
 

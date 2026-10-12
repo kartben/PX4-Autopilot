@@ -143,7 +143,7 @@ UavcanNode::~UavcanNode()
 
 		do {
 			/* wait 5ms - it should wake every 10ms or so worst-case */
-			usleep(5000);
+			px4_usleep(5000);
 
 			if (--i == 0) {
 				break;
@@ -218,7 +218,7 @@ UavcanNode::save_params(int remote_node_id)
 
 	if (call_res >= 0) {
 		while (client.hasPendingCalls()) {
-			usleep(10000);
+			px4_usleep(10000);
 		}
 	}
 
@@ -242,7 +242,7 @@ UavcanNode::reset_node(int remote_node_id)
 
 	if (call_res >= 0) {
 		while (client.hasPendingCalls()) {
-			usleep(10000);
+			px4_usleep(10000);
 		}
 	}
 
@@ -307,7 +307,7 @@ UavcanNode::get_set_param(int remote_node_id, const char *name, uavcan::protocol
 	if (call_res >= 0) {
 
 		while (client.hasPendingCalls()) {
-			usleep(10000);
+			px4_usleep(10000);
 		}
 
 		if (!_callback_success) {

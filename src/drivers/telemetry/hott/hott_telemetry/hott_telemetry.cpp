@@ -136,7 +136,7 @@ recv_req_id(int uart, uint8_t *id)
 int
 send_data(int uart, uint8_t *buffer, size_t size)
 {
-	usleep(read_delay_us);
+	px4_usleep(read_delay_us);
 
 	uint16_t checksum = 0;
 
@@ -152,7 +152,7 @@ send_data(int uart, uint8_t *buffer, size_t size)
 		write(uart, &buffer[i], sizeof(buffer[i]));
 
 		/* Sleep before sending the next byte. */
-		usleep(write_delay_us);
+		px4_usleep(write_delay_us);
 	}
 
 	/* A hack the reads out what was written so the next read from the receiver doesn't get it. */

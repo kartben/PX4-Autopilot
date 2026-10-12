@@ -164,7 +164,7 @@ ICP201XX::RunImpl()
 
 			/* Bring the ASIC in power mode to activate the OTP power domain and get access to the main registers */
 			mode_select(0x04);
-			usleep(4_ms);
+			px4_usleep(4_ms);
 
 			/* Unlock the main registers */
 			write_reg(Register::MASTER_LOCK, 0x1F);
@@ -173,18 +173,18 @@ ICP201XX::RunImpl()
 			read_reg(Register::OTP_MTP_OTP_CFG1, &reg_value);
 			reg_value |= 0x03;
 			write_reg(Register::OTP_MTP_OTP_CFG1, reg_value);
-			usleep(10_us);
+			px4_usleep(10_us);
 
 			/* Toggle the OTP reset pin */
 			read_reg(Register::OTP_DEBUG2, &reg_value);
 			reg_value |= 1 << 7;
 			write_reg(Register::OTP_DEBUG2, reg_value);
-			usleep(10_us);
+			px4_usleep(10_us);
 
 			read_reg(Register::OTP_DEBUG2, &reg_value);
 			reg_value &= ~(1 << 7);
 			write_reg(Register::OTP_DEBUG2, reg_value);
-			usleep(10_us);
+			px4_usleep(10_us);
 
 			/* Program redundant read */
 			write_reg(Register::OTP_MTP_MRA_LSB, 0x04);

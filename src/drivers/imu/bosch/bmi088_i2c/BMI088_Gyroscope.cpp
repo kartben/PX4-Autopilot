@@ -403,7 +403,7 @@ bool BMI088_Gyroscope::SelfTest()
 
 	//Set bit0 to enable built in self test
 	RegisterWrite(Register::SELF_TEST, 0x01);
-	usleep(10000);
+	px4_usleep(10000);
 	uint8_t res = 0;
 	uint8_t test_res = false;
 

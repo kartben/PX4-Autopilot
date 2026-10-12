@@ -1341,7 +1341,7 @@ int PX4IO::ioctl(file *filep, int cmd, unsigned long arg)
 		io_reg_set(PX4IO_PAGE_SETUP, 14, 22027);
 
 		/* reboot into bootloader - arg must be PX4IO_REBOOT_BL_MAGIC */
-		usleep(1);
+		px4_usleep(1);
 		ret = io_reg_set(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_REBOOT_BL, arg);
 
 		if (ret != PX4_OK) {
@@ -1601,7 +1601,7 @@ int PX4IO::custom_command(int argc, char *argv[])
 
 			retries++;
 			// Sleep 200 ms before the next attempt
-			usleep(200 * 1000);
+			px4_usleep(200 * 1000);
 
 			// Try to reboot
 			ret = dev->ioctl(nullptr, PX4IO_REBOOT_BOOTLOADER, PX4IO_REBOOT_BL_MAGIC);
