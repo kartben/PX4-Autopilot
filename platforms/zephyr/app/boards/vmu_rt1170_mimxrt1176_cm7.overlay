@@ -1,6 +1,7 @@
 /* Sensor orientation and serial ports as in boards/px4/fmu-v6xrt/init/rc.board_sensors, the SD card and CAN buses */
 
 #include <dt-bindings/px4/rotation.h>
+#include <zephyr/dt-bindings/pwm/pwm.h>
 
 / {
 	px4-sensors {
@@ -154,6 +155,46 @@
 
 		can3 {
 			can = <&flexcan3>;
+		};
+	};
+
+	/*
+	 * FMU_CH1 to FMU_CH8 of FMU-v6XRT (boards/px4/fmu-v6xrt/src/timer_config.cpp), at 400 Hz. The
+	 * nxp,prescaler of the board limits the period to 17 ms.
+	 */
+	px4-pwm-outputs {
+		compatible = "px4,pwm-outputs";
+
+		main1 {
+			pwms = <&flexpwm1_pwm0 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main2 {
+			pwms = <&flexpwm1_pwm1 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main3 {
+			pwms = <&flexpwm1_pwm2 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main4 {
+			pwms = <&flexpwm2_pwm0 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main5 {
+			pwms = <&flexpwm2_pwm1 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main6 {
+			pwms = <&flexpwm2_pwm2 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main7 {
+			pwms = <&flexpwm2_pwm3 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main8 {
+			pwms = <&flexpwm3_pwm0 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
 		};
 	};
 
