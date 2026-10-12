@@ -1,0 +1,6 @@
+# Ground station on the USB OTG1 port, see platforms/zephyr/app/boards/mimxrt1170_evk_mimxrt1176_cm7.overlay
+ver all
+zephyr_sensors start
+sensors start
+mavlink start -d /dev/ttyACM0
+mavlink boot_complete
