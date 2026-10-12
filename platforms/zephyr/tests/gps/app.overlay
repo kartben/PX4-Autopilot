@@ -1,0 +1,17 @@
+/ {
+	euart0: uart-emul {
+		compatible = "zephyr,uart-emul";
+		status = "okay";
+		/* the NMEA sentences of one fix */
+		rx-fifo-size = <512>;
+	};
+
+	px4-serial-ports {
+		compatible = "px4,serial-ports";
+
+		gps1 {
+			uart = <&euart0>;
+			path = "/dev/ttyS1";
+		};
+	};
+};
