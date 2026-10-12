@@ -1,0 +1,6 @@
+menuconfig DRIVERS_ZEPHYR_PWM_OUT
+	bool "zephyr_pwm_out"
+	default n
+	depends on PLATFORM_ZEPHYR
+	---help---
+		Drive the PWM outputs listed in the px4,pwm-outputs devicetree node
