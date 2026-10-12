@@ -39,7 +39,9 @@
 
 #pragma once
 
+#if !defined(CONFIG_HWINFO_HAS_DRIVER)
 #define BOARD_OVERRIDE_UUID "ZEPHYRGENERIC000" // must be of length 16
+#endif
 #define PX4_SOC_ARCH_ID     PX4_SOC_ARCH_ID_UNUSED
 
 #define BOARD_HAS_POWER_CONTROL 1
