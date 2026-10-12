@@ -33,13 +33,14 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <mutex>
+#include <thread>
 #include <vector>
 #include <memory>
 #include <atomic>
 #include <pthread.h>
-#include <unistd.h>
 
 #include "lockstep_components.h"
 
@@ -79,7 +80,7 @@ private:
 			// thread_local object can still be in the linked list. In that case
 			// we need to wait until it's removed.
 			while (!removed) {
-				system_usleep(5000);
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
 		}
 

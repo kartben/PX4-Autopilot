@@ -64,7 +64,6 @@
 #define system_clock_gettime clock_gettime
 #define system_clock_settime clock_settime
 #define system_pthread_cond_timedwait pthread_cond_timedwait
-#define system_usleep usleep
 #define system_sleep sleep
 
 #ifndef PX4_DISABLE_GCC_POISON

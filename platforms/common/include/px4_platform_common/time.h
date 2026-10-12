@@ -25,6 +25,18 @@ __END_DECLS
 
 #endif
 
+__BEGIN_DECLS
+/**
+ * Sleep for usec microseconds of wall-clock time, outside of the lockstep scheduler.
+ *
+ * Any duration works, whereas usleep() only has to accept less than a second
+ * (and POSIX.1-2008 removed it). As with usleep(), a signal ends the sleep early.
+ *
+ * @return 0, or -1 with errno set (EINTR if a signal interrupted the sleep)
+ */
+__EXPORT int system_usleep(useconds_t usec);
+__END_DECLS
+
 #if defined(ENABLE_LOCKSTEP_SCHEDULER)
 
 __BEGIN_DECLS
