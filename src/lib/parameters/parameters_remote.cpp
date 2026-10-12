@@ -70,7 +70,7 @@ static int remote_sync_thread(int argc, char *argv[])
 	// So, sleep a little bit to give other side a chance to finish initialization
 	// of the muorb. But don't wait too long otherwise a set request from the server
 	// side could be missed.
-	usleep(200000);
+	px4_usleep(200000);
 
 	orb_advert_t _set_value_rsp_h = nullptr;
 

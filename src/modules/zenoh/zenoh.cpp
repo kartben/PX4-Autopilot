@@ -589,7 +589,7 @@ void ZENOH::run()
 	if (_pub_count == 0) {
 		// Nothing to publish but we don't want to stop this thread
 		while (!should_exit()) {
-			usleep(1000);
+			px4_usleep(1000);
 		}
 	}
 

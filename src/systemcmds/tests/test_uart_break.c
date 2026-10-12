@@ -39,6 +39,7 @@
 
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/defines.h>
+#include <px4_platform_common/time.h>
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -80,7 +81,7 @@ int test_uart_break(int argc, char *argv[])
 
 	/* let the line settle */
 
-	usleep(100000);
+	px4_usleep(100000);
 
 	/* Read the  buffer length */
 
@@ -113,7 +114,7 @@ int test_uart_break(int argc, char *argv[])
 
 	/* let the line settle */
 
-	usleep(100000);
+	px4_usleep(100000);
 
 	/* Signal  on Console for rough timing */
 
@@ -123,7 +124,7 @@ int test_uart_break(int argc, char *argv[])
 	/* Start Break */
 
 	ioctl(uart2, TIOCSBRK, 0);
-	usleep(250000);
+	px4_usleep(250000);
 
 	/* End Break */
 
@@ -136,7 +137,7 @@ int test_uart_break(int argc, char *argv[])
 
 	/* let the line settle */
 
-	usleep(100000);
+	px4_usleep(100000);
 
 
 #endif
@@ -158,7 +159,7 @@ int test_uart_break(int argc, char *argv[])
 
 	/* Ensure we are sending */
 
-	usleep(100000);
+	px4_usleep(100000);
 
 	/* Signal  on Console for rough timing */
 
@@ -168,7 +169,7 @@ int test_uart_break(int argc, char *argv[])
 	/* Start Break */
 
 	ioctl(uart2, TIOCSBRK, 0);
-	usleep(250000);
+	px4_usleep(250000);
 
 	/* End Break */
 
@@ -195,7 +196,7 @@ int test_uart_break(int argc, char *argv[])
 
 	for (wait = 0; wait < 1000 && left != uart2_buffer_size;  wait++) {
 		ioctl(uart2, FIONSPACE, (unsigned long)&left);
-		usleep(250000);
+		px4_usleep(250000);
 	}
 
 #define UART_BREAK_RUNTIME_CONF

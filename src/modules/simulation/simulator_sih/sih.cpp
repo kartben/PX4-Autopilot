@@ -169,7 +169,7 @@ void Sih::lockstep_loop()
 					break;
 				}
 
-				usleep(100);
+				system_usleep(100);
 			}
 
 			current_wall_time_us = micros();
@@ -178,7 +178,7 @@ void Sih::lockstep_loop()
 
 		_achieved_speedup = 0.99f * _achieved_speedup + 0.01f * ((float)sim_interval_us / (float)(
 					    current_wall_time_us - pre_compute_wall_time_us + sleep_time));
-		usleep(sleep_time);
+		system_usleep(sleep_time);
 	}
 
 	px4_lockstep_unregister_component(_lockstep_component);

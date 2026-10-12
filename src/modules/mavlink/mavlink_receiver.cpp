@@ -3918,7 +3918,7 @@ MavlinkReceiver::run()
 				nread = ::read(fds[0].fd, buf, sizeof(buf));
 
 				if (nread == -1 && errno == ENOTCONN) { // Not connected (can happen for USB)
-					usleep(100000);
+					px4_usleep(100000);
 				}
 			}
 
@@ -4086,7 +4086,7 @@ MavlinkReceiver::run()
 #endif // MAVLINK_UDP
 
 		} else if (ret == -1) {
-			usleep(10000);
+			px4_usleep(10000);
 		}
 
 		const hrt_abstime t = hrt_absolute_time();

@@ -214,7 +214,7 @@ bool uORB::AppsProtobufChannel::Test(MUORBTestType test_type)
 
 	// Wait for test acknowledgement from DSP
 	while ((! test_flag) && (timeout--)) {
-		usleep(10000);
+		px4_usleep(10000);
 	}
 
 	if (timeout == -1) {
@@ -248,7 +248,7 @@ void uORB::AppsProtobufChannel::keepalive_task()
 	while (true) {
 		uORB::AppsProtobufChannel::GetInstance()->send_message("keepalive", 1, data);
 
-		usleep(100000); // Update every 100ms
+		px4_usleep(100000); // Update every 100ms
 
 		if (_last_keepalive) {
 			hrt_abstime elapsed_time = hrt_elapsed_time(&_last_keepalive);

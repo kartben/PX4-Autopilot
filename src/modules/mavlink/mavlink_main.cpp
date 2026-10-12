@@ -1467,7 +1467,7 @@ Mavlink::configure_stream_threadsafe(const char *stream_name, const float rate)
 			// Wall-clock sleep: this is thread synchronization, not
 			// simulation timing. px4_usleep in lockstep mode sleeps in
 			// sim time which can stall startup.
-			usleep(MAIN_LOOP_DELAY / 2);
+			system_usleep(MAIN_LOOP_DELAY / 2);
 		}
 
 		/* copy stream name */
@@ -1489,7 +1489,7 @@ Mavlink::configure_stream_threadsafe(const char *stream_name, const float rate)
 
 		/* wait for subscription */
 		do {
-			usleep(MAIN_LOOP_DELAY / 2);
+			system_usleep(MAIN_LOOP_DELAY / 2);
 		} while (_subscribe_to_stream.load() != nullptr);
 
 		delete[] s;
