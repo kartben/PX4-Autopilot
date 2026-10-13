@@ -52,8 +52,9 @@ choice COMPILER_OPTIMIZATIONS
 	default SPEED_OPTIMIZATIONS if PX4
 endchoice
 
+# the PX4 priorities, mapped in order: the top 64 one to one, the others below them
 configdefault NUM_PREEMPT_PRIORITIES
-	default 100 if PX4
+	default 127 if PX4
 
 configdefault SYS_CLOCK_TICKS_PER_SEC
 	default 100000 if PX4 && TICKLESS_KERNEL

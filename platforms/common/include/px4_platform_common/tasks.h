@@ -86,9 +86,10 @@ typedef int px4_task_t;
 
 #elif defined(__PX4_ZEPHYR)
 
-#define SCHED_PRIORITY_MAX (CONFIG_NUM_PREEMPT_PRIORITIES - 1)
-#define SCHED_PRIORITY_MIN 0
-#define SCHED_PRIORITY_DEFAULT (SCHED_PRIORITY_MAX / 2)
+// the priorities of NuttX, which the platform maps to those of Zephyr in the same order
+#define SCHED_PRIORITY_MAX 255
+#define SCHED_PRIORITY_MIN 1
+#define SCHED_PRIORITY_DEFAULT 100
 
 #else
 #error "No target OS defined"

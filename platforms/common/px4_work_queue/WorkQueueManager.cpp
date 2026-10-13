@@ -301,7 +301,12 @@ WorkQueueManagerRun(int, char **)
 #endif
 
 			// priority
+#if defined(__PX4_ZEPHYR)
+			// a PX4 priority, which the platform maps to Zephyr's
+			int sched_priority = SCHED_PRIORITY_MAX + wq->relative_priority;
+#else
 			int sched_priority = sched_get_priority_max(PX4_WQ_SCHED_POLICY) + wq->relative_priority;
+#endif
 
 			// use pthreads for NuttX flat and posix builds. For NuttX protected build and Zephyr, use tasks or kernel threads
 #if (!defined(__PX4_NUTTX) || defined(CONFIG_BUILD_FLAT)) && !defined(__PX4_ZEPHYR)

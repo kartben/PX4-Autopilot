@@ -72,6 +72,14 @@ target_compile_options(px4_interface INTERFACE
 )
 add_dependencies(px4_interface uorb_headers)
 
+# PX4 priorities, mapped to Zephyr's in px4_sched.c
+foreach(function
+	pthread_attr_init pthread_attr_setschedpolicy pthread_attr_setschedparam pthread_attr_getschedparam
+	pthread_setschedparam pthread_getschedparam
+)
+	zephyr_ld_options(-Wl,--wrap=${function})
+endforeach()
+
 if(CONFIG_PX4_SHELL)
 	zephyr_library_named(px4_shell)
 	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_shell.c)

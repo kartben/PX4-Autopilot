@@ -34,9 +34,13 @@
 #include "px4_test.h"
 
 #include <px4_platform_common/posix.h>
+#include <px4_platform_common/px4_work_queue/WorkQueueManager.hpp>
 #include <px4_platform_common/tasks.h>
+#include <px4_sched.h>
 #include <px4_zephyr.h>
 
+#include <climits>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -95,6 +99,76 @@ ZTEST(px4_tasks, test_priority)
 	zassert_true(high >= 0);
 	zassert_true(high < low, "high %d, low %d", high, low);
 	zassert_true(low < K_IDLE_PRIO);
+}
+
+ZTEST(px4_tasks, test_priority_order)
+{
+	// PX4 priorities keep their order, and the work queues one Zephyr priority each
+	for (int priority = SCHED_PRIORITY_MIN; priority < SCHED_PRIORITY_MAX; priority++) {
+		const int posix = px4_zephyr_posix_priority(priority);
+		const int next = px4_zephyr_posix_priority(priority + 1);
+
+		zassert_true(posix <= next, "priority %d", priority);
+
+		if (priority >= SCHED_PRIORITY_MAX - PX4_ZEPHYR_PRIORITY_BAND) {
+			zassert_true(posix < next, "priority %d", priority);
+			zassert_equal(px4_zephyr_px4_priority(next), priority + 1);
+		}
+	}
+
+	zassert_equal(px4_zephyr_posix_priority(SCHED_PRIORITY_MIN), 0);
+	zassert_equal(px4_zephyr_posix_priority(SCHED_PRIORITY_MAX), CONFIG_NUM_PREEMPT_PRIORITIES - 1);
+
+	// the commander, at the default priority + 40, below the controllers and the estimator, as on NuttX
+	const int commander = px4_zephyr_posix_priority(SCHED_PRIORITY_DEFAULT + 40);
+	zassert_true(commander < px4_zephyr_posix_priority(SCHED_PRIORITY_MAX
+			+ px4::wq_configurations::nav_and_controllers.relative_priority));
+	zassert_true(commander < px4_zephyr_posix_priority(SCHED_PRIORITY_MAX
+			+ px4::wq_configurations::INS0.relative_priority));
+	zassert_true(commander < px4_zephyr_posix_priority(SCHED_PRIORITY_MAX
+			+ px4::wq_configurations::lp_default.relative_priority));
+}
+
+static void *thread_main(void *arg)
+{
+	*(int *)arg = k_thread_priority_get(k_current_get());
+	return nullptr;
+}
+
+static int pthread_priority(int policy, int priority)
+{
+	pthread_attr_t attr;
+	zassert_ok(pthread_attr_init(&attr));
+	zassert_ok(pthread_attr_setstacksize(&attr, 2048));
+	zassert_ok(pthread_attr_setschedpolicy(&attr, policy));
+
+	sched_param param{};
+	param.sched_priority = priority;
+	zassert_ok(pthread_attr_setschedparam(&attr, &param));
+
+	sched_param read{};
+	zassert_ok(pthread_attr_getschedparam(&attr, &read));
+	zassert_equal(read.sched_priority, priority);
+
+	int zephyr_priority = INT_MIN;
+	pthread_t thread;
+	zassert_ok(pthread_create(&thread, &attr, thread_main, &zephyr_priority));
+	zassert_ok(pthread_join(thread, nullptr));
+	pthread_attr_destroy(&attr);
+
+	return zephyr_priority;
+}
+
+ZTEST(px4_tasks, test_pthread_priority)
+{
+	// threads that set a priority run at it, not at the priority of the thread that creates them
+	const int priority = SCHED_PRIORITY_MAX - 10;
+	const int expected = CONFIG_NUM_PREEMPT_PRIORITIES - 1 - px4_zephyr_posix_priority(priority);
+
+	zassert_equal(pthread_priority(SCHED_RR, priority), expected);
+
+	// SCHED_FIFO threads are preemptible, as on NuttX
+	zassert_equal(pthread_priority(SCHED_FIFO, priority), expected);
 }
 
 ZTEST(px4_tasks, test_resources_released)
