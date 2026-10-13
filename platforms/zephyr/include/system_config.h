@@ -56,6 +56,11 @@
 #define BOARD_HAS_NO_UUID
 #endif
 
+/* the board ADC publishes the 5 V rail to system_power, without detecting USB */
+#if defined(ADC_SCALED_V5_CHANNEL) && !defined(BOARD_ADC_USB_CONNECTED)
+#define BOARD_ADC_USB_CONNECTED 0
+#endif
+
 #define CONFIG_NFILE_STREAMS 1
 #define CONFIG_SCHED_WORKQUEUE 1
 #define CONFIG_SCHED_HPWORK 1
