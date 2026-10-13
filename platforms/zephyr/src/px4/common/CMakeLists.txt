@@ -31,6 +31,7 @@
 #
 ############################################################################
 
+add_subdirectory(adc)
 add_subdirectory(tone_alarm)
 
 add_library(px4_layer

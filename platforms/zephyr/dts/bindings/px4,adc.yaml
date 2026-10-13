@@ -1,0 +1,39 @@
+description: |
+  Channels of the PX4 board ADC, which the board_adc driver samples and
+  publishes to adc_report.
+
+  PX4 numbers the channels from 0, in the order of io-channels. The name of a
+  channel gives the PX4 channel macro that board_config.h defines with NuttX:
+  a channel named "scaled-v5" is ADC_SCALED_V5_CHANNEL. The power rails are
+  published to system_power:
+
+    - scaled-v5: the 5 V rail, through a voltage divider of 2, or of
+      ADC_V5_V_FULL_SCALE / 3.3 if board_config.h defines it.
+    - scaled-vdd-3v3-sensors, or scaled-vdd-3v3-sensors1 to
+      scaled-vdd-3v3-sensors4: the 3.3 V rails of the sensors, through a
+      voltage divider of 2, or of ADC_3V3_SCALE.
+
+  The other channels, such as the inputs of an ADC connector, are only
+  published to adc_report. Each channel is configured by its channel node on
+  its ADC, and all channels have the same resolution and full scale, from the
+  reference voltage and the gain:
+
+    / {
+      px4-adc {
+        compatible = "px4,adc";
+        io-channels = <&adc1 0>, <&adc1 1>, <&adc1 2>;
+        io-channel-names = "scaled-v5", "scaled-vdd-3v3-sensors", "adc-3v3";
+      };
+    };
+
+compatible: "px4,adc"
+
+properties:
+  io-channels:
+    type: phandle-array
+    required: true
+    description: ADC channels, up to 16, the size of adc_report.
+  io-channel-names:
+    type: string-array
+    required: true
+    description: Name of each channel, which gives its PX4 channel macro.
