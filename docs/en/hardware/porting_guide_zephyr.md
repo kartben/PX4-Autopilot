@@ -179,6 +179,19 @@ _QGroundControl_ doesn't recognise its USB IDs: add a serial link to its port (`
 - DroneCAN runs on the CAN3 connector, CAN1 of PX4: start it with `px4 uavcan start`.
 - The rate controller and the simulator run at 400 Hz instead of 800 Hz.
 
+An ExpressLRS or TBS Crossfire receiver connects to the UART of the Arduino header (LPUART2, `/dev/ttyS1`), which `crsf_rc` reads:
+
+| Receiver | MIMXRT1170-EVK |
+| -------- | -------------- |
+| TX       | D0 (J9)        |
+| RX       | D1 (J9)        |
+| 5V       | 5V (J25)       |
+| GND      | GND (J25)      |
+
+The M.2 slot must be empty, as its Bluetooth module shares the UART.
+The SIH configuration disables the sticks: set [COM_RC_IN_MODE](../advanced_config/parameter_reference.md#COM_RC_IN_MODE) to 0 to fly with the transmitter, after the radio calibration of _QGroundControl_.
+At 420000 baud, the 4-byte receive FIFO of the UART overruns when its interrupt is late, which loses about 0.2% of the frames.
+
 The EVK runs the firmware from its quad SPI flash, which stalls the CPU for hundreds of cycles when an instruction isn't in the cache.
 With the 32 KiB instruction cache of the Cortex-M7, the flight stack spends most of its time waiting for the flash.
 `CONFIG_PX4_ITCM` runs the most used code from the ITCM, the instruction memory of the Cortex-M7, instead: the kernel, uORB, the work queues, the sensors, the rate and attitude controllers, the control allocation, the simulator and the trigonometric functions of the C library, and the functions of [itcm_functions.ld](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/zephyr/module/itcm_functions.ld), which a profile of SIH on the EVK found running most from the flash (250 KiB in all).

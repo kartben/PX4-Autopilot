@@ -45,6 +45,8 @@ flight_mode_manager start
 mc_pos_control start
 land_detector start multicopter
 navigator start
+# ExpressLRS or Crossfire receiver on the Arduino UART, see platforms/zephyr/app/boards/mimxrt1170_evk_mimxrt1176_cm7.overlay
+crsf_rc start -d /dev/ttyS1
 # ground station on the USB OTG1 port
 mavlink start -d /dev/ttyACM0
 logger start

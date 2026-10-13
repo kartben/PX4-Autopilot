@@ -2,5 +2,7 @@
 ver all
 zephyr_sensors start
 sensors start
+# ExpressLRS or Crossfire receiver on the Arduino UART, see platforms/zephyr/app/boards/mimxrt1170_evk_mimxrt1176_cm7.overlay
+crsf_rc start -d /dev/ttyS1
 mavlink start -d /dev/ttyACM0
 mavlink boot_complete
