@@ -33,6 +33,7 @@
 
 #include <px4_zephyr.h>
 
+#include <drivers/drv_board_led.h>
 #include <parameters/param.h>
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/init.h>
@@ -61,6 +62,11 @@ int px4_zephyr_init(void)
 	work_queues_init();
 
 	const int ret = px4_platform_init();
+
+#if defined(CONFIG_PX4_LEDS)
+	// the board LEDs, at /dev/led0 as on NuttX
+	drv_led_start();
+#endif
 
 	struct statfs storage;
 
