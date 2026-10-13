@@ -579,6 +579,22 @@ bool px4_tty_exists(const char *path)
 	return px4_tty_find(path) != NULL;
 }
 
+int board_read_VBUS_state(void);
+
+/* Zephyr has no generic VBUS detection: a host that opens a USB serial port stands for VBUS, so that
+ * cdcacm_autostart starts MAVLink when a ground station connects, and stops it when it disconnects
+ */
+int board_read_VBUS_state(void)
+{
+	for (size_t i = 0; i < ARRAY_SIZE(px4_ttys); i++) {
+		if (px4_ttys[i].usb && px4_tty_connected(&px4_ttys[i])) {
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 static struct px4_tty *px4_tty_get_fd(int fd)
 {
 	return zvfs_get_fd_obj(fd, &px4_tty_vtable, ENOTTY);
@@ -737,6 +753,13 @@ bool px4_tty_exists(const char *path)
 {
 	ARG_UNUSED(path);
 	return false;
+}
+
+int board_read_VBUS_state(void);
+
+int board_read_VBUS_state(void)
+{
+	return 1;
 }
 
 int tcgetattr(int fd, struct termios *termios_p)
