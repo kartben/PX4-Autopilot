@@ -218,6 +218,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 
 - [tests/platform](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/platform) tests the platform layer: time, callouts from interrupts, tasks, work queues, uORB, parameters, and the CPU load that `top` and `load_mon` show.
 - [tests/sensors](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/sensors) tests the sensor driver with Zephyr's sensor emulators, on emulated SPI and I2C buses, with a sensor that doesn't respond, a power monitor and an emulated SBS fuel gauge.
+  The FIFO of an ICM-42688-P is streamed at 8 kHz, on a 250 MHz emulated CPU, from an emulator of the test, as the Zephyr emulator has no FIFO, and a second ICM-42688-P is polled, as its interrupt doesn't fire.
 - [tests/serial](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/serial) tests the serial ports, termios and `device::Serial` on an emulated UART.
 - [tests/storage](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/storage) tests the parameter file and the file functions of PX4 on a RAM disk.
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
@@ -334,10 +335,26 @@ The `zephyr_sensors` driver publishes the sensors listed in the `px4,sensors` de
 [SensorBaro]: ../msg_docs/SensorBaro.md
 [BatteryStatus]: ../msg_docs/BatteryStatus.md
 
-The driver reads the sensors with the Zephyr sensor API, which works with any Zephyr sensor driver: the IMUs at the rate of the rate controller, [IMU_GYRO_RATEMAX](../advanced_config/parameter_reference.md#IMU_GYRO_RATEMAX), the magnetometers at 100 Hz, the barometers at 50 Hz and the power monitors at 10 Hz.
+The driver reads the sensors with the Zephyr sensor API, which works with any Zephyr sensor driver: the IMUs at the rate of the rate controller, [IMU_GYRO_RATEMAX](../advanced_config/parameter_reference.md#IMU_GYRO_RATEMAX), unless their FIFO is streamed (below), the magnetometers at 100 Hz, the barometers at 50 Hz and the power monitors at 10 Hz.
 The sensors of each bus are read in turn on the work queue of the bus, as with the PX4 drivers, so that a slow sensor, such as a barometer that converts, doesn't delay the IMUs of the other buses.
 Most Zephyr sensor drivers read on the RTIO work queue, which has 8 threads with PX4 so that 8 buses can be read at the same time: a board with more sensor buses raises `CONFIG_RTIO_WORKQ_THREADS_POOL` and `CONFIG_RTIO_WORKQ_POOL_ITEMS`.
 The device IDs are made from the bus, the address and the sensor model, as for the PX4 drivers.
+
+An IMU whose interrupt pin is in the devicetree, as `int-gpios`, `irq-gpios`, `int1-gpios` or `int2-gpios` of its device, has its FIFO streamed with the Zephyr [sensor streaming API](https://docs.zephyrproject.org/latest/hardware/peripherals/sensor/read_and_decode.html#streaming) if its Zephyr driver supports it.
+The ICM-4268x driver supports it when `CONFIG_SPI_RTIO` is enabled, and other drivers, such as the BMI08x, BMI270 and ICM-45686 drivers, with Kconfig options, such as `CONFIG_BMI08X_ACCEL_STREAM`.
+The FIFO is read each time it reaches its watermark, and all its samples are published to [SensorAccelFifo] and [SensorGyroFifo], as the PX4 IMU drivers do with NuttX, so that the rate controller filters the IMU at its output data rate.
+The decoder of the Zephyr driver gives the time of the samples, from the time of the interrupt, and their temperature, if the FIFO has it.
+
+- Drivers that take a batch duration (`SENSOR_ATTR_BATCH_DURATION`), such as the ICM-4268x driver, get a FIFO watermark of at most 1 / IMU_GYRO_RATEMAX and 32 samples, the size of the FIFO messages, for example 20 samples at 8 kHz for 400 Hz.
+- The FIFO watermark of the other drivers is a property of their device, such as the `fifo-watermark` of the BMI08x, which must read the FIFO at least at IMU_GYRO_RATEMAX, for example 5 samples at 2000 Hz for 400 Hz.
+- An IMU is polled instead if its driver can't stream, or if its FIFO isn't read for 100 ms, for example if its interrupt pin isn't connected.
+
+Each streamed IMU buffers its FIFO reads in `CONFIG_PX4_SENSORS_FIFO_BUFFER_SIZE` bytes, 2 KiB by default, which must hold at least two of them.
+The NXP VMU RT1170 streams the FIFOs of its IMUs, at the output data rates and full scales of the NuttX drivers of FMU-v6XRT: 8 kHz for the ICM-42686-P and ICM-42688-P, 1600 Hz for the accelerometer of the BMI088 and 2000 Hz for its gyroscope, with its 532 Hz filter.
+The anti-aliasing and UI filters of the ICM-4268x keep their reset values, as the Zephyr driver doesn't configure them.
+
+[SensorAccelFifo]: ../msg_docs/SensorAccelFifo.md
+[SensorGyroFifo]: ../msg_docs/SensorGyroFifo.md
 
 A sensor that may not be connected, such as the compass of a GPS module, has the `zephyr,deferred-init` property on its device, so that Zephyr doesn't initialize it at boot.
 `zephyr_sensors` initializes it when it starts, and leaves it out if it doesn't respond, as PX4 probes the external buses with NuttX.
@@ -607,7 +624,6 @@ Only the operating system rows compare the two systems, as the builds differ in 
 - RC input is read from Zephyr input devices, such as SBUS receivers, and from CRSF receivers with `crsf_rc` on a serial port, as on the MIMXRT1170-EVK: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
   The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, nor the digital channels 17 and 18.
 - Storage is on FAT file systems only.
-- Sensors are polled: the IMU FIFOs are not used.
 - Serial ports use the interrupt-driven UART API, without DMA, and have no single-wire, inverted or swapped modes.
 - DroneCAN isn't started at boot, and a frame that a CAN controller has started to send is sent even once its deadline has passed. Cyphal uses classic CAN frames only.
 - Dynamic modules (`DYNAMIC` in `px4_add_module()`) are not supported.
@@ -616,7 +632,6 @@ Only the operating system rows compare the two systems, as the builds differ in 
 
 ## Roadmap
 
-- Read the IMU FIFOs with the Zephyr sensor streaming API.
 - RC input over a serial port, with the other protocols of the PX4 RC drivers (DSM, GHST).
 - Device files and termios for UARTs in Zephyr itself, instead of the PX4 platform layer.
 - Parameters in flash, with ZMS, on boards without an SD card.
