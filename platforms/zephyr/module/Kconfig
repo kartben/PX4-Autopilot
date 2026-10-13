@@ -174,9 +174,10 @@ config PX4_LEDS
 	depends on DT_HAS_PX4_LEDS_ENABLED
 	select LED
 	help
-	  Enable the LED drivers of the LEDs of the px4,leds devicetree node,
-	  and give PX4 its board LEDs, which Commander drives through
-	  /dev/led0.
+	  Enable the LED drivers of the LEDs of the px4,leds devicetree node:
+	  the board LEDs of PX4, which Commander drives through /dev/led0, and
+	  the RGB LEDs on which the PX4 zephyr_rgbled driver shows the system
+	  status.
 
 config PX4_STACK_OVERHEAD
 	int "Stack overhead"
