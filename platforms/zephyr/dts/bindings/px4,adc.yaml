@@ -1,6 +1,7 @@
 description: |
   Channels of the PX4 board ADC, which the board_adc driver samples and
-  publishes to adc_report.
+  publishes to adc_report, from which the battery_status module measures the
+  analog batteries.
 
   PX4 numbers the channels from 0, in the order of io-channels. The name of a
   channel gives the PX4 channel macro that board_config.h defines with NuttX:
@@ -12,6 +13,17 @@ description: |
     - scaled-vdd-3v3-sensors, or scaled-vdd-3v3-sensors1 to
       scaled-vdd-3v3-sensors4: the 3.3 V rails of the sensors, through a
       voltage divider of 2, or of ADC_3V3_SCALE.
+
+  The analog batteries are published to battery_status:
+
+    - battery-voltage and battery-current: the voltage and current of a
+      battery, scaled with the BAT1_V_DIV and BAT1_A_PER_V parameters.
+    - battery1-voltage, battery1-current, battery2-voltage and
+      battery2-current: the voltages and currents of two batteries, scaled
+      with BAT1_* and BAT2_*.
+
+  BATn_V_CHANNEL selects another channel, by its number, for the voltage of
+  battery n.
 
   The other channels, such as the inputs of an ADC connector, are only
   published to adc_report. Each channel is configured by its channel node on
