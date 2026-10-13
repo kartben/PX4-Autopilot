@@ -168,6 +168,16 @@ config PX4_BUZZER
 	  PX4 tone_alarm driver plays its tunes. Disable it if the PX4 board
 	  configuration has no tone_alarm.
 
+config PX4_LEDS
+	bool "LEDs for PX4"
+	default y
+	depends on DT_HAS_PX4_LEDS_ENABLED
+	select LED
+	help
+	  Enable the LED drivers of the LEDs of the px4,leds devicetree node,
+	  and give PX4 its board LEDs, which Commander drives through
+	  /dev/led0.
+
 config PX4_STACK_OVERHEAD
 	int "Stack overhead"
 	default 1024
