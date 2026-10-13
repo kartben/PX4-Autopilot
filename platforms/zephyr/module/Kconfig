@@ -98,6 +98,24 @@ config ZVFS_OPEN_ADD_SIZE_PX4_STORAGE
 	help
 	  File descriptors added for the files of PX4.
 
+config PX4_COMPONENT_METADATA
+	bool "Component metadata"
+	default y
+	select POSIX_FILE_SYSTEM
+	help
+	  Build the component metadata of PX4 (parameters, events and
+	  actuators) into the firmware when the PX4 board configuration has
+	  MAVLink, for ground stations to download with MAVLink FTP. The files
+	  are in /etc/extras, as on NuttX, on a read-only file system mounted
+	  at /etc.
+
+config ZVFS_OPEN_ADD_SIZE_PX4_COMPONENT_METADATA
+	int "Metadata files open at the same time"
+	default 4
+	depends on PX4_COMPONENT_METADATA
+	help
+	  File descriptors added for the files and directories of /etc.
+
 config PX4_CAN
 	bool "CAN buses for PX4"
 	default y
@@ -207,6 +225,11 @@ configdefault MAX_PTHREAD_MUTEX_COUNT
 
 configdefault FS_FATFS_NUM_FILES
 	default 8 if PX4_STORAGE
+
+# without FAT long file names, directory entries have names of 12 characters at most, shorter than
+# the names of the metadata files
+configdefault FILE_SYSTEM_MAX_FILE_NAME
+	default 255 if PX4_COMPONENT_METADATA && !FAT_FILESYSTEM_ELM
 
 configdefault MAX_PTHREAD_COND_COUNT
 	default 64
