@@ -124,7 +124,7 @@ void ToneAlarm::Run()
 
 					_play_tone = true;
 
-#if (!defined(TONE_ALARM_TIMER) && !defined(GPIO_TONE_ALARM_GPIO)) || defined(DEBUG_BUILD)
+#if (!defined(TONE_ALARM_TIMER) && !defined(GPIO_TONE_ALARM_GPIO) && !defined(CONFIG_PX4_BUZZER)) || defined(DEBUG_BUILD)
 
 					switch (tune_control.tune_id) {
 					case tune_control_s::TUNE_ID_STARTUP:
@@ -172,7 +172,7 @@ void ToneAlarm::Run()
 						break;
 					}
 
-#endif // (!TONE_ALARM_TIMER && !GPIO_TONE_ALARM_GPIO) || DEBUG_BUILD
+#endif // (!TONE_ALARM_TIMER && !GPIO_TONE_ALARM_GPIO && !CONFIG_PX4_BUZZER) || DEBUG_BUILD
 
 					break;
 
