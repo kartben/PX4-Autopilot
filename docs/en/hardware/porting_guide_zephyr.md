@@ -554,7 +554,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 - PX4 has only flown in simulation: the PWM outputs and the RC input are only tested in QEMU.
 - PWM outputs have the period of the devicetree, without OneShot or DShot.
 - There is no component metadata, which NuttX boards have in `/etc/extras` of their ROMFS: _QGroundControl_ has no Actuators setup.
-- RC input is only read from Zephyr input devices, such as SBUS receivers: the RC protocols that PX4 decodes on a serial port with NuttX, such as CRSF, DSM and GHST, aren't supported.
+- RC input is read from Zephyr input devices, such as SBUS receivers, and from CRSF receivers with `crsf_rc` on a serial port, as on the MIMXRT1170-EVK: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
   The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, nor the digital channels 17 and 18.
 - Storage is on FAT file systems only, and the logs have no CPU load of the tasks.
 - Sensors are polled: the IMU FIFOs are not used.
@@ -568,7 +568,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 ## Roadmap
 
 - Read the IMU FIFOs with the Zephyr sensor streaming API.
-- RC input over a serial port, with the protocols of the PX4 RC drivers (CRSF, DSM, GHST).
+- RC input over a serial port, with the other protocols of the PX4 RC drivers (DSM, GHST).
 - Device files and termios for UARTs in Zephyr itself, instead of the PX4 platform layer.
 - Parameters in flash, with ZMS, on boards without an SD card.
 - Dynamic modules as Zephyr loadable extensions (below).
