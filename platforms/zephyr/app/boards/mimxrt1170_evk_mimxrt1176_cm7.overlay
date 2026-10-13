@@ -1,5 +1,5 @@
-/* USB serial port on USB OTG1, RC receiver on the Arduino UART, the microSD card and the CAN bus of
- * the MIMXRT1170-EVK
+/* USB serial port on USB OTG1, RC receiver on the Arduino UART, the microSD card, the CAN bus and
+ * the user LEDs of the MIMXRT1170-EVK
  */
 
 / {
@@ -27,6 +27,12 @@
 		can1 {
 			can = <&flexcan3>;
 		};
+	};
+
+	px4-leds {
+		compatible = "px4,leds";
+		red = <&red_led>;
+		green = <&green_led>;
 	};
 
 	fstab {
