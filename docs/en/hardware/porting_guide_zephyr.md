@@ -40,6 +40,7 @@ The PX4 options of the Zephyr configuration are:
 | `CONFIG_PX4_PWM_OUTPUTS`    | Enable the Zephyr PWM API for the actuator outputs (enabled by the `px4,pwm-outputs` node).         |
 | `CONFIG_PX4_RC_INPUT`       | Enable the input subsystem for the RC input (enabled by the `px4,rc-input` node).                   |
 | `CONFIG_PX4_BUZZER`         | Enable the buzzer driver for the tone alarm (enabled by the `buzzer0` devicetree alias).            |
+| `CONFIG_PX4_LEDS`           | Enable the LED drivers for the board and RGB LEDs (enabled by the `px4,leds` node).                 |
 | `CONFIG_PX4_STACK_OVERHEAD` | Bytes added to the stack of each PX4 task and work queue.                                           |
 | `CONFIG_PX4_ITCM`           | Run the most used code from the ITCM instead of the flash (enabled on the MIMXRT1170-EVK).          |
 
@@ -226,6 +227,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/pwm](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/pwm) tests the PWM outputs on the Zephyr fake PWM driver: the disarmed, armed, failsafe and ESC calibration values, a pulse longer than the period, the outputs left without pulses when their functions are removed and disarmed when the driver stops, and the update rate of outputs with different periods.
 - [tests/rc_input](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/rc_input) tests the RC input with the Zephyr SBUS driver, which receives SBUS frames on an emulated UART: the channel values, keys, the failsafe, the loss of RC, and the events of another input device.
 - [tests/buzzer](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/buzzer) tests the tone alarm on a PWM buzzer of the Zephyr fake PWM driver: the frequency and duration of the notes of a tone and of tunes, a tone that overrides a tune, a stop in the middle of a note, and `CBRK_BUZZER`.
+- [tests/leds](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/leds) tests the board LEDs on GPIO LEDs of an emulated GPIO controller, through `/dev/led0` and as Commander drives them, and the RGB LED driver on a fake LED, a group of GPIO LEDs and an emulated NCP5623C: the colors, blinks and breathing of `led_control`, `SYS_RGB_MAXBRT`, and an NCP5623C that doesn't respond.
 - [tests/gps](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/gps) tests the GPS driver with an NMEA receiver on an emulated UART: the position, accuracy, dilutions of precision and velocity of the fix, and the baud rate.
 - [tests/identity](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/identity) tests the board identity, from the device ID of a hwinfo driver and from `BOARD_OVERRIDE_UUID`.
 - The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log, `top` and the CPU load, and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port and download the component metadata with MAVLink FTP, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
@@ -612,6 +614,62 @@ Set [CBRK_BUZZER](../advanced_config/parameter_reference.md#CBRK_BUZZER) to 7820
 The NXP VMU RT1170 has the buzzer of FMU-v6XRT in its Zephyr board devicetree, on a channel of QTMR1.
 Its board configuration starts `tone_alarm`, and plays the startup tune at the end of its startup script.
 
+### LEDs
+
+As on NuttX, PX4 turns its board LEDs on and off through `/dev/led0`, for example to show the arming state and the CPU overload with [Commander](../modules/modules_system.md#commander), and shows the system status on its RGB LEDs, the [UI LED](../getting_started/led_meanings.md#ui_led), such as the LED of a GPS module.
+The `px4,leds` devicetree node selects their Zephyr LEDs:
+
+```dts
+#include <zephyr/dt-bindings/led/led.h>
+
+/ {
+	px4-leds {
+		compatible = "px4,leds";
+		blue = <&blue_led>;
+		red = <&red_led>;
+		green = <&green_led>;
+		rgb = <&gps_led>;
+	};
+};
+
+&lpi2c1 {
+	ncp5623c@39 {
+		compatible = "onnn,ncp5623";
+		reg = <0x39>;
+		zephyr,deferred-init;
+
+		gps_led: led_0 {
+			label = "GPS LED";
+			index = <0>;
+			color-mapping = <LED_COLOR_ID_RED>, <LED_COLOR_ID_GREEN>, <LED_COLOR_ID_BLUE>;
+		};
+	};
+};
+```
+
+| Property               | Description                                                              |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `blue`, `red`, `green` | The board LEDs `LED_BLUE`, `LED_RED` (also `LED_AMBER`) and `LED_GREEN`. |
+| `rgb`                  | RGB LEDs, which all show the system status.                              |
+
+Each LED is an LED of an LED controller, such as `gpio-leds` or `pwm-leds`, or a `leds-group-multicolor`, which PX4 drives with the Zephyr [LED API](https://docs.zephyrproject.org/latest/hardware/peripherals/led.html).
+The node names the board LEDs after their color, which the `led0`, `led1`... aliases of the Zephyr boards don't give.
+`CONFIG_PX4_LEDS` enables the LED drivers when the devicetree has the node.
+
+The board LEDs are off when PX4 starts.
+`BOARD_ARMED_STATE_LED` and `BOARD_OVERLOAD_LED` in `src/board_config.h` of the PX4 board configuration select the LEDs on which Commander blinks the arming state and the overload, as on NuttX: the blue and the red LED in the generic board configuration, as on most flight controllers.
+
+The `zephyr_rgbled` driver shows the system status of the `led_control` topic on the RGB LEDs, as the RGB LED drivers of NuttX, such as `rgbled_ncp5623c`: add `CONFIG_DRIVERS_LIGHTS_ZEPHYR_RGBLED` to the PX4 board configuration, and start it in the startup script with `zephyr_rgbled start`.
+An RGB LED is a multi-color LED with red, green or blue channels in its `color-mapping`, such as the LED of an NCP5623C, LP5562 or IS31FL319x, or single-color LEDs grouped by a `leds-group-multicolor`.
+The driver sets their color every 100 ms, or every 25 ms while they breathe, and [SYS_RGB_MAXBRT](../advanced_config/parameter_reference.md#SYS_RGB_MAXBRT) limits their brightness.
+An LED whose device has the `zephyr,deferred-init` property, such as the LED of a GPS module that may not be connected, is initialized when the driver starts, and left out if it doesn't respond.
+The [led_control](../modules/modules_command.md#led-control) command (`CONFIG_SYSTEMCMDS_LED_CONTROL`) sets their color, for example `px4 led_control blink -c green`.
+
+The NXP VMU RT1170 has the board LEDs of FMU-v6XRT, with their roles, and shows the system status on the LED of a GPS module on GPS1, an NCP5623C.
+Its overlay makes the green LED active low, and gives the NCP5623C the compatible of the Zephyr NCP5623 driver, as its Zephyr board has them wrong.
+Its board configuration has no Commander: the board LEDs show the arming state in the SIH configuration.
+The MIMXRT1170-EVK blinks the arming state on its green user LED, and the overload on its red one.
+
 ## Footprint
 
 [Tools/footprint.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/footprint.py) breaks down the flash and static RAM of PX4 firmware by component, for NuttX and Zephyr builds alike.
@@ -668,6 +726,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 - PWM outputs have the period of the devicetree, without OneShot or DShot.
 - RC input is read from Zephyr input devices, such as SBUS receivers, and from CRSF receivers with `crsf_rc` on a serial port, as on the MIMXRT1170-EVK: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
   The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, nor the digital channels 17 and 18.
+- The LEDs are only tested in QEMU, and an RGB LED needs a Zephyr LED driver: the NCP5623C, LP5562 and IS31FL319x have one, but not the TCA62724, IS31FL3195 and AW2023 of the NuttX RGB LED drivers.
 - Storage is on FAT file systems only.
 - Serial ports use the interrupt-driven UART API, without DMA, and have no single-wire, inverted or swapped modes.
 - DroneCAN isn't started at boot, and a frame that a CAN controller has started to send is sent even once its deadline has passed. Cyphal uses classic CAN frames only.
