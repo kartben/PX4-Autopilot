@@ -47,6 +47,6 @@ mc_pos_control start
 land_detector start multicopter
 navigator start
 # ground station on the QEMU host
-mavlink start -u 14556 -o 14550 -t 10.0.2.2 -r 400000
+mavlink start -x -u 14556 -o 14550 -t 10.0.2.2 -r 400000
 logger start
 mavlink boot_complete
