@@ -54,6 +54,7 @@ BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(px4_leds) == 1, "only one px4,leds node is 
 static const struct led_dt_spec board_leds[] = {
 	[LED_BLUE] = BOARD_LED(blue),
 	[LED_RED] = BOARD_LED(red),
+	[LED_SAFETY] = BOARD_LED(safety),
 	[LED_GREEN] = BOARD_LED(green),
 };
 

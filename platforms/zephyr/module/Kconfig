@@ -179,6 +179,25 @@ config PX4_LEDS
 	  the RGB LEDs on which the PX4 zephyr_rgbled driver shows the system
 	  status.
 
+config PX4_SAFETY_BUTTON
+	bool "Safety button for PX4"
+	default y
+	depends on DT_HAS_PX4_SAFETY_BUTTON_ENABLED
+	select GPIO
+	help
+	  Read the button of the px4,safety-button devicetree node with the
+	  Zephyr GPIO API, for the PX4 safety_button driver, which also blinks
+	  the safety LED of the px4,leds node.
+
+DT_COMPAT_PX4_LEDS := px4,leds
+
+config PX4_SAFETY_LED
+	def_bool $(dt_compat_any_has_prop,$(DT_COMPAT_PX4_LEDS),safety)
+	depends on PX4_SAFETY_BUTTON && PX4_LEDS
+	help
+	  The px4,leds devicetree node has a safety LED, which the PX4
+	  safety_button driver blinks.
+
 config PX4_ADC
 	bool "Board ADC for PX4"
 	default y
