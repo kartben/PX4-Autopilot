@@ -11,6 +11,7 @@ sensors start
 zephyr_pwm_out start
 gps start -d /dev/ttyS1
 mavlink start -d /dev/ttyS2 -b 57600 -x
-mavlink start -d /dev/ttyACM0
+# MAVLink on the USB port, while a ground station has it open
+cdcacm_autostart start
 tune_control play -t 1
 mavlink boot_complete

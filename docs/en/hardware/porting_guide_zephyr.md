@@ -177,7 +177,7 @@ uart:~$ px4 listener vehicle_local_position
 uart:~$ px4 commander land
 ```
 
-The USB OTG1 port is `/dev/ttyACM0`, a USB serial port that runs MAVLink.
+The USB OTG1 port is `/dev/ttyACM0`, a USB serial port that runs MAVLink while a ground station has it open.
 _QGroundControl_ doesn't recognise its USB IDs: add a serial link to its port (`/dev/cu.usbmodem*` on macOS) in **Application Settings > Comm Links**, and fly missions from there.
 
 - The RAM is the on-chip OCRAM from 0x20200000 (1 MiB: the OCRAM of the M4, OCRAM1 and half of OCRAM2), instead of the SDRAM that the board chooses, with which the flight stack takes about 1.5 points more of the CPU.
@@ -472,6 +472,8 @@ The `px4_tty` shell command prints the receive statistics of the serial ports: t
 
 A USB CDC ACM UART (`zephyr,cdc-acm-uart`) is a USB serial port.
 Data written to it is dropped while no host has opened it, and MAVLink detects a USB port from its `/dev/ttyACM` path.
+`cdcacm_autostart` takes a host that opens a USB port for VBUS, which Zephyr has no generic way to detect: it starts MAVLink when the host opens the port, as set by `SYS_USB_AUTO` and `USB_MAV_MODE`, and stops it when the host closes it.
+MAVLink would otherwise build its streams for nobody, which takes 23% of the CPU of the MIMXRT1170-EVK at 400 Hz.
 
 The NXP VMU RT1170 has the serial ports of FMU-v6XRT and a USB port.
 Its PX4 board configuration ([boards/zephyr/vmu_rt1170](https://github.com/PX4/PX4-Autopilot/tree/main/boards/zephyr/vmu_rt1170)) starts the GPS driver on `/dev/ttyS1` (GPS1), and MAVLink on `/dev/ttyS2` (TELEM1) and USB.
