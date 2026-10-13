@@ -40,7 +40,20 @@
 #include <dirent.h>
 #include <limits.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
+
+/**
+ * The path of the directory entry name in dir, without a double slash in the root directory,
+ * which Zephyr does not resolve. Returns the length of the path, as snprintf().
+ */
+static inline int mavlink_dirent_path(char *path, size_t size, const char *dir, const char *name)
+{
+	const size_t dir_length = strlen(dir);
+	const char *separator = ((dir_length > 0) && (dir[dir_length - 1] == '/')) ? "" : "/";
+
+	return snprintf(path, size, "%s%s%s", dir, separator, name);
+}
 
 /**
  * The type of a directory entry, as in d_type.
@@ -51,7 +64,7 @@ static inline int mavlink_dirent_type(const char *dir, const struct dirent *entr
 	// struct dirent has no d_type on Zephyr
 	char path[PATH_MAX];
 	struct stat st;
-	const int ret = snprintf(path, sizeof(path), "%s/%s", dir, entry->d_name);
+	const int ret = mavlink_dirent_path(path, sizeof(path), dir, entry->d_name);
 
 	if ((ret <= 0) || (ret >= (int)sizeof(path)) || (stat(path, &st) != 0)) {
 		return DT_UNKNOWN;
