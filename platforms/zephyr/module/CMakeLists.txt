@@ -90,6 +90,33 @@ if(CONFIG_PX4_CAN)
 	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_can.c)
 endif()
 
+if(CONFIG_PX4_COMPONENT_METADATA AND TARGET modules__mavlink)
+	# the files of /etc/extras in the ROMFS of NuttX, see cmake/kconfig.cmake
+	set(romfs_dir ${CMAKE_CURRENT_BINARY_DIR}/romfs)
+	set(romfs_data_string)
+	set(romfs_entries_string "\t{\"extras\", NULL, 0},\n")
+	set(romfs_inc_files)
+
+	foreach(file ${config_romfs_extra_files})
+		get_filename_component(name ${file} NAME)
+		string(MAKE_C_IDENTIFIER ${name} identifier)
+		generate_inc_file(${file} ${romfs_dir}/${name}.inc)
+		list(APPEND romfs_inc_files ${romfs_dir}/${name}.inc)
+		string(APPEND romfs_data_string "static const uint8_t ${identifier}[] = {\n#include \"${name}.inc\"\n};\n\n")
+		string(APPEND romfs_entries_string "\t{\"extras/${name}\", ${identifier}, sizeof(${identifier})},\n")
+	endforeach()
+
+	configure_file(px4_romfs_files.c.in ${romfs_dir}/px4_romfs_files.c)
+
+	zephyr_library_named(px4_romfs)
+	zephyr_library_sources(
+		${px4_source_dir}/platforms/zephyr/src/px4/common/px4_romfs.c
+		${romfs_dir}/px4_romfs_files.c
+		${romfs_inc_files}
+	)
+	add_dependencies(px4_romfs ${config_romfs_extra_dependencies})
+endif()
+
 if(CONFIG_PX4_ITCM)
 	zephyr_linker_sources(ITCM_SECTION ${CMAKE_CURRENT_LIST_DIR}/itcm.ld)
 	zephyr_linker_sources(ITCM_SECTION ${CMAKE_CURRENT_LIST_DIR}/itcm_functions.ld)
