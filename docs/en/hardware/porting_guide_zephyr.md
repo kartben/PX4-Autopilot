@@ -42,6 +42,7 @@ The PX4 options of the Zephyr configuration are:
 | `CONFIG_PX4_ADC`            | Enable the Zephyr ADC API for the board ADC (enabled by the `px4,adc` node).                        |
 | `CONFIG_PX4_BUZZER`         | Enable the buzzer driver for the tone alarm (enabled by the `buzzer0` devicetree alias).            |
 | `CONFIG_PX4_LEDS`           | Enable the LED drivers for the board and RGB LEDs (enabled by the `px4,leds` node).                 |
+| `CONFIG_PX4_SAFETY_BUTTON`  | Enable the Zephyr GPIO API for the safety button (enabled by the `px4,safety-button` node).         |
 | `CONFIG_PX4_STACK_OVERHEAD` | Bytes added to the stack of each PX4 task and work queue.                                           |
 | `CONFIG_PX4_ITCM`           | Run the most used code from the ITCM instead of the flash (enabled on the MIMXRT1170-EVK).          |
 
@@ -230,6 +231,8 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/adc](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/adc) tests the board ADC on the Zephyr ADC emulator: the channels of the ADC report, the 5 V and 3.3 V rails of the system power, a channel that can't be read, and two analog batteries with their voltage dividers, a disconnected battery and `BAT1_V_CHANNEL`.
 - [tests/buzzer](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/buzzer) tests the tone alarm on a PWM buzzer of the Zephyr fake PWM driver: the frequency and duration of the notes of a tone and of tunes, a tone that overrides a tune, a stop in the middle of a note, and `CBRK_BUZZER`.
 - [tests/leds](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/leds) tests the board LEDs on GPIO LEDs of an emulated GPIO controller, through `/dev/led0` and as Commander drives them, and the RGB LED driver on a fake LED, a group of GPIO LEDs and an emulated NCP5623C: the colors, blinks and breathing of `led_control`, `SYS_RGB_MAXBRT`, and an NCP5623C that doesn't respond.
+- [tests/safety_button](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/safety_button) tests the safety button and its LED on an emulated GPIO controller, with the button also read by the `gpio-keys` input driver: the safety button event after the button has been held for 1 second, and none while it is held or for presses interrupted by releases, the pairing request of 3 presses within 2 seconds, and the LED pattern of each safety and armed state.
+  A second test has no safety LED nor `gpio-keys` input driver.
 - [tests/gps](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/gps) tests the GPS driver with an NMEA receiver on an emulated UART: the position, accuracy, dilutions of precision and velocity of the fix, and the baud rate.
 - [tests/identity](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/identity) tests the board identity, from the device ID of a hwinfo driver and from `BOARD_OVERRIDE_UUID`.
 - The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log, `top` and the CPU load, and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port and download the component metadata with MAVLink FTP, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
@@ -714,6 +717,73 @@ Its overlay makes the green LED active low, and gives the NCP5623C the compatibl
 Its board configuration has no Commander: the board LEDs show the arming state in the SIH configuration.
 The MIMXRT1170-EVK blinks the arming state on its green user LED, and the overload on its red one.
 
+### Safety Button
+
+The [safety_button](../modules/modules_driver.md#safety-button) driver reads the [safety switch](../getting_started/px4_basic_concepts.md#safety-switch), such as the one of a GPS module, as on NuttX.
+Once the button has been held for 1 second, it publishes a safety button event, with which [Commander](../modules/modules_system.md#commander) turns safety off, depending on [COM_SAFETY_MODE](../advanced_config/parameter_reference.md#COM_SAFETY_MODE), and three presses within 2 seconds request a pairing with the ground station.
+It blinks the safety and armed states on the safety LED.
+The `px4,safety-button` devicetree node selects the button, and the `safety` property of the [px4,leds](#leds) node the LED:
+
+```dts
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+
+/ {
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		safety_switch: safety-switch {
+			gpios = <&gpio1 24 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
+			zephyr,code = <INPUT_KEY_0>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		safety_led: safety-led {
+			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	px4-safety-button {
+		compatible = "px4,safety-button";
+		button = <&safety_switch>;
+	};
+
+	px4-leds {
+		compatible = "px4,leds";
+		safety = <&safety_led>;
+	};
+};
+```
+
+The button is a node with a `gpios` property, pressed while its GPIO is active, such as a button of `gpio-keys`, with which the Zephyr boards describe their buttons.
+The driver reads the GPIO every 33 ms and debounces it, as on NuttX, rather than the input events of the `gpio-keys` input driver, which come after a debounce interval of their own.
+PX4 configures the GPIO when it starts, unless the `gpio-keys` input driver has configured it, which then still reports the button.
+The safety LED is `LED_SAFETY` of the board LEDs, which PX4 drives with the Zephyr LED API, with the polarity of the devicetree, and through `/dev/led0`.
+The driver reads the button with `BOARD_SAFETY_BUTTON()` and sets the LED with `BOARD_SAFETY_LED()`, which the Zephyr platform defines from the devicetree, instead of the `GPIO_BTN_SAFETY` and `GPIO_LED_SAFETY` GPIOs of the NuttX boards.
+
+The LED blinks a pattern of 1.5 seconds, as the safety LED of PX4IO, once the armed state is published, by Commander, and stays off before:
+
+| Pattern      | State                 |
+| ------------ | --------------------- |
+| Slow blink   | Safety on, disarmed.  |
+| Double blink | Safety off, disarmed. |
+| Quad blink   | Safety on, armed.     |
+| Solid        | Safety off, armed.    |
+
+A board without a safety LED has no `BOARD_SAFETY_LED()`, and the driver blinks no LED, as on NuttX.
+
+Add `CONFIG_DRIVERS_SAFETY_BUTTON` to the PX4 board configuration, and start the driver in the startup script with `safety_button start`.
+`CONFIG_PX4_SAFETY_BUTTON` enables the Zephyr GPIO API when the devicetree has the node, and the build fails without it if the PX4 board configuration has `safety_button`.
+A PX4 board configuration without `safety_button`, such as the SIH configuration, sets `CONFIG_PX4_SAFETY_BUTTON=n` in the Zephyr configuration.
+
+The NXP VMU RT1170 has the safety switch of FMU-v6XRT, on GPS1: the arming button of its Zephyr board, on GPIO1_IO24, and the LED on GPIO1_IO03, which its overlay adds.
+The Zephyr board has a pull-down on the button, with which a disconnected switch is released, where NuttX enables the pull-up of the pin.
+Its board configuration starts `safety_button`, but has no Commander, so that the button doesn't turn safety off, and the LED stays off.
+This adds 1.3 KiB of flash and 20 bytes of static RAM.
+
 ## Footprint
 
 [Tools/footprint.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/footprint.py) breaks down the flash and static RAM of PX4 firmware by component, for NuttX and Zephyr builds alike.
@@ -766,7 +836,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 
 ## Limitations
 
-- PX4 has only flown in simulation: the PWM outputs, the RC input, the GPS driver and the buzzer are only tested in QEMU.
+- PX4 has only flown in simulation: the PWM outputs, the RC input, the GPS driver, the buzzer and the safety button are only tested in QEMU.
 - PWM outputs have the period of the devicetree, without OneShot or DShot.
 - RC input is read from Zephyr input devices, such as SBUS receivers, and from CRSF receivers with `crsf_rc` on a serial port, as on the MIMXRT1170-EVK: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
   The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, nor the digital channels 17 and 18.
