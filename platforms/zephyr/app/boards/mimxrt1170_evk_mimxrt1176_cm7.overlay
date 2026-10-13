@@ -3,6 +3,10 @@
  */
 
 / {
+	chosen {
+		zephyr,sram = &ocram;
+	};
+
 	px4-serial-ports {
 		compatible = "px4,serial-ports";
 
@@ -52,4 +56,11 @@
 /* in 1.8 V signalling, the SD card often fails to initialize after a warm reset */
 &usdhc1 {
 	no-1-8-v;
+};
+
+/* RAM in the OCRAM of the M4, OCRAM1 and half of OCRAM2, 1 MiB in one MPU region, instead of the
+ * slower SDRAM
+ */
+&ocram {
+	reg = <0x20200000 DT_SIZE_M(1)>;
 };
