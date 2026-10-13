@@ -93,6 +93,18 @@
 #  endif
 #endif
 
+/*
+ * the safety button of the px4,safety-button devicetree node, and the safety LED of the px4,leds
+ * node, which the safety_button driver reads and blinks
+ */
+#if defined(CONFIG_PX4_SAFETY_BUTTON)
+#  include <px4_safety_button.h>
+#  define BOARD_SAFETY_BUTTON() px4_safety_button_pressed()
+#  if defined(CONFIG_PX4_SAFETY_LED)
+#    define BOARD_SAFETY_LED(on_true) px4_safety_led_set(on_true)
+#  endif
+#endif
+
 #define CONFIG_NFILE_STREAMS 1
 #define CONFIG_SCHED_WORKQUEUE 1
 #define CONFIG_SCHED_HPWORK 1
