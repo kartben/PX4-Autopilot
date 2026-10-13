@@ -1,6 +1,7 @@
 /* Sensor orientation and serial ports as in boards/px4/fmu-v6xrt/init/rc.board_sensors, the SD card and CAN buses */
 
 #include <dt-bindings/px4/rotation.h>
+#include <zephyr/dt-bindings/gpio/gpio.h>
 #include <zephyr/dt-bindings/pwm/pwm.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include <zephyr/dt-bindings/sensor/icm42686.h>
@@ -223,6 +224,18 @@
 			   <INPUT_EV_MSC 16>;
 	};
 
+	/*
+	 * the board LEDs of FMU-v6XRT, and the RGB LED of a GPS module on GPS1, as the NuttX rgbled_ncp5623c
+	 * driver drives it
+	 */
+	px4-leds {
+		compatible = "px4,leds";
+		blue = <&blue_led>;
+		red = <&red_led>;
+		green = <&green_led>;
+		rgb = <&gnss_led>;
+	};
+
 	fstab {
 		compatible = "zephyr,fstab";
 
@@ -420,6 +433,34 @@
 
 &ist8310 {
 	zephyr,deferred-init;
+};
+
+/*
+ * the LEDs of FMU-v6XRT are active low and open drain (boards/px4/fmu-v6xrt/src/board_config.h), but
+ * the board devicetree has the green one active high
+ */
+&green_led {
+	gpios = <&gpio5 2 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+};
+
+&red_led {
+	gpios = <&gpio5 1 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+};
+
+&blue_led {
+	gpios = <&gpio1 13 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+};
+
+/*
+ * the NCP5623C of a GPS module, used if it responds, which the board devicetree has with a compatible
+ * that has no driver
+ */
+&ncp5623c {
+	compatible = "onnn,ncp5623";
+	zephyr,deferred-init;
+
+	gnss_led: led_0 {
+	};
 };
 
 &zephyr_udc0 {
