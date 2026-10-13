@@ -192,7 +192,7 @@ An ExpressLRS or TBS Crossfire receiver connects to the UART of the Arduino head
 
 The M.2 slot must be empty, as its Bluetooth module shares the UART.
 The SIH configuration disables the sticks: set [COM_RC_IN_MODE](../advanced_config/parameter_reference.md#COM_RC_IN_MODE) to 0 to fly with the transmitter, after the radio calibration of _QGroundControl_.
-At 420000 baud, the 4-byte receive FIFO of the UART overruns when its interrupt is late, which loses about 0.2% of the frames.
+At 420000 baud, the 4-byte receive FIFO of the UART overruns when its interrupt is late, which loses 0.06–0.12% of the frames.
 
 The EVK runs the firmware from its quad SPI flash, which stalls the CPU for hundreds of cycles when an instruction isn't in the cache.
 With the 32 KiB instruction cache of the Cortex-M7, the flight stack spends most of its time waiting for the flash.
