@@ -175,6 +175,7 @@ uart:~$ px4 commander land
 The USB OTG1 port is `/dev/ttyACM0`, a USB serial port that runs MAVLink.
 _QGroundControl_ doesn't recognise its USB IDs: add a serial link to its port (`/dev/cu.usbmodem*` on macOS) in **Application Settings > Comm Links**, and fly missions from there.
 
+- The RAM is the on-chip OCRAM from 0x20200000 (1 MiB: the OCRAM of the M4, OCRAM1 and half of OCRAM2), instead of the SDRAM that the board chooses, with which the flight stack takes about 1.5 points more of the CPU.
 - The parameters and the logs are kept on the microSD card (FAT32), and the missions in RAM, as an EVK may have no card.
   The card runs at 50 MHz, without 1.8 V signalling, with which it often failed to initialise after a warm reset, such as the one of `west flash`.
 - DroneCAN runs on the CAN3 connector, CAN1 of PX4: start it with `px4 uavcan start`.
