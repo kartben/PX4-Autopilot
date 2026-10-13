@@ -1,0 +1,19 @@
+#include <zephyr/dt-bindings/pwm/pwm.h>
+
+/ {
+	aliases {
+		buzzer0 = &buzzer;
+	};
+
+	/* a timer whose cycles are nanoseconds */
+	fake_pwm: fake-pwm {
+		compatible = "zephyr,fake-pwm";
+		#pwm-cells = <2>;
+		frequency = <1000000000>;
+	};
+
+	buzzer: buzzer {
+		compatible = "pwm-buzzer";
+		pwms = <&fake_pwm 0 PWM_HZ(2700)>;
+	};
+};
