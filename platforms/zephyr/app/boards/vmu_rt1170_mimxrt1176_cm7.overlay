@@ -2,6 +2,8 @@
 
 #include <dt-bindings/px4/rotation.h>
 #include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/adc/mcux-lpadc.h>
 #include <zephyr/dt-bindings/pwm/pwm.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include <zephyr/dt-bindings/sensor/icm42686.h>
@@ -236,6 +238,20 @@
 		rgb = <&gnss_led>;
 	};
 
+	/*
+	 * the ADC channels of FMU-v6XRT (boards/px4/fmu-v6xrt/src/board_config.h), in the order of their
+	 * channel numbers with NuttX, 4 to 11: the 3.3 V rails of the sensors, the 5 V rail and the
+	 * inputs of the ADC connector
+	 */
+	px4-adc {
+		compatible = "px4,adc";
+		io-channels = <&lpadc1 0>, <&lpadc1 1>, <&lpadc1 2>, <&lpadc1 3>, <&lpadc1 4>, <&lpadc1 5>,
+			      <&lpadc1 6>;
+		io-channel-names = "scaled-vdd-3v3-sensors1", "scaled-vdd-3v3-sensors2",
+				   "scaled-vdd-3v3-sensors3", "scaled-v5", "adc-6v6", "adc-3v3",
+				   "scaled-vdd-3v3-sensors4";
+	};
+
 	fstab {
 		compatible = "zephyr,fstab";
 
@@ -461,6 +477,115 @@
 
 	gnss_led: led_0 {
 	};
+};
+
+&pinctrl {
+	pinmux_px4_lpadc1: pinmux_px4_lpadc1 {
+		group0 {
+			pinmux = <&iomuxc_gpio_ad_10_adc1_ch2a>,
+				 <&iomuxc_gpio_ad_11_adc1_ch2b>,
+				 <&iomuxc_gpio_ad_12_adc1_ch3a>,
+				 <&iomuxc_gpio_ad_13_adc1_ch3b>,
+				 <&iomuxc_gpio_ad_14_adc1_ch4a>,
+				 <&iomuxc_gpio_ad_16_adc1_ch5a>,
+				 <&iomuxc_gpio_ad_17_adc1_ch5b>;
+			drive-strength = "normal";
+			slew-rate = "slow";
+		};
+	};
+};
+
+/*
+ * the channels of FMU-v6XRT on LPADC1, with the reference (REFSEL option 1), sample time (131 ADC
+ * clocks) and resolution of NuttX. The LPADC scales the inputs by 30/64, which the Zephyr ADC API
+ * takes as the 1/2 gain: the 1825 mV reference of NuttX is given as 1825 * 64 / 60 mV, for the
+ * full scale of 3.893 V of NuttX (BOARD_ADC_POS_REF_V).
+ */
+&lpadc1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-0 = <&pinmux_px4_lpadc1>;
+	pinctrl-names = "default";
+	voltage-ref = <0>;
+	status = "okay";
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_2";
+		zephyr,reference = "ADC_REF_EXTERNAL0";
+		zephyr,vref-mv = <1947>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 131)>;
+		zephyr,resolution = <12>;
+		zephyr,input-positive = <MCUX_LPADC_CH2A>;
+	};
+
+	channel@1 {
+		reg = <1>;
+		zephyr,gain = "ADC_GAIN_1_2";
+		zephyr,reference = "ADC_REF_EXTERNAL0";
+		zephyr,vref-mv = <1947>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 131)>;
+		zephyr,resolution = <12>;
+		zephyr,input-positive = <MCUX_LPADC_CH2B>;
+	};
+
+	channel@2 {
+		reg = <2>;
+		zephyr,gain = "ADC_GAIN_1_2";
+		zephyr,reference = "ADC_REF_EXTERNAL0";
+		zephyr,vref-mv = <1947>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 131)>;
+		zephyr,resolution = <12>;
+		zephyr,input-positive = <MCUX_LPADC_CH3A>;
+	};
+
+	channel@3 {
+		reg = <3>;
+		zephyr,gain = "ADC_GAIN_1_2";
+		zephyr,reference = "ADC_REF_EXTERNAL0";
+		zephyr,vref-mv = <1947>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 131)>;
+		zephyr,resolution = <12>;
+		zephyr,input-positive = <MCUX_LPADC_CH3B>;
+	};
+
+	channel@4 {
+		reg = <4>;
+		zephyr,gain = "ADC_GAIN_1_2";
+		zephyr,reference = "ADC_REF_EXTERNAL0";
+		zephyr,vref-mv = <1947>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 131)>;
+		zephyr,resolution = <12>;
+		zephyr,input-positive = <MCUX_LPADC_CH4A>;
+	};
+
+	channel@5 {
+		reg = <5>;
+		zephyr,gain = "ADC_GAIN_1_2";
+		zephyr,reference = "ADC_REF_EXTERNAL0";
+		zephyr,vref-mv = <1947>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 131)>;
+		zephyr,resolution = <12>;
+		zephyr,input-positive = <MCUX_LPADC_CH5A>;
+	};
+
+	channel@6 {
+		reg = <6>;
+		zephyr,gain = "ADC_GAIN_1_2";
+		zephyr,reference = "ADC_REF_EXTERNAL0";
+		zephyr,vref-mv = <1947>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_TICKS, 131)>;
+		zephyr,resolution = <12>;
+		zephyr,input-positive = <MCUX_LPADC_CH5B>;
+	};
+};
+
+/*
+ * LPADC2 senses the hardware version and revision, which PX4 doesn't read on Zephyr, and the pad
+ * that the Zephyr board configures for it, GPIO_AD_10, is an input of LPADC1
+ */
+&lpadc2 {
+	status = "disabled";
 };
 
 &zephyr_udc0 {
