@@ -97,6 +97,29 @@ struct zephyr_sensor_sample {
 	uint8_t state_of_health;	/* % */
 };
 
+/* the size of the FIFO messages of PX4 */
+#define ZEPHYR_SENSOR_FIFO_MAX_SAMPLES 32
+
+/* the samples of a FIFO read, in counts of scale */
+struct zephyr_sensor_fifo_samples {
+	uint64_t timestamp_us;	/* time of the last sample */
+	float dt_us;		/* time between samples */
+	float scale;		/* m/s^2 or rad/s per count, of a full scale of 32768 counts */
+	uint8_t count;
+	int16_t x[ZEPHYR_SENSOR_FIFO_MAX_SAMPLES];
+	int16_t y[ZEPHYR_SENSOR_FIFO_MAX_SAMPLES];
+	int16_t z[ZEPHYR_SENSOR_FIFO_MAX_SAMPLES];
+};
+
+struct zephyr_sensor_fifo {
+	struct zephyr_sensor_fifo_samples accel;
+	struct zephyr_sensor_fifo_samples gyro;
+	float temperature;	/* degrees Celsius, NAN if not measured */
+	bool overflow;		/* samples were lost */
+};
+
+typedef void (*zephyr_sensor_fifo_callback_t)(void *arg);
+
 size_t zephyr_sensors_count(void);
 
 /**
@@ -112,6 +135,27 @@ int zephyr_sensors_get_info(size_t index, struct zephyr_sensor_info *info);
  * @return 0 or a negative error code
  */
 int zephyr_sensors_read(size_t index, struct zephyr_sensor_sample *sample);
+
+/**
+ * Stream the FIFO of an IMU whose interrupt pin is in the devicetree, with a FIFO watermark of at
+ * most 1 / rate_hz if the driver sets it, until it fails. The callback is called, from an interrupt
+ * or another thread, when FIFO data can be read. A stream that is still running is resumed.
+ * @return 0, or -ENOTSUP if the IMU can only be polled
+ */
+int zephyr_sensors_fifo_start(size_t index, uint32_t rate_hz, zephyr_sensor_fifo_callback_t callback,
+			      void *arg);
+
+/**
+ * Stop calling the callback of a stream. The stream runs until its buffers are full, or until it is
+ * resumed.
+ */
+void zephyr_sensors_fifo_stop(size_t index);
+
+/**
+ * Read the samples of the next FIFO read of a stream, from a single thread.
+ * @return 1, 0 if there is no FIFO data to read, or a negative error code if the stream failed
+ */
+int zephyr_sensors_fifo_read(size_t index, struct zephyr_sensor_fifo *fifo);
 
 #ifdef __cplusplus
 }
