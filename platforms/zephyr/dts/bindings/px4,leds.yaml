@@ -7,6 +7,11 @@ description: |
   after its PX4 LED: blue for LED_BLUE, red for LED_RED and LED_AMBER, and
   green for LED_GREEN.
 
+  The RGB LEDs are multi-color LEDs with red, green or blue channels, on
+  which the PX4 zephyr_rgbled driver shows the system status, for example
+  the LED of an NCP5623C on a GPS module, or a leds-group-multicolor of
+  single-color LEDs.
+
   Each LED is a child node of an LED controller, such as gpio-leds or
   pwm-leds, or a leds-group-multicolor:
 
@@ -16,6 +21,7 @@ description: |
         blue = <&blue_led>;
         red = <&red_led>;
         green = <&green_led>;
+        rgb = <&gps_led>;
       };
     };
 
@@ -31,3 +37,6 @@ properties:
   green:
     type: phandle
     description: LED_GREEN.
+  rgb:
+    type: phandles
+    description: RGB LEDs, which all show the system status.
