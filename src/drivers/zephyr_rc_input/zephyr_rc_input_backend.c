@@ -52,6 +52,11 @@
 #define INPUT_MIN DT_PROP(RC_INPUT_NODE, input_min)
 #define INPUT_MAX DT_PROP(RC_INPUT_NODE, input_max)
 #define HAS_FAILSAFE DT_NODE_HAS_PROP(RC_INPUT_NODE, failsafe)
+#define IS_CRSF DT_NODE_HAS_COMPAT(INPUT_NODE, tbs_crsf)
+
+#if IS_CRSF
+#include <zephyr/input/input_crsf.h>
+#endif
 
 BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(px4_rc_input) == 1, "only one px4,rc-input node is supported");
 BUILD_ASSERT((DT_PROP_LEN(RC_INPUT_NODE, channels) % 2) == 0,
@@ -164,6 +169,7 @@ int zephyr_rc_input_get_info(struct zephyr_rc_input_info *info)
 	info->device = dev->name;
 	info->channel_count = CHANNEL_COUNT;
 	info->sbus = DT_NODE_HAS_COMPAT(INPUT_NODE, futaba_sbus);
+	info->crsf = IS_CRSF;
 
 	return device_is_ready(dev) ? 0 : -ENODEV;
 }
@@ -198,6 +204,39 @@ int zephyr_rc_input_get_frame(struct zephyr_rc_input_frame *frame)
 	return 0;
 }
 
+int zephyr_rc_input_get_link_stats(struct zephyr_rc_input_link_stats *stats)
+{
+#if IS_CRSF
+	const struct crsf_link_stats link_stats = input_crsf_get_link_stats(DEVICE_DT_GET(INPUT_NODE));
+
+	/* the driver clears them until the receiver sends its first link statistics */
+	if ((link_stats.uplink_rssi_1 == 0) && (link_stats.uplink_rssi_2 == 0)
+	    && (link_stats.uplink_link_quality == 0)) {
+		return -ENODATA;
+	}
+
+	stats->rssi_dbm = -(int16_t)((link_stats.active_antenna != 0) ? link_stats.uplink_rssi_2
+				     : link_stats.uplink_rssi_1);
+	stats->link_quality = link_stats.uplink_link_quality;
+	stats->snr = link_stats.uplink_snr;
+	stats->rf_mode = link_stats.rf_mode;
+
+	return 0;
+#else
+	return -ENOTSUP;
+#endif
+}
+
+int zephyr_rc_input_send_telemetry(uint8_t type, const uint8_t *payload, size_t length)
+{
+#if IS_CRSF
+	/* the driver copies the payload */
+	return input_crsf_send_telemetry(DEVICE_DT_GET(INPUT_NODE), type, (uint8_t *)payload, length);
+#else
+	return -ENOTSUP;
+#endif
+}
+
 #else
 
 int zephyr_rc_input_get_info(struct zephyr_rc_input_info *info)
@@ -212,6 +251,16 @@ void zephyr_rc_input_set_event(zephyr_rc_input_event_t event, void *arg)
 int zephyr_rc_input_get_frame(struct zephyr_rc_input_frame *frame)
 {
 	return -ENODATA;
+}
+
+int zephyr_rc_input_get_link_stats(struct zephyr_rc_input_link_stats *stats)
+{
+	return -ENOTSUP;
+}
+
+int zephyr_rc_input_send_telemetry(uint8_t type, const uint8_t *payload, size_t length)
+{
+	return -ENOTSUP;
 }
 
 #endif
