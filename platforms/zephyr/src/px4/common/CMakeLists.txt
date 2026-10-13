@@ -49,3 +49,13 @@ add_library(px4_layer
 )
 target_compile_definitions(px4_layer PRIVATE MODULE_NAME="px4")
 target_link_libraries(px4_layer PRIVATE work_queue px4_work_queue drivers_board px4_platform uORB)
+
+if(CONFIG_PX4_LEDS)
+	# the board LEDs of /dev/led0
+	target_sources(px4_layer PRIVATE
+		${PX4_SOURCE_DIR}/src/lib/drivers/led/led.cpp
+		led.c
+		px4_leds.c
+	)
+	target_link_libraries(px4_layer PRIVATE cdev)
+endif()
