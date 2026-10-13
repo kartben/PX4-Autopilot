@@ -1,4 +1,6 @@
-/* USB serial port on USB OTG1, the microSD card and the CAN bus of the MIMXRT1170-EVK */
+/* USB serial port on USB OTG1, RC receiver on the Arduino UART, the microSD card and the CAN bus of
+ * the MIMXRT1170-EVK
+ */
 
 / {
 	px4-serial-ports {
@@ -7,6 +9,11 @@
 		usb {
 			uart = <&cdc_acm_uart0>;
 			path = "/dev/ttyACM0";
+		};
+
+		rc {
+			uart = <&lpuart2>;
+			path = "/dev/ttyS1";
 		};
 	};
 
@@ -34,6 +41,12 @@
 	cdc_acm_uart0: cdc_acm_uart0 {
 		compatible = "zephyr,cdc-acm-uart";
 	};
+};
+
+/* Arduino D0 (RX) and D1 (TX), without the RTS and CTS of the M.2 Bluetooth module of the EVKB */
+&lpuart2 {
+	pinctrl-0 = <&pinmux_lpuart2>;
+	status = "okay";
 };
 
 /* in 1.8 V signalling, the SD card often fails to initialize after a warm reset */
