@@ -152,11 +152,12 @@ config PX4_RC_INPUT
 	depends on DT_HAS_PX4_RC_INPUT_ENABLED
 	select INPUT
 	imply UART_INTERRUPT_DRIVEN if DT_HAS_FUTABA_SBUS_ENABLED
+	imply UART_ASYNC_API if DT_HAS_TBS_CRSF_ENABLED
 	help
 	  Enable the input subsystem for the input device of the px4,rc-input
-	  devicetree node, such as an SBUS receiver, whose events the PX4
-	  zephyr_rc_input driver publishes as RC input, and the interrupt-driven
-	  UART API that the SBUS driver needs.
+	  devicetree node, such as an SBUS or a CRSF receiver, whose events the
+	  PX4 zephyr_rc_input driver publishes as RC input, and the UART API that
+	  the SBUS (interrupt-driven) or CRSF (asynchronous) driver needs.
 
 config PX4_BUZZER
 	bool "Buzzer for PX4"
@@ -343,5 +344,10 @@ configdefault INIT_STACKS
 # RAM usage of load_mon
 configdefault SYS_HEAP_RUNTIME_STATS
 	default y
+
+# the CRSF thread, which also runs the RC input callback, at the priority of the wq:ttyS1 work queue
+# of the serial RC drivers, instead of the top priority
+configdefault INPUT_CRSF_THREAD_PRIORITY
+	default 22 if PX4_RC_INPUT
 
 endif # PX4
