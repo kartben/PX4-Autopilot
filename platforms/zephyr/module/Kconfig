@@ -36,6 +36,39 @@ config PX4_SHELL
 	  Run PX4 commands from the Zephyr shell, e.g. "uorb status" or
 	  "px4 uorb status".
 
+config PX4_MAVLINK_SHELL
+	bool "MAVLink shell"
+	default y
+	depends on PX4_SHELL
+	select THREAD_CUSTOM_DATA
+	help
+	  The shell of the ground stations over MAVLink (SERIAL_CONTROL), as nsh
+	  on NuttX: a Zephyr shell instance that runs the PX4 commands, with
+	  their standard output, and the commands of the Zephyr shell. Built
+	  when the PX4 board configuration has MAVLink.
+
+if PX4_MAVLINK_SHELL
+
+config PX4_MAVLINK_SHELL_PROMPT
+	string "MAVLink shell prompt"
+	default "px4> "
+
+config PX4_MAVLINK_SHELL_INPUT_BUFFER_SIZE
+	int "Characters received from MAVLink buffered"
+	default 256
+	help
+	  Characters that the ground station sends while the shell runs a
+	  command, which the shell reads once the command exits.
+
+config PX4_MAVLINK_SHELL_OUTPUT_BUFFER_SIZE
+	int "Characters of output buffered for MAVLink"
+	default 1024
+	help
+	  Output of the shell and of its commands, which MAVLink sends in
+	  SERIAL_CONTROL messages of 70 characters.
+
+endif # PX4_MAVLINK_SHELL
+
 config PX4_SENSORS
 	bool "Sensors for PX4"
 	default y

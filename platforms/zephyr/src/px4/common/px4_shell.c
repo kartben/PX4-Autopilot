@@ -33,6 +33,7 @@
 
 #include <px4_zephyr.h>
 
+#include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
 
 #if defined(CONFIG_SYS_HEAP_RUNTIME_STATS)
@@ -42,6 +43,12 @@
 
 int px4_shell_run_command(const struct shell *sh, size_t argc, char **argv)
 {
+#if defined(CONFIG_PX4_MAVLINK_SHELL)
+	// the standard output of the command, and of the tasks that it starts, goes to this shell if it is
+	// the MAVLink shell, see px4_mavlink_shell.c
+	k_thread_custom_data_set((void *)sh);
+#endif
+
 	return px4_zephyr_run_command(argc, argv);
 }
 
