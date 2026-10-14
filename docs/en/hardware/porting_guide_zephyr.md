@@ -30,21 +30,22 @@ A Zephyr application that sets `CONFIG_PX4=y` gets PX4 built into it:
 
 The PX4 options of the Zephyr configuration are:
 
-| Option                      | Description                                                                                         |
-| --------------------------- | --------------------------------------------------------------------------------------------------- |
-| `CONFIG_PX4`                | Build PX4 into the application.                                                                     |
-| `CONFIG_PX4_BOARD_CONFIG`   | PX4 board configuration to build instead of the default one, for example `zephyr_generic_sih`.      |
-| `CONFIG_PX4_SHELL`          | Add the `px4` shell command (enabled with the shell).                                               |
-| `CONFIG_PX4_SENSORS`        | Enable the Zephyr sensor API for the sensors in the devicetree (enabled by the `px4,sensors` node). |
-| `CONFIG_PX4_SERIAL`         | Open the UARTs of the devicetree as device files (enabled by the `px4,serial-ports` node).          |
-| `CONFIG_PX4_PWM_OUTPUTS`    | Enable the Zephyr PWM API for the actuator outputs (enabled by the `px4,pwm-outputs` node).         |
-| `CONFIG_PX4_RC_INPUT`       | Enable the input subsystem for the RC input (enabled by the `px4,rc-input` node).                   |
-| `CONFIG_PX4_ADC`            | Enable the Zephyr ADC API for the board ADC (enabled by the `px4,adc` node).                        |
-| `CONFIG_PX4_BUZZER`         | Enable the buzzer driver for the tone alarm (enabled by the `buzzer0` devicetree alias).            |
-| `CONFIG_PX4_LEDS`           | Enable the LED drivers for the board and RGB LEDs (enabled by the `px4,leds` node).                 |
-| `CONFIG_PX4_SAFETY_BUTTON`  | Enable the Zephyr GPIO API for the safety button (enabled by the `px4,safety-button` node).         |
-| `CONFIG_PX4_STACK_OVERHEAD` | Bytes added to the stack of each PX4 task and work queue.                                           |
-| `CONFIG_PX4_ITCM`           | Run the most used code from the ITCM instead of the flash (enabled on the MIMXRT1170-EVK).          |
+| Option                            | Description                                                                                         |
+| --------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `CONFIG_PX4`                      | Build PX4 into the application.                                                                     |
+| `CONFIG_PX4_BOARD_CONFIG`         | PX4 board configuration to build instead of the default one, for example `zephyr_generic_sih`.      |
+| `CONFIG_PX4_SHELL`                | Add the `px4` shell command (enabled with the shell).                                               |
+| `CONFIG_PX4_SENSORS`              | Enable the Zephyr sensor API for the sensors in the devicetree (enabled by the `px4,sensors` node). |
+| `CONFIG_PX4_SERIAL`               | Open the UARTs of the devicetree as device files (enabled by the `px4,serial-ports` node).          |
+| `CONFIG_PX4_PWM_OUTPUTS`          | Enable the Zephyr PWM API for the actuator outputs (enabled by the `px4,pwm-outputs` node).         |
+| `CONFIG_PX4_RC_INPUT`             | Enable the input subsystem for the RC input (enabled by the `px4,rc-input` node).                   |
+| `CONFIG_PX4_ADC`                  | Enable the Zephyr ADC API for the board ADC (enabled by the `px4,adc` node).                        |
+| `CONFIG_PX4_BUZZER`               | Enable the buzzer driver for the tone alarm (enabled by the `buzzer0` devicetree alias).            |
+| `CONFIG_PX4_LEDS`                 | Enable the LED drivers for the board and RGB LEDs (enabled by the `px4,leds` node).                 |
+| `CONFIG_PX4_SAFETY_BUTTON`        | Enable the Zephyr GPIO API for the safety button (enabled by the `px4,safety-button` node).         |
+| `CONFIG_PX4_STACK_OVERHEAD`       | Bytes added to the stack of each PX4 task and work queue.                                           |
+| `CONFIG_PX4_ITCM`                 | Run the most used code from the ITCM instead of the flash (enabled on the MIMXRT1170-EVK).          |
+| `CONFIG_PX4_FLEXSPI_PREFETCH_OFF` | Turn off the AHB read prefetch of the flash the firmware runs from (enabled on the i.MX RT1170).    |
 
 ## Setting Up a Workspace
 
@@ -203,6 +204,9 @@ The EVK runs the firmware from its quad SPI flash, which stalls the CPU for hund
 With the 32 KiB instruction cache of the Cortex-M7, the flight stack spends most of its time waiting for the flash.
 `CONFIG_PX4_ITCM` runs the most used code from the ITCM, the instruction memory of the Cortex-M7, instead: the kernel, uORB, the work queues, the sensors, the rate and attitude controllers, the control allocation, the simulator and the trigonometric functions of the C library, and the functions of [itcm_functions.ld](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/zephyr/module/itcm_functions.ld), which a profile of SIH on the EVK found running most from the flash (250 KiB in all).
 The flight stack then uses about 55% of the CPU at 400 Hz, instead of 94% with only the code that runs at the rate of the IMU.
+
+The boot ROM also leaves the AHB read prefetch of the FlexSPI on, which Zephyr keeps when running in place: a fetch from the flash then waits for the prefetch of other data to finish, and the CPU stalls for 50 to 60 µs many times per second, also with interrupts locked, which delays them by as much.
+`CONFIG_PX4_FLEXSPI_PREFETCH_OFF` turns it off at boot: in SIH at 400 Hz, the CPU load goes from 28% to 18%, and no hrt callout runs more than 100 µs late, instead of several per minute.
 
 [Tools/itcm_profile.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/itcm_profile.py) makes the list again, for example after changes to the flight stack, from the program counter of a board running SIH, sampled with pyOCD, within the free space of the ITCM:
 

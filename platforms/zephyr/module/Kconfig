@@ -228,6 +228,18 @@ config PX4_ITCM
 	  and run it from there instead of in place from the flash. For boards
 	  whose flash is slow to fetch instructions from.
 
+config PX4_FLEXSPI_PREFETCH_OFF
+	bool "No AHB read prefetch of the FlexSPI flash"
+	default y
+	depends on SOC_SERIES_IMXRT11XX && FLASH_MCUX_FLEXSPI_XIP
+	help
+	  Turn off the AHB read prefetch that the boot ROM leaves on for the
+	  flash the firmware runs from, which Zephyr keeps when running in
+	  place. A fetch from the flash then waits for the prefetch of other
+	  data to finish: on the MIMXRT1170-EVK, the CPU stalls for 50 to
+	  60 us many times per second, also with interrupts locked, which
+	  delays the interrupts by as much.
+
 endif # PX4
 
 choice STD_CPP
