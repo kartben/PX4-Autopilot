@@ -328,8 +328,7 @@ class MavlinkShell:
                 self._write('echo {}\n'.format(sentinel))
                 next_wake = time.monotonic() + 1.0
             self._pump()
-            if 'nsh>' in self.buf or re.search(
-                    r'^{}\s*$'.format(re.escape(sentinel)), self.buf, re.MULTILINE):
+            if 'nsh>' in self.buf or self._sentinel_count(sentinel) >= 1:
                 self.buf = ''
                 return True
         return False
@@ -354,20 +353,31 @@ class MavlinkShell:
         self._write('{}\n'.format(cmd))
         self._write('echo {0}\necho {0}\n'.format(sentinel))
         deadline = time.monotonic() + timeout
-        sentinel_line = re.compile(r'^{}\s*$'.format(re.escape(sentinel)), re.MULTILINE)
         while time.monotonic() < deadline:
             self._pump()
-            # sentinel on its own line (not the command echo containing "echo <sentinel>")
-            if sentinel_line.search(self.buf):
+            # sentinel on its own line after the prompt (not the command echo containing
+            # "echo <sentinel>")
+            if self._sentinel_count(sentinel) >= 1:
                 # Briefly wait for the second echo too: the Zephyr shell echoes
                 # a line when it runs it, so the echo and the output of the
                 # second sentinel line would otherwise arrive in the middle
                 # of the next command's output, cut at any character.
                 grace = min(deadline, time.monotonic() + SENTINEL_GRACE)
-                while len(sentinel_line.findall(self.buf)) < 2 and time.monotonic() < grace:
+                while self._sentinel_count(sentinel) < 2 and time.monotonic() < grace:
                     self._pump()
                 return self._strip(cmd, sentinel), False
         return self._strip(cmd, sentinel), True
+
+    @staticmethod
+    def _bare(line):
+        """A line without ANSI sequences, the prompt of nsh or of the Zephyr
+        shell, which nsh prints before the output of each line, and blanks."""
+        bare = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', line)
+        return bare.replace('nsh>', '').replace('px4>', '').strip()
+
+    def _sentinel_count(self, sentinel):
+        """Number of outputs of 'echo <sentinel>' received."""
+        return sum(1 for line in self.buf.splitlines() if self._bare(line) == sentinel)
 
     def _strip(self, cmd, sentinel):
         """Remove command echo and sentinel lines from captured output.
@@ -390,9 +400,7 @@ class MavlinkShell:
             # the terminal echo of the command itself (possibly prefixed by
             # the prompt, of nsh or of the Zephyr shell, and ANSI erase
             # sequences) is not command output
-            bare = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', line)
-            bare = bare.replace('nsh>', '').replace('px4>', '').strip()
-            if bare == cmd:
+            if self._bare(line) == cmd:
                 continue
             lines.append(line)
         return '\n'.join(lines).strip()
