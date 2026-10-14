@@ -40,6 +40,7 @@
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/atomic.h>
 #include <zephyr/sys/util.h>
 
 #ifdef CONFIG_PX4_RC_INPUT
@@ -92,6 +93,9 @@ static uint32_t frame_count;
 static zephyr_rc_input_event_t frame_event;
 static void *frame_event_arg;
 
+/* events called without the lock, which clearing the event waits for */
+static atomic_t events_running;
+
 static bool is_key(size_t channel)
 {
 	return channel_events[2 * channel] == INPUT_EV_KEY;
@@ -134,19 +138,30 @@ static void rc_input_callback(struct input_event *evt, void *user_data)
 		failsafe = (evt->value != 0);
 	}
 
+	zephyr_rc_input_event_t event = NULL;
+	void *event_arg = NULL;
+
 	if (evt->sync && all_reported()) {
 		memcpy(frame_values, values, sizeof(frame_values));
 		frame_failsafe = failsafe;
 		frame_timestamp_us = k_ticks_to_us_floor64(k_uptime_ticks());
 		frame_count++;
 
-		/* with the lock held, so that no event is called once it is cleared */
-		if (frame_event != NULL) {
-			frame_event(frame_event_arg);
+		event = frame_event;
+		event_arg = frame_event_arg;
+
+		if (event != NULL) {
+			atomic_inc(&events_running);
 		}
 	}
 
 	k_spin_unlock(&lock, key);
+
+	/* with interrupts enabled, as the event wakes up a thread */
+	if (event != NULL) {
+		event(event_arg);
+		atomic_dec(&events_running);
+	}
 }
 
 INPUT_CALLBACK_DEFINE(DEVICE_DT_GET(INPUT_NODE), rc_input_callback, NULL);
@@ -180,6 +195,15 @@ void zephyr_rc_input_set_event(zephyr_rc_input_event_t event, void *arg)
 	frame_event = event;
 	frame_event_arg = arg;
 	k_spin_unlock(&lock, key);
+
+	/* no event is called once it is cleared: wait for one that is being called, in the thread of
+	 * the input driver, which may have a lower priority
+	 */
+	if (event == NULL) {
+		while (atomic_get(&events_running) != 0) {
+			k_sleep(K_MSEC(1));
+		}
+	}
 }
 
 int zephyr_rc_input_get_frame(struct zephyr_rc_input_frame *frame)
