@@ -250,8 +250,10 @@ if PX4
 configdefault NUM_PREEMPT_PRIORITIES
 	default 127
 
-# 10 us ticks, where the system timer counts at least that fast
+# the hrt callouts run on the kernel tick: 1 us, as the hrt of NuttX, instead of 10 us, where the system timer
+# counts at least that fast
 configdefault SYS_CLOCK_TICKS_PER_SEC
+	default 1000000 if TICKLESS_KERNEL && SYS_CLOCK_HW_CYCLES_PER_SEC >= 1000000
 	default 100000 if TICKLESS_KERNEL && SYS_CLOCK_HW_CYCLES_PER_SEC >= 100000
 
 # hrt_absolute_time() counts the cycles of the system timer, which wrap after minutes in 32 bits
