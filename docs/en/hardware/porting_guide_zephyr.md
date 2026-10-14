@@ -21,7 +21,7 @@ A Zephyr application that sets `CONFIG_PX4=y` gets PX4 built into it:
   The configuration in `boards/zephyr/<board>/` is used if it exists for the Zephyr board, and [boards/zephyr/generic](https://github.com/PX4/PX4-Autopilot/tree/main/boards/zephyr/generic) otherwise.
 - The operating system is configured with Zephyr Kconfig (`prj.conf`) and devicetree, as for any Zephyr application.
 - The platform layer in [platforms/zephyr](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr) runs PX4 on Zephyr's POSIX API.
-  PX4 tasks and work queues are preemptible Zephyr threads, and the high-resolution timer counts the cycles of the system timer, with its callouts on the kernel tick (100 kHz by default).
+  PX4 tasks and work queues are preemptible Zephyr threads, and the high-resolution timer counts the cycles of the system timer, with its callouts on the kernel tick (1 MHz by default).
   PX4 is built as on NuttX, with `-Os`, and its estimators and controllers with `-O2`.
   A board with flash to spare can build it for speed with `CONFIG_SPEED_OPTIMIZATIONS`.
 - The application calls `px4_zephyr_start()`, which initialises PX4 and runs the commands of the board's `init/rc.px4` startup script, one per line.
