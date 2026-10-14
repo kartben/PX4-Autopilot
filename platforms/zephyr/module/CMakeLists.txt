@@ -172,3 +172,8 @@ if(CONFIG_PX4_SHELL)
 		${CMAKE_CURRENT_BINARY_DIR}/px4_shell_commands.c
 	)
 endif()
+
+if(CONFIG_PX4_MAVLINK_SHELL AND TARGET modules__mavlink)
+	zephyr_library_named(px4_mavlink_shell)
+	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_mavlink_shell.c)
+endif()
