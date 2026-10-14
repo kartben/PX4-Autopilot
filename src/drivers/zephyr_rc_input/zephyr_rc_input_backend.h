@@ -92,8 +92,9 @@ int zephyr_rc_input_get_info(struct zephyr_rc_input_info *info);
 
 /**
  * Call event with arg after each frame, from the thread that reports the input
- * events, or from interrupts with some input drivers. No event is called once
- * this returns with a NULL event.
+ * events, or from interrupts with some input drivers, without the lock of the
+ * frame. No event is called once this returns with a NULL event, which waits for
+ * an event that is being called, so it must not be called from the event.
  */
 void zephyr_rc_input_set_event(zephyr_rc_input_event_t event, void *arg);
 
