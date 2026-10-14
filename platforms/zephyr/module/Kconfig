@@ -33,7 +33,8 @@ config PX4_SHELL
 	default y
 	depends on SHELL
 	help
-	  Run PX4 commands from the Zephyr shell, e.g. "px4 uorb status".
+	  Run PX4 commands from the Zephyr shell, e.g. "uorb status" or
+	  "px4 uorb status".
 
 config PX4_SENSORS
 	bool "Sensors for PX4"

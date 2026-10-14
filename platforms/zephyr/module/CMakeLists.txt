@@ -155,6 +155,20 @@ if(CONFIG_PX4_ITCM)
 endif()
 
 if(CONFIG_PX4_SHELL)
+	# the PX4 commands as commands of the Zephyr shell, as in nsh, besides "px4 <command>"
+	get_property(px4_builtins GLOBAL PROPERTY PX4_ZEPHYR_BUILTINS)
+	set(shell_commands_string)
+
+	foreach(builtin ${px4_builtins})
+		string(APPEND shell_commands_string
+			"SHELL_CMD_ARG_REGISTER(${builtin}, NULL, NULL, px4_shell_run_command, 1, SHELL_OPT_ARG_MAX);\n")
+	endforeach()
+
+	configure_file(px4_shell_commands.c.in ${CMAKE_CURRENT_BINARY_DIR}/px4_shell_commands.c)
+
 	zephyr_library_named(px4_shell)
-	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_shell.c)
+	zephyr_library_sources(
+		${px4_source_dir}/platforms/zephyr/src/px4/common/px4_shell.c
+		${CMAKE_CURRENT_BINARY_DIR}/px4_shell_commands.c
+	)
 endif()
