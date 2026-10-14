@@ -58,6 +58,10 @@ DEFAULT_BAUD = 57600
 # open right after a previous session closed, so the budget is generous and
 # open() re-sends its wake write until the shell answers.
 SHELL_OPEN_TIMEOUT = 10.0
+# How long MavlinkShell.run() waits for the second sentinel echo once the first
+# arrived. Both echoes are queued together, so the second one follows within a
+# MAVLink round trip; the wait only bounds a garbled one.
+SENTINEL_GRACE = 1.0
 USB_DEVICE_GLOB_DARWIN = '/dev/tty.usbmodem*'
 USB_DEVICE_GLOB_LINUX = '/dev/serial/by-id/*PX4*'
 
@@ -67,7 +71,8 @@ USB_DEVICE_GLOB_LINUX = '/dev/serial/by-id/*PX4*'
 EXIT_SKIP = 75
 
 # NuttX nsh prints exactly this for an unknown command
-# (apps/nshlib/nsh_parse.c: "nsh: %s: command not found").
+# (apps/nshlib/nsh_parse.c: "nsh: %s: command not found"), and the Zephyr
+# shell "%s: command not found".
 NSH_NOT_FOUND = 'command not found'
 
 
@@ -344,14 +349,23 @@ class MavlinkShell:
         # non-zero exit and a failing command reads as a stall. nsh consumes
         # input lines sequentially, so the sentinel line runs after the
         # command finishes regardless of its exit status.
-        # Two echoes like run_nsh_cmd.py, in case the first line is garbled.
+        # Two echoes like run_nsh_cmd.py, in case the first line is garbled,
+        # each on a line of its own: the Zephyr shell has no ';' chaining.
         self._write('{}\n'.format(cmd))
-        self._write('echo {0}; echo {0}\n'.format(sentinel))
+        self._write('echo {0}\necho {0}\n'.format(sentinel))
         deadline = time.monotonic() + timeout
+        sentinel_line = re.compile(r'^{}\s*$'.format(re.escape(sentinel)), re.MULTILINE)
         while time.monotonic() < deadline:
             self._pump()
             # sentinel on its own line (not the command echo containing "echo <sentinel>")
-            if re.search(r'^{}\s*$'.format(re.escape(sentinel)), self.buf, re.MULTILINE):
+            if sentinel_line.search(self.buf):
+                # Briefly wait for the second echo too: the Zephyr shell echoes
+                # a line when it runs it, so the echo and the output of the
+                # second sentinel line would otherwise arrive in the middle
+                # of the next command's output, cut at any character.
+                grace = min(deadline, time.monotonic() + SENTINEL_GRACE)
+                while len(sentinel_line.findall(self.buf)) < 2 and time.monotonic() < grace:
+                    self._pump()
                 return self._strip(cmd, sentinel), False
         return self._strip(cmd, sentinel), True
 
@@ -374,8 +388,10 @@ class MavlinkShell:
             if cmd in line and 'echo' in line:
                 continue
             # the terminal echo of the command itself (possibly prefixed by
-            # the prompt and ANSI erase sequences) is not command output
-            bare = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', line).replace('nsh>', '').strip()
+            # the prompt, of nsh or of the Zephyr shell, and ANSI erase
+            # sequences) is not command output
+            bare = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', line)
+            bare = bare.replace('nsh>', '').replace('px4>', '').strip()
             if bare == cmd:
                 continue
             lines.append(line)
