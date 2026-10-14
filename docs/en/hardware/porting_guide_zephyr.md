@@ -26,7 +26,8 @@ A Zephyr application that sets `CONFIG_PX4=y` gets PX4 built into it:
   A board with flash to spare can build it for speed with `CONFIG_SPEED_OPTIMIZATIONS`.
 - The application calls `px4_zephyr_start()`, which initialises PX4 and runs the commands of the board's `init/rc.px4` startup script, one per line.
   A board configuration with a [label](porting_guide_config.md#px4-kconfig-label-inheritance) runs `init/rc.<label>.px4` instead, if it exists.
-- The `px4` command of the Zephyr shell runs PX4 commands, for example `px4 uorb status`.
+- The Zephyr shell runs PX4 commands, as nsh does, for example `uorb status`, also as `px4 uorb status`.
+  The MAVLink shell, the _MAVLink Console_ of _QGroundControl_, is a Zephyr shell over MAVLink, with the PX4 commands and those of Zephyr.
 
 The PX4 options of the Zephyr configuration are:
 
@@ -34,7 +35,8 @@ The PX4 options of the Zephyr configuration are:
 | --------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `CONFIG_PX4`                      | Build PX4 into the application.                                                                     |
 | `CONFIG_PX4_BOARD_CONFIG`         | PX4 board configuration to build instead of the default one, for example `zephyr_generic_sih`.      |
-| `CONFIG_PX4_SHELL`                | Add the `px4` shell command (enabled with the shell).                                               |
+| `CONFIG_PX4_SHELL`                | Run PX4 commands from the Zephyr shell (enabled with the shell).                                    |
+| `CONFIG_PX4_MAVLINK_SHELL`        | Add the MAVLink shell (enabled with `CONFIG_PX4_SHELL`).                                            |
 | `CONFIG_PX4_SENSORS`              | Enable the Zephyr sensor API for the sensors in the devicetree (enabled by the `px4,sensors` node). |
 | `CONFIG_PX4_SERIAL`               | Open the UARTs of the devicetree as device files (enabled by the `px4,serial-ports` node).          |
 | `CONFIG_PX4_PWM_OUTPUTS`          | Enable the Zephyr PWM API for the actuator outputs (enabled by the `px4,pwm-outputs` node).         |
@@ -180,6 +182,7 @@ uart:~$ px4 commander land
 
 The USB OTG1 port is `/dev/ttyACM0`, a USB serial port that runs MAVLink while a ground station has it open.
 _QGroundControl_ doesn't recognise its USB IDs: add a serial link to its port (`/dev/cu.usbmodem*` on macOS) in **Application Settings > Comm Links**, and fly missions from there.
+Its **Analyze Tools > MAVLink Console** is the MAVLink shell, as is the shell of the [bench tests](../test_and_ci/bench_testing.md).
 
 - The RAM is the on-chip OCRAM from 0x20200000 (1 MiB: the OCRAM of the M4, OCRAM1 and half of OCRAM2), instead of the SDRAM that the board chooses, with which the flight stack takes about 1.5 points more of the CPU.
 - The parameters and the logs are kept on the microSD card (FAT32), and the missions in RAM, as an EVK may have no card.
@@ -239,7 +242,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
   A second test has no safety LED nor `gpio-keys` input driver.
 - [tests/gps](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/gps) tests the GPS driver with an NMEA receiver on an emulated UART: the position, accuracy, dilutions of precision and velocity of the fix, and the baud rate.
 - [tests/identity](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/identity) tests the board identity, from the device ID of a hwinfo driver and from `BOARD_OVERRIDE_UUID`.
-- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log, `top` and the CPU load, and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port and download the component metadata with MAVLink FTP, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
+- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log, `top` and the CPU load, and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, download the component metadata with MAVLink FTP and run commands in the MAVLink shell, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
 
 The tests also run on the MIMXRT1170-EVK, which twister flashes and reads on the serial port of its debug USB port:
 
