@@ -152,6 +152,29 @@ if(CONFIG_PX4_ITCM)
 			zephyr_code_relocate(LIBRARY ${lib} LOCATION ITCM_TEXT NOKEEP)
 		endif()
 	endforeach()
+
+	# the USB device stack, which sends MAVLink to a ground station on USB: each message passes
+	# through the CDC ACM class, the buffers and the USB controller driver
+	if(CONFIG_USBD_CDC_ACM_CLASS)
+		set(usb_files
+			${ZEPHYR_BASE}/subsys/usb/device_next/class/usbd_cdc_acm.c
+			${ZEPHYR_BASE}/subsys/usb/device_next/usbd_class.c
+			${ZEPHYR_BASE}/subsys/usb/device_next/usbd_core.c
+			${ZEPHYR_BASE}/drivers/usb/udc/udc_common.c
+			${ZEPHYR_BASE}/lib/net_buf/buf.c
+			${ZEPHYR_BASE}/lib/net_buf/buf_simple.c
+		)
+
+		if(CONFIG_UDC_NXP_EHCI)
+			list(APPEND usb_files
+				${ZEPHYR_BASE}/drivers/usb/udc/udc_mcux_ehci.c
+				${ZEPHYR_HAL_NXP_MODULE_DIR}/mcux/mcux-sdk-ng/middleware/usb/device/usb_device_ehci.c
+				${ZEPHYR_HAL_NXP_MODULE_DIR}/mcux/mcux-sdk-ng/components/osa/fsl_os_abstraction_zephyr.c
+			)
+		endif()
+
+		zephyr_code_relocate(FILES ${usb_files} LOCATION ITCM_TEXT NOKEEP)
+	endif()
 endif()
 
 if(CONFIG_PX4_SHELL)
