@@ -393,8 +393,9 @@ void MavlinkFTP::_constructPath(char *dst, int dst_len, const char *path) const
 	strncpy(dst, _root_dir, dst_len);
 	int root_dir_len = _root_dir_len;
 
-	// If neither the root ends nor the given path starts with a '/', add a separating '/' in between
-	if (dst[0] != '\0' && dst[strlen(dst) - 1] != '/' && path[0] != '/') {
+	// If neither the root ends nor the given path starts with a '/', add a separating '/' in between,
+	// which makes the path absolute with an empty root, as Zephyr has no current directory
+	if ((dst[0] == '\0' || dst[strlen(dst) - 1] != '/') && path[0] != '/') {
 		strncat(dst, "/", dst_len);
 		++root_dir_len;
 	}
@@ -408,7 +409,7 @@ void MavlinkFTP::_constructPath(char *dst, int dst_len, const char *path) const
 void
 MavlinkFTP::_statDirent(const char *name, uint32_t &size, uint32_t &mtime)
 {
-	int ret = snprintf(_work_buffer2, _work_buffer2_len, "%s/%s", _work_buffer1, name);
+	int ret = mavlink_dirent_path(_work_buffer2, _work_buffer2_len, _work_buffer1, name);
 
 	if ((ret > 0) && (ret < _work_buffer2_len)) {
 		struct stat st;
