@@ -234,6 +234,8 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/storage](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/storage) tests the parameter file and the file functions of PX4 on a RAM disk.
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
 - [tests/pwm](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/pwm) tests the PWM outputs on the Zephyr fake PWM driver: the disarmed, armed, failsafe and ESC calibration values, a pulse longer than the period, the outputs left without pulses when their functions are removed and disarmed when the driver stops, and the update rate of outputs with different periods.
+- [tests/dshot](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/dshot) tests the `dshot` driver on two fake DShot devices of the test, with PWM and DShot outputs: the frames of the disarmed and armed outputs, with the inverted checksum of bidirectional DShot, sent on all the channels of a device at once, the PWM outputs that `zephyr_pwm_out` drives and the DShot outputs that it leaves alone, a spin direction command, the eRPM of the ESC replies with the pole count of the motors, their extended telemetry, the CRC errors, frame errors and missing replies, the ESCs going offline and back online, and a channel whose reply can still arrive.
+  The test builds the ESC replies with GCR encoding of its own, rather than with the decoder of PX4.
 - [tests/rc_input](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/rc_input) tests the RC input with the Zephyr SBUS driver, which receives SBUS frames on an emulated UART: the channel values, keys, the failsafe, the loss of RC, and the events of another input device.
 - [tests/adc](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/adc) tests the board ADC on the Zephyr ADC emulator: the channels of the ADC report, the 5 V and 3.3 V rails of the system power, a channel that can't be read, and two analog batteries with their voltage dividers, a disconnected battery and `BAT1_V_CHANNEL`.
 - [tests/buzzer](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/buzzer) tests the tone alarm on a PWM buzzer of the Zephyr fake PWM driver: the frequency and duration of the notes of a tone and of tunes, a tone that overrides a tune, a stop in the middle of a note, and `CBRK_BUZZER`.
@@ -579,7 +581,7 @@ The first child node is the first output, configured with [PWM_MAIN_FUNC1](../ad
 The outputs have the same parameters as with the `pwm_out` driver of NuttX on a board without an I/O processor, and are configured in the [Actuators](../config/actuators.md) setup of _QGroundControl_ (see [Component Metadata](#component-metadata)).
 The driver supports ESC calibration, and the generic board configuration starts it.
 
-Each output has the period of its `pwms` property, for example 400 Hz for ESCs or 50 Hz for analog servos, instead of the timer parameters of NuttX, such as [PWM_MAIN_TIM0](../advanced_config/parameter_reference.md#PWM_MAIN_TIM0).
+Each output has the period of its `pwms` property, for example 400 Hz for ESCs or 50 Hz for analog servos, instead of the rate of the timer parameters of NuttX, such as [PWM_MAIN_TIM0](../advanced_config/parameter_reference.md#PWM_MAIN_TIM0), which select PWM or [DShot](#dshot) with the `dshot` driver.
 The build checks that the period is at least 2200 us, the longest pulse of the parameters.
 Many PWM controllers have one period for all their channels, such as an STM32 timer or the channels A and B of an NXP FlexPWM submodule: outputs on the same PWM device then need the same period, and the driver warns when they differ.
 
@@ -591,6 +593,46 @@ It is tested on the Zephyr fake PWM driver, in QEMU and on the MIMXRT1170-EVK.
 The NXP VMU RT1170 has the outputs `FMU_CH1` to `FMU_CH8` of FMU-v6XRT, at 400 Hz, and its board configuration starts `zephyr_pwm_out`.
 The prescaler of its PWM limits the period to 17 ms: a 50 Hz output needs a larger `nxp,prescaler` on its FlexPWM submodule.
 With NuttX, FMU-v6XRT drives these outputs as its AUX outputs, `PWM_AUX_FUNC1` to `PWM_AUX_FUNC8`, as its firmware also supports an I/O processor for the main outputs: the `PWM_AUX_*` parameters of its parameter files are the `PWM_MAIN_*` parameters on Zephyr.
+
+### DShot
+
+The [DShot](../peripherals/dshot.md) driver, `dshot`, drives outputs of the `px4,pwm-outputs` node with DShot instead of PWM, with bidirectional DShot, extended telemetry and the ESC commands, as on NuttX.
+Add `CONFIG_DRIVERS_DSHOT` to the PX4 board configuration, and start `dshot` with `zephyr_pwm_out` in the startup script.
+
+With the `dshot` driver, each output has a protocol parameter of its own, `PWM_MAIN_TIM0` for the first output, `PWM_MAIN_TIM1` for the second one and so on, as on FMU-v6XRT with NuttX, where each output has a timer of its own.
+It selects PWM, at the period of the `pwms` property, DShot150, DShot300 or DShot600, or bidirectional DShot (BDShot150, BDShot300 or BDShot600), in the [Actuators](../config/actuators.md) setup of _QGroundControl_, which hides the PWM limits of the DShot outputs and offers the spin direction of their motors.
+`zephyr_pwm_out` leaves the DShot outputs alone: no pulses, also when it stops.
+All the DShot outputs have the same bit rate: with different ones, the `dshot` driver warns and takes the rate of the last DShot output.
+Without the `dshot` driver, the outputs have no protocol parameters, and are all PWM outputs.
+
+An output sends DShot frames on the channel of a DShot device of its `dshot` property, and outputs without one can't be DShot outputs:
+
+```dts
+/ {
+	px4-pwm-outputs {
+		compatible = "px4,pwm-outputs";
+
+		main1 {
+			pwms = <&flexpwm1_pwm0 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+			dshot = <&dshot0 0>;
+		};
+	};
+};
+```
+
+A DShot device is a Zephyr device with the driver API of [px4_dshot.h](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/zephyr/module/include/px4_dshot.h), whose binding includes [px4-dshot-controller.yaml](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/zephyr/dts/bindings/px4-dshot-controller.yaml) (`#dshot-cells = <1>`, the channel).
+Its driver implements:
+
+- `configure()`: the channels to send on, the bidirectional ones among them, and the bit rate, 150, 300 or 600 kbit/s.
+- `send()`: one frame on each of the given channels, which all start at the same time.
+  The platform layer sends the frames of all the DShot outputs of a device at each update of the outputs.
+- `get_reply()`: the reply of the ESC to the last frame of a bidirectional channel, as the 20 line levels that follow its start bit, `-EBUSY` while it can still arrive, in which case the channel skips the update, or `-ENODATA` if none arrived.
+
+The driver takes care of the bit timing of the frames, of turning the line of a bidirectional channel around for the reply, and of the timing of the reception of the replies, which the NuttX driver of the i.MX RT FlexIO trains for each ESC.
+The platform layer builds the frames, with the inverted checksum of bidirectional DShot, decodes the GCR replies into eRPM or extended telemetry, and counts the CRC errors, frame errors and missing replies, with the protocol code of [src/lib/dshot](https://github.com/PX4/PX4-Autopilot/tree/main/src/lib/dshot), which the NuttX driver of the i.MX RT shares.
+An ESC is online after 200 valid replies in a row, and offline after 200 missing or invalid ones.
+
+There is no driver for DShot hardware yet: DShot is only tested on the fake DShot devices of [tests/dshot](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/dshot), in QEMU, and no board configuration enables it.
 
 ### RC Input
 
@@ -851,7 +893,8 @@ Only the operating system rows compare the two systems, as the builds differ in 
 ## Limitations
 
 - PX4 has only flown in simulation: the PWM outputs, the RC input, the GPS driver, the buzzer and the safety button are only tested in QEMU.
-- PWM outputs have the period of the devicetree, without OneShot or DShot.
+- PWM outputs have the period of the devicetree, without OneShot.
+- DShot has no driver for DShot hardware, and only runs on the fake DShot devices of the tests.
 - RC input is read from Zephyr input devices, such as SBUS and CRSF receivers, and from CRSF receivers with `crsf_rc` on a serial port: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
   The Zephyr CRSF driver doesn't bind the receiver, as `crsf_rc` does on a command of the ground station.
   The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, nor the digital channels 17 and 18.
