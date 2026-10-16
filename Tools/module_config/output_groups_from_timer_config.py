@@ -138,6 +138,15 @@ def get_timer_groups(timer_config_file, verbose=False):
 
     return outputs
 
+def get_timer_groups_per_channel(num_channels):
+    """ one timer group with DShot per channel, in place of the timer groups of
+    a timer_config.cpp, for outputs whose protocol is selected one by one
+    """
+    return {
+        'types': ['pwm'] * num_channels,
+        'groups': [(channel, 1, True) for channel in range(num_channels)],
+        }
+
 def get_output_groups(timer_groups, param_prefix="PWM_MAIN",
         channel_labels=["PWM Main", "PWM Capture"],
         standard_params=[],
