@@ -8,7 +8,7 @@ import os
 import sys
 from copy import deepcopy
 
-from output_groups_from_timer_config import get_timer_groups, get_output_groups
+from output_groups_from_timer_config import get_timer_groups, get_timer_groups_per_channel, get_output_groups
 
 try:
     import yaml
@@ -212,11 +212,14 @@ def get_actuator_output_params(yaml_config, output_functions,
                 standard_params = group.get('standard_params', [])
                 extra_function_groups = group.get('extra_function_groups', [])
                 pwm_timer_param = group.get('pwm_timer_param', None)
-                if 'timer_config_file' in group:
-                    timer_config_file = os.path.join(root_dir, group['timer_config_file'])
-                if timer_config_file is None:
-                    raise Exception('trying to generate pwm outputs, but --timer-config not set')
-                timer_groups = get_timer_groups(timer_config_file, verbose)
+                if 'num_channels' in group:
+                    timer_groups = get_timer_groups_per_channel(group['num_channels'])
+                else:
+                    if 'timer_config_file' in group:
+                        timer_config_file = os.path.join(root_dir, group['timer_config_file'])
+                    if timer_config_file is None:
+                        raise Exception('trying to generate pwm outputs, but --timer-config not set')
+                    timer_groups = get_timer_groups(timer_config_file, verbose)
                 timer_output_groups, timer_params = get_output_groups(timer_groups,
                     param_prefix, channel_labels,
                     standard_params, extra_function_groups, pwm_timer_param,
