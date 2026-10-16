@@ -38,6 +38,7 @@ add_library(px4_layer
 	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/print_load.cpp
 	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/px4_init.cpp
 	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/SerialImpl.cpp
+	board_identity.c
 	drv_hrt.cpp
 	px4_sched.c
 	px4_sem.cpp
