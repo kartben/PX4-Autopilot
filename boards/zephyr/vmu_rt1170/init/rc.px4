@@ -1,6 +1,7 @@
 # Serial ports as on the FMUv6X-RT, see platforms/zephyr/app/boards/vmu_rt1170_mimxrt1176_cm7.overlay
 ver all
 zephyr_sensors start
+zephyr_rc_input start
 sensors start
 zephyr_pwm_out start
 mavlink start -d /dev/ttyS2 -b 57600

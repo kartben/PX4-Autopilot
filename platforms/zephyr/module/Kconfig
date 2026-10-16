@@ -117,6 +117,18 @@ config PX4_PWM_OUTPUTS
 	  devicetree node, which the PX4 zephyr_pwm_out driver drives as the
 	  main outputs.
 
+config PX4_RC_INPUT
+	bool "RC input for PX4"
+	default y
+	depends on DT_HAS_PX4_RC_INPUT_ENABLED
+	select INPUT
+	imply UART_INTERRUPT_DRIVEN if DT_HAS_FUTABA_SBUS_ENABLED
+	help
+	  Enable the input subsystem for the input device of the px4,rc-input
+	  devicetree node, such as an SBUS receiver, whose events the PX4
+	  zephyr_rc_input driver publishes as RC input, and the interrupt-driven
+	  UART API that the SBUS driver needs.
+
 config PX4_STACK_OVERHEAD
 	int "Stack overhead"
 	default 1024
@@ -144,6 +156,12 @@ endchoice
 
 choice PICOLIBC_IO_LEVEL
 	default PICOLIBC_IO_FLOAT if PX4
+endchoice
+
+# the RC input events are handled in the thread of the input driver, instead of the input thread,
+# which has the lowest priority
+choice INPUT_MODE
+	default INPUT_MODE_SYNCHRONOUS if PX4_RC_INPUT
 endchoice
 
 if PX4
