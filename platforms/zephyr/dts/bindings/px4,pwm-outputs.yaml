@@ -7,6 +7,9 @@ description: |
   STM32 timer or the channels A and B of an NXP FlexPWM submodule: outputs
   on the same PWM device then need the same period.
 
+  An output with a dshot property can be driven with DShot instead, by the
+  PX4 dshot driver, when its PWM_MAIN_TIM<n> parameter selects DShot.
+
     #include <zephyr/dt-bindings/pwm/pwm.h>
 
     / {
@@ -15,6 +18,7 @@ description: |
 
         main1 {
           pwms = <&flexpwm1_pwm0 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+          dshot = <&dshot0 0>;
         };
 
         main2 {
@@ -35,3 +39,12 @@ child-binding:
         PWM channel, with the period of the output, for example PWM_HZ(400)
         for ESCs or PWM_HZ(50) for analog servos. The period is at least
         2200 us, the longest pulse of the PWM_MAIN parameters.
+    dshot:
+      type: phandle-array
+      specifier-space: dshot
+      description: |
+        DShot device and channel of the output, see px4-dshot-controller.yaml.
+        The PX4 dshot driver sends DShot frames on it when PWM_MAIN_TIM<n> of
+        the output, from PWM_MAIN_TIM0 for the first one, selects DShot or
+        bidirectional DShot. zephyr_pwm_out then leaves the PWM channel of
+        the output alone.
