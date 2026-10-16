@@ -205,7 +205,7 @@ The driver receives with DMA, and sends the telemetry of `crsf_rc`.
 
 The EVK runs the firmware from its quad SPI flash, which stalls the CPU for hundreds of cycles when an instruction isn't in the cache.
 With the 32 KiB instruction cache of the Cortex-M7, the flight stack spends most of its time waiting for the flash.
-`CONFIG_PX4_ITCM` runs the most used code from the ITCM, the instruction memory of the Cortex-M7, instead: the kernel, uORB, the work queues, the sensors, the rate and attitude controllers, the control allocation, the simulator and the trigonometric functions of the C library, and the functions of [itcm_functions.ld](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/zephyr/module/itcm_functions.ld), which a profile of SIH on the EVK found running most from the flash (250 KiB in all).
+`CONFIG_PX4_ITCM` runs the most used code from the ITCM, the instruction memory of the Cortex-M7, instead: the kernel, uORB, the work queues, the sensors, the rate and attitude controllers, the control allocation, the simulator and the trigonometric functions of the C library, and the functions of [itcm_functions.ld](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/zephyr/module/itcm_functions.ld), which a profile of SIH on the EVK found running most from the flash, within the free space of the ITCM.
 The flight stack then uses about 55% of the CPU at 400 Hz, instead of 94% with only the code that runs at the rate of the IMU.
 
 The boot ROM also leaves the AHB read prefetch of the FlexSPI on, which Zephyr keeps when running in place: a fetch from the flash then waits for the prefetch of other data to finish, and the CPU stalls for 50 to 60 µs many times per second, also with interrupts locked, which delays them by as much.
@@ -214,7 +214,7 @@ The boot ROM also leaves the AHB read prefetch of the FlexSPI on, which Zephyr k
 [Tools/itcm_profile.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/itcm_profile.py) makes the list again, for example after changes to the flight stack, from the program counter of a board running SIH, sampled with pyOCD, within the free space of the ITCM:
 
 ```sh
-PX4-Autopilot/Tools/itcm_profile.py --target mimxrt1170_cm7 --max-size 94000 build/zephyr/zephyr.elf build/zephyr/zephyr.map --output PX4-Autopilot/platforms/zephyr/module/itcm_functions.ld
+PX4-Autopilot/Tools/itcm_profile.py --target mimxrt1170_cm7 --max-size 82500 build/zephyr/zephyr.elf build/zephyr/zephyr.map --output PX4-Autopilot/platforms/zephyr/module/itcm_functions.ld
 ```
 
 ## Running the Tests
