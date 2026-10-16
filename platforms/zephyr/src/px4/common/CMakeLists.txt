@@ -33,7 +33,9 @@
 
 add_library(px4_layer
 	${PX4_SOURCE_DIR}/platforms/common/module_base.cpp
+	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/cpuload.cpp
 	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/lib_crc32.c
+	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/print_load.cpp
 	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/px4_init.cpp
 	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/SerialImpl.cpp
 	drv_hrt.cpp
