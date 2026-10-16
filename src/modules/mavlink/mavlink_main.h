@@ -45,15 +45,23 @@
 #include <pthread.h>
 #include <stdbool.h>
 
+// UDP needs the network stack, which NuttX and Zephyr builds may leave out
+#if defined(CONFIG_NET) || (defined(__PX4_POSIX) && (!defined(__PX4_ZEPHYR) || defined(CONFIG_NET_SOCKETS)))
+# define MAVLINK_UDP
+# define DEFAULT_REMOTE_PORT_UDP 14550 ///< GCS port per MAVLink spec
+#endif
+
 #ifdef __PX4_NUTTX
 #include <nuttx/fs/fs.h>
 #else
-#include <arpa/inet.h>
 #include <drivers/device/device.h>
-#include <sys/socket.h>
 #endif
 
-#if defined(CONFIG_NET) || !defined(__PX4_NUTTX)
+#if defined(MAVLINK_UDP)
+#ifndef __PX4_NUTTX
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#endif
 #include <net/if.h>
 #include <netinet/in.h>
 #endif
@@ -92,11 +100,6 @@
 #define DEFAULT_DEVICE_NAME     "/dev/ttyS1"
 
 #define HASH_PARAM              "_HASH_CHECK"
-
-#if defined(CONFIG_NET) || defined(__PX4_POSIX)
-# define MAVLINK_UDP
-# define DEFAULT_REMOTE_PORT_UDP 14550 ///< GCS port per MAVLink spec
-#endif // CONFIG_NET || __PX4_POSIX
 
 enum class Protocol {
 	SERIAL = 0,
