@@ -90,6 +90,11 @@ SensorBus::SensorBus(ZephyrSensors &module, const zephyr_sensor_info &info) :
 SensorBus::~SensorBus()
 {
 	for (size_t i = 0; i < _sensor_count; i++) {
+		if (_sensors[i]->fifo) {
+			zephyr_sensors_fifo_stop(_sensors[i]->index);
+			delete _sensors[i]->fifo;
+		}
+
 		delete _sensors[i]->accel;
 		delete _sensors[i]->gyro;
 		delete _sensors[i]->mag;
@@ -101,6 +106,7 @@ SensorBus::~SensorBus()
 
 	perf_free(_cycle_perf);
 	perf_free(_read_error_perf);
+	perf_free(_fifo_overflow_perf);
 }
 
 bool SensorBus::has(const zephyr_sensor_info &info) const
@@ -169,6 +175,13 @@ bool SensorBus::add_sensor(size_t index, const zephyr_sensor_info &info)
 
 void SensorBus::start()
 {
+	// the FIFOs are started on the work queue of the bus, which reads them
+	ScheduleNow();
+}
+
+// the bus runs at the rate of its fastest polled sensor, and when FIFO data is read
+void SensorBus::schedule()
+{
 	hrt_abstime interval = _sensors[0]->interval;
 
 	for (size_t i = 1; i < _sensor_count; i++) {
@@ -179,14 +192,113 @@ void SensorBus::start()
 	ScheduleOnInterval(interval);
 }
 
+bool SensorBus::start_fifo(Sensor &sensor)
+{
+	if (sensor.fifo == nullptr) {
+		sensor.fifo = new zephyr_sensor_fifo{};
+	}
+
+	if (sensor.fifo && (zephyr_sensors_fifo_start(sensor.index, 1_s / imu_interval(), fifo_ready, this) == 0)) {
+		sensor.interval = FIFO_TIMEOUT;
+		sensor.last_sample = hrt_absolute_time();
+		sensor.fifo_data = false;
+		return true;
+	}
+
+	delete sensor.fifo;
+	sensor.fifo = nullptr;
+	return false;
+}
+
+void SensorBus::stop_fifo(Sensor &sensor)
+{
+	zephyr_sensors_fifo_stop(sensor.index);
+	delete sensor.fifo;
+	sensor.fifo = nullptr;
+
+	// the polled samples are in SI units, and keep the full scale of the FIFO
+	if (sensor.accel) {
+		sensor.accel->set_scale(1.f);
+	}
+
+	if (sensor.gyro) {
+		sensor.gyro->set_scale(1.f);
+	}
+
+	sensor.interval = imu_interval();
+	sensor.next_read = 0;
+	schedule();
+}
+
+void SensorBus::fifo_ready(void *arg)
+{
+	static_cast<SensorBus *>(arg)->ScheduleNow();
+}
+
+void SensorBus::read_fifo(Sensor &sensor)
+{
+	int ret;
+
+	while ((ret = zephyr_sensors_fifo_read(sensor.index, sensor.fifo)) > 0) {
+		sensor.fifo_data = true;
+		sensor.last_sample = hrt_absolute_time();
+
+		if (sensor.fifo->overflow) {
+			sensor.error_count++;
+			perf_count(_fifo_overflow_perf);
+		}
+
+		publish_fifo(sensor, *sensor.fifo);
+	}
+
+	if (ret < 0) {
+		sensor.error_count++;
+		perf_count(_read_error_perf);
+
+		// a stream that fails before it reads the FIFO isn't restarted
+		if (!sensor.fifo_data || !start_fifo(sensor)) {
+			PX4_WARN("%s: FIFO failed (%d), polling instead", sensor.info.name, ret);
+			stop_fifo(sensor);
+			return;
+		}
+	}
+
+	if (hrt_elapsed_time(&sensor.last_sample) > FIFO_TIMEOUT) {
+		PX4_WARN("%s: FIFO not read, polling instead", sensor.info.name);
+		stop_fifo(sensor);
+	}
+}
+
 void SensorBus::Run()
 {
 	if (_module.should_exit()) {
-		ScheduleClear();
+		// the FIFO data may run the bus again after it stops
+		if (!_stopped) {
+			_stopped = true;
 
-		// the module deletes the buses when the last one stops
-		_module.bus_stopped();
+			for (size_t i = 0; i < _sensor_count; i++) {
+				zephyr_sensors_fifo_stop(_sensors[i]->index);
+			}
+
+			ScheduleClear();
+
+			// the module deletes the buses when the last one stops
+			_module.bus_stopped();
+		}
+
 		return;
+	}
+
+	if (!_started) {
+		_started = true;
+
+		for (size_t i = 0; i < _sensor_count; i++) {
+			if (_sensors[i]->accel || _sensors[i]->gyro) {
+				start_fifo(*_sensors[i]);
+			}
+		}
+
+		schedule();
 	}
 
 	if (_parameter_update_sub.updated()) {
@@ -199,6 +311,12 @@ void SensorBus::Run()
 
 	for (size_t i = 0; i < _sensor_count; i++) {
 		Sensor &sensor = *_sensors[i];
+
+		if (sensor.fifo) {
+			read_fifo(sensor);
+			continue;
+		}
+
 		const hrt_abstime start = hrt_absolute_time();
 
 		// a read due before the middle of the period of the bus is done now: the jitter of the
@@ -288,6 +406,54 @@ void SensorBus::publish(Sensor &sensor, const zephyr_sensor_sample &sample)
 	}
 }
 
+template<typename T>
+static void copy_fifo_samples(T &report, const zephyr_sensor_fifo_samples &samples)
+{
+	static_assert(sizeof(report.x) == sizeof(samples.x), "FIFO size mismatch");
+
+	report.timestamp_sample = samples.timestamp_us;
+	report.dt = samples.dt_us;
+	report.samples = samples.count;
+	memcpy(report.x, samples.x, sizeof(report.x));
+	memcpy(report.y, samples.y, sizeof(report.y));
+	memcpy(report.z, samples.z, sizeof(report.z));
+}
+
+void SensorBus::publish_fifo(Sensor &sensor, const zephyr_sensor_fifo &fifo)
+{
+	const bool has_temperature = PX4_ISFINITE(fifo.temperature);
+
+	if (sensor.accel && (fifo.accel.count > 0)) {
+		sensor_accel_fifo_s accel{};
+		copy_fifo_samples(accel, fifo.accel);
+
+		sensor.accel->set_error_count(sensor.error_count);
+		sensor.accel->set_scale(fifo.accel.scale);
+		sensor.accel->set_range(fifo.accel.scale * 32768.f);
+
+		if (has_temperature) {
+			sensor.accel->set_temperature(fifo.temperature);
+		}
+
+		sensor.accel->updateFIFO(accel);
+	}
+
+	if (sensor.gyro && (fifo.gyro.count > 0)) {
+		sensor_gyro_fifo_s gyro{};
+		copy_fifo_samples(gyro, fifo.gyro);
+
+		sensor.gyro->set_error_count(sensor.error_count);
+		sensor.gyro->set_scale(fifo.gyro.scale);
+		sensor.gyro->set_range(fifo.gyro.scale * 32768.f);
+
+		if (has_temperature) {
+			sensor.gyro->set_temperature(fifo.temperature);
+		}
+
+		sensor.gyro->updateFIFO(gyro);
+	}
+}
+
 // the battery status measured by a fuel gauge, or a disconnected battery without a sample
 void SensorBus::publish_fuel_gauge(Sensor &sensor, const zephyr_sensor_sample *sample, hrt_abstime timestamp)
 {
@@ -355,11 +521,19 @@ void SensorBus::print_status() const
 	PX4_INFO("%s", _queue_name);
 	perf_print_counter(_cycle_perf);
 	perf_print_counter(_read_error_perf);
+	perf_print_counter(_fifo_overflow_perf);
 
 	for (size_t i = 0; i < _sensor_count; i++) {
 		const Sensor &sensor = *_sensors[i];
-		PX4_INFO("%s: device id %" PRIu32 ", every %" PRIu64 " us, %" PRIu32 " errors", sensor.info.name,
-			 device_id(sensor.info), sensor.interval, sensor.error_count);
+
+		if (sensor.fifo) {
+			PX4_INFO("%s: device id %" PRIu32 ", FIFO, %" PRIu32 " errors", sensor.info.name,
+				 device_id(sensor.info), sensor.error_count);
+
+		} else {
+			PX4_INFO("%s: device id %" PRIu32 ", every %" PRIu64 " us, %" PRIu32 " errors", sensor.info.name,
+				 device_id(sensor.info), sensor.interval, sensor.error_count);
+		}
 	}
 }
 
@@ -500,6 +674,12 @@ controller (IMU_GYRO_RATEMAX), magnetometers at 100 Hz, barometers at 50 Hz and
 power monitors, which publish the status of a battery, at 10 Hz. Smart batteries
 are read at 10 Hz through the Zephyr fuel gauge API, and publish the state of
 charge measured by their fuel gauge.
+
+The FIFO of an IMU whose interrupt pin is in the devicetree is streamed instead,
+if its Zephyr driver supports the sensor streaming API, and all its samples are
+published to sensor_accel_fifo and sensor_gyro_fifo. Drivers that set the FIFO
+watermark from the batch duration get a watermark of at most 1 / IMU_GYRO_RATEMAX.
+An IMU whose FIFO isn't read for 100 ms is polled instead.
 
 The sensors of each bus are read in turn on the work queue of the bus, so that a
 slow bus doesn't delay the sensors of the other buses.
