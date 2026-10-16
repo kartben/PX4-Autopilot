@@ -71,6 +71,8 @@ DT_FOREACH_CHILD_STATUS_OKAY(SENSORS_NODE, SENSOR_IODEV_DEFINE)
 	 : HAS_COMPAT(node, asahi_kasei_akm09918c) ? DRV_MAG_DEVTYPE_AK09918                      \
 	 : HAS_COMPAT(node, bosch_bmm150)         ? DRV_MAG_DEVTYPE_BMM150                        \
 	 : HAS_COMPAT(node, isentek_ist8310)      ? DRV_MAG_DEVTYPE_IST8310                       \
+	 : HAS_COMPAT(node, pni_rm3100)           ? DRV_MAG_DEVTYPE_RM3100                        \
+	 : HAS_COMPAT(node, st_lis3mdl_magn)      ? DRV_MAG_DEVTYPE_LIS3MDL                       \
 	 : HAS_COMPAT(node, bosch_bmp388)         ? DRV_BARO_DEVTYPE_BMP388                       \
 	 : HAS_COMPAT(node, bosch_bmp390)         ? DRV_BARO_DEVTYPE_BMP390                       \
 	 : HAS_COMPAT(node, bosch_bmp581)         ? DRV_BARO_DEVTYPE_BMP581                       \
@@ -96,6 +98,7 @@ struct sensor_entry {
 	uint8_t devtype;
 	uint8_t rotation;
 	bool external;
+	bool deferred;
 };
 
 #define SENSOR_ENTRY(node)                                                                         \
@@ -110,6 +113,7 @@ struct sensor_entry {
 												   .devtype = SENSOR_DEVTYPE(node),                                                   \
 														   .rotation = DT_PROP(node, rotation),                                               \
 																   .external = DT_PROP(node, external),                                               \
+																		   .deferred = DT_PROP_OR(SENSOR_DEVICE_NODE(node), zephyr_deferred_init, false),     \
 	},
 
 static const struct sensor_entry sensors[] = {
@@ -173,6 +177,12 @@ int zephyr_sensors_get_info(size_t index, struct zephyr_sensor_info *info)
 	info->devtype = sensor->devtype;
 	info->rotation = sensor->rotation;
 	info->external = sensor->external;
+	info->optional = sensor->deferred;
+
+	if (sensor->deferred && !device_is_ready(sensor->dev)) {
+		/* a device that doesn't respond stays not ready */
+		(void)device_init(sensor->dev);
+	}
 
 	return device_is_ready(sensor->dev) ? 0 : -ENODEV;
 }

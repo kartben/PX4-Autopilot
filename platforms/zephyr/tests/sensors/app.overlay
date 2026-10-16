@@ -25,6 +25,14 @@
 		akm09918c: akm09918c@c {
 			compatible = "asahi-kasei,akm09918c";
 			reg = <0xc>;
+			zephyr,deferred-init;
+		};
+
+		/* no emulator: the sensor doesn't respond */
+		ist8310: ist8310@e {
+			compatible = "isentek,ist8310";
+			reg = <0xe>;
+			zephyr,deferred-init;
 		};
 	};
 
@@ -43,6 +51,12 @@
 
 		mag0 {
 			sensor = <&akm09918c>;
+			type = "mag";
+			external;
+		};
+
+		mag1 {
+			sensor = <&ist8310>;
 			type = "mag";
 			external;
 		};
