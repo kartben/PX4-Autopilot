@@ -1,0 +1,6 @@
+menuconfig DRIVERS_LIGHTS_ZEPHYR_RGBLED
+	bool "zephyr_rgbled"
+	default n
+	depends on PLATFORM_ZEPHYR
+	---help---
+		Show the system status on the RGB LEDs of the px4,leds devicetree node

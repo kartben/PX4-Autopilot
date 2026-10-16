@@ -35,7 +35,11 @@ add_subdirectory(accelerometer)
 add_subdirectory(barometer)
 add_subdirectory(device)
 add_subdirectory(gyroscope)
-add_subdirectory(led)
+# the Zephyr platform builds led.cpp with its board LEDs, as the library of the Zephyr LED drivers
+# has the same name
+if(NOT ${PX4_PLATFORM} STREQUAL "zephyr")
+	add_subdirectory(led)
+endif()
 add_subdirectory(magnetometer)
 add_subdirectory(rangefinder)
 

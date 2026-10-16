@@ -1,0 +1,98 @@
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/led/led.h>
+
+/ {
+	test_gpio: gpio-emul {
+		compatible = "zephyr,gpio-emul";
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		/* the board LEDs of the VMU RT1170, active low, but for the green one */
+		test_blue_led: blue {
+			gpios = <&test_gpio 0 GPIO_ACTIVE_LOW>;
+		};
+
+		test_red_led: red {
+			gpios = <&test_gpio 1 GPIO_ACTIVE_LOW>;
+		};
+
+		test_green_led: green {
+			gpios = <&test_gpio 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		test_rgb_red: rgb-red {
+			gpios = <&test_gpio 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		test_rgb_green: rgb-green {
+			gpios = <&test_gpio 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		test_rgb_blue: rgb-blue {
+			gpios = <&test_gpio 5 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	/* an RGB LED of single-color LEDs */
+	test_rgb_group: rgb-led {
+		compatible = "leds-group-multicolor";
+		leds = <&test_rgb_red>, <&test_rgb_green>, <&test_rgb_blue>;
+		color-mapping = <LED_COLOR_ID_RED>, <LED_COLOR_ID_GREEN>, <LED_COLOR_ID_BLUE>;
+	};
+
+	/* an RGB LED whose channels are in another order, with a white one */
+	test_fake_leds: fake-leds {
+		compatible = "zephyr,fake-leds";
+
+		test_fake_rgb: rgb {
+			color-mapping = <LED_COLOR_ID_BLUE>, <LED_COLOR_ID_RED>, <LED_COLOR_ID_GREEN>,
+					<LED_COLOR_ID_WHITE>;
+		};
+	};
+
+	test_i2c: i2c@b0000100 {
+		compatible = "zephyr,i2c-emul-controller";
+		reg = <0xb0000100 0x100>;
+		clock-frequency = <400000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* the LED of a GPS module, emulated by the test */
+		test_gps_ncp5623c: ncp5623c@39 {
+			compatible = "onnn,ncp5623";
+			reg = <0x39>;
+			zephyr,deferred-init;
+
+			test_gps_led: led_0 {
+				label = "GPS LED";
+				index = <0>;
+				color-mapping = <LED_COLOR_ID_RED>, <LED_COLOR_ID_GREEN>, <LED_COLOR_ID_BLUE>;
+			};
+		};
+
+		/* the LED of a GPS module that isn't connected */
+		test_absent_ncp5623c: ncp5623c@38 {
+			compatible = "onnn,ncp5623";
+			reg = <0x38>;
+			zephyr,deferred-init;
+
+			test_absent_led: led_0 {
+				label = "Absent LED";
+				index = <0>;
+				color-mapping = <LED_COLOR_ID_RED>, <LED_COLOR_ID_GREEN>, <LED_COLOR_ID_BLUE>;
+			};
+		};
+	};
+
+	px4-leds {
+		compatible = "px4,leds";
+		blue = <&test_blue_led>;
+		red = <&test_red_led>;
+		green = <&test_green_led>;
+		rgb = <&test_fake_rgb>, <&test_rgb_group>, <&test_gps_led>, <&test_absent_led>;
+	};
+};
