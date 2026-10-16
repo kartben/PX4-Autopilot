@@ -37,6 +37,8 @@ px4_add_module(
 	SRCS
 		zephyr_rc_input_backend.c
 		zephyr_rc_input_backend.h
+		CrsfTelemetry.cpp
+		CrsfTelemetry.hpp
 		ZephyrRcInput.cpp
 		ZephyrRcInput.hpp
 	DEPENDS
