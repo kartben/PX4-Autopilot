@@ -60,3 +60,7 @@ if(CONFIG_PX4_LEDS)
 	)
 	target_link_libraries(px4_layer PRIVATE cdev)
 endif()
+
+if(CONFIG_PX4_SAFETY_BUTTON)
+	target_sources(px4_layer PRIVATE px4_safety_button.c)
+endif()
