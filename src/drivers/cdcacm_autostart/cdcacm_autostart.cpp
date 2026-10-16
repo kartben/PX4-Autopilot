@@ -31,10 +31,22 @@
  *
  ****************************************************************************/
 
-#if defined(CONFIG_SYSTEM_CDCACM)
+#if defined(CONFIG_SYSTEM_CDCACM) || defined(__PX4_ZEPHYR)
 
 #include "cdcacm_autostart.h"
 
+#if defined(__PX4_ZEPHYR)
+#include <px4_platform_common/board_common.h>
+#include <px4_zephyr.h>
+
+#include <stdlib.h>
+
+// the USB serial port of Zephyr is enabled at boot, and VBUS stands for a host that has opened it
+static int sercon_main(int, char **) { return EXIT_SUCCESS; }
+
+static int serdis_main(int, char **) { return EXIT_SUCCESS; }
+
+#else
 __BEGIN_DECLS
 #include <arch/board/board.h>
 #include <builtin/builtin.h>
@@ -42,11 +54,16 @@ __BEGIN_DECLS
 extern int sercon_main(int c, char **argv);
 extern int serdis_main(int c, char **argv);
 __END_DECLS
+#endif
 
 #include <px4_platform_common/shutdown.h>
 #include <px4_platform_common/posix.h>
 
 #include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 ModuleBase::Descriptor CdcAcmAutostart::desc{task_spawn, custom_command, print_usage};
 
@@ -165,7 +182,7 @@ void CdcAcmAutostart::run_state_machine()
 void CdcAcmAutostart::close_ttyacm()
 {
 	if (_ttyacm_fd >= 0) {
-		px4_close(_ttyacm_fd);
+		::close(_ttyacm_fd);
 		_ttyacm_fd = -1;
 	}
 }
@@ -223,7 +240,7 @@ void CdcAcmAutostart::state_connecting()
 	// once the port is known to be openable, then release the probe.
 	if (_sys_usb_auto.get() == 2) {
 		if (_ttyacm_fd < 0) {
-			_ttyacm_fd = px4_open(USB_DEVICE_PATH, O_RDONLY | O_NONBLOCK);
+			_ttyacm_fd = ::open(USB_DEVICE_PATH, O_RDONLY | O_NONBLOCK);
 		}
 
 		if (_ttyacm_fd < 0) {
@@ -257,7 +274,7 @@ void CdcAcmAutostart::state_connecting()
 	// SYS_USB_AUTO=1: autodetect from host bytes.
 	if (_ttyacm_fd < 0) {
 		PX4_DEBUG("opening port");
-		_ttyacm_fd = px4_open(USB_DEVICE_PATH, O_RDONLY | O_NONBLOCK);
+		_ttyacm_fd = ::open(USB_DEVICE_PATH, O_RDONLY | O_NONBLOCK);
 	}
 
 	if (_ttyacm_fd < 0) {
@@ -266,14 +283,14 @@ void CdcAcmAutostart::state_connecting()
 		return;
 	}
 
-	if ((px4_ioctl(_ttyacm_fd, FIONREAD, &bytes_available) != PX4_OK) ||
+	if ((::ioctl(_ttyacm_fd, FIONREAD, (unsigned long)&bytes_available) != PX4_OK) ||
 	    (bytes_available < 3)) {
 		PX4_DEBUG("bytes_available: %d", bytes_available);
 		return;
 	}
 
 	// Non-blocking read
-	_bytes_read = px4_read(_ttyacm_fd, _buffer, sizeof(_buffer));
+	_bytes_read = ::read(_ttyacm_fd, _buffer, sizeof(_buffer));
 
 #if defined(DEBUG_BUILD)
 
@@ -520,7 +537,7 @@ bool CdcAcmAutostart::scan_buffer_for_ublox_bytes()
 bool CdcAcmAutostart::start_mavlink()
 {
 	char mavlink_mode_string[16];
-	snprintf(mavlink_mode_string, sizeof(mavlink_mode_string), "%ld", _usb_mav_mode.get());
+	snprintf(mavlink_mode_string, sizeof(mavlink_mode_string), "%" PRId32, _usb_mav_mode.get());
 
 	// Non-static argv: NuttX task_spawn copies argv into the new task stack before return.
 	char *argv[] { (char *)"mavlink", (char *)"start", (char *)"-d", (char *)USB_DEVICE_PATH,
@@ -538,8 +555,13 @@ void CdcAcmAutostart::stop_mavlink()
 
 bool CdcAcmAutostart::start_nsh()
 {
+#if defined(__PX4_ZEPHYR)
+	// the Zephyr shell has its own serial port
+	return false;
+#else
 	char *argv[] { (char *)"nshterm", (char *)USB_DEVICE_PATH, nullptr };
 	return execute_process(argv) > 0;
+#endif
 }
 
 #if defined(CONFIG_SERIAL_PASSTHRU_UBLOX)
@@ -567,6 +589,16 @@ bool CdcAcmAutostart::start_ublox_serial_passthru(speed_t baudrate)
 
 int CdcAcmAutostart::execute_process(char *const *argv)
 {
+#if defined(__PX4_ZEPHYR)
+	int argc = 0;
+
+	while (argv[argc] != nullptr) {
+		argc++;
+	}
+
+	// runs the command to its end, as a task
+	return (px4_zephyr_run_command(argc, const_cast<char **>(argv)) == 0) ? 1 : -1;
+#else
 	int pid = -1;
 	sched_lock();
 
@@ -574,6 +606,7 @@ int CdcAcmAutostart::execute_process(char *const *argv)
 
 	sched_unlock();
 	return pid;
+#endif
 }
 
 int CdcAcmAutostart::task_spawn(int argc, char *argv[])
@@ -656,7 +689,7 @@ int CdcAcmAutostart::print_status()
 	PX4_INFO("State: %s", state);
 	PX4_INFO("Protocol: %s", protocol);
 	PX4_INFO("VBUS: %s", _vbus_present ? "present" : "absent");
-	PX4_INFO("SYS_USB_AUTO: %ld", _sys_usb_auto.get());
+	PX4_INFO("SYS_USB_AUTO: %" PRId32, _sys_usb_auto.get());
 
 	return PX4_OK;
 }
@@ -690,7 +723,7 @@ Manages the USB CDC/ACM serial device (`/dev/ttyACM0`).
 
 extern "C" __EXPORT int cdcacm_autostart_main(int argc, char *argv[])
 {
-#if defined(CONFIG_SYSTEM_CDCACM)
+#if defined(CONFIG_SYSTEM_CDCACM) || defined(__PX4_ZEPHYR)
 	return ModuleBase::main(CdcAcmAutostart::desc, argc, argv);
 #endif
 	return 1;
