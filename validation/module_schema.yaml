@@ -282,7 +282,9 @@ actuator_output:
                         # this to false to turn it off
                         type: boolean
                     num_channels:
-                        # (maximum) number of channels
+                        # (maximum) number of channels. With the 'pwm'
+                        # generator, one timer group with DShot per channel,
+                        # in place of the timer groups of timer_config.cpp
                         type: integer
                     standard_params:
                         type: dict
