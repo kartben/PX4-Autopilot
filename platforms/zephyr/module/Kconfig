@@ -140,6 +140,16 @@ config PX4_RC_INPUT
 	  zephyr_rc_input driver publishes as RC input, and the interrupt-driven
 	  UART API that the SBUS driver needs.
 
+config PX4_BUZZER
+	bool "Buzzer for PX4"
+	default y
+	depends on $(dt_alias_enabled,buzzer0)
+	select BUZZER
+	help
+	  Enable the buzzer driver of the buzzer0 devicetree alias, on which the
+	  PX4 tone_alarm driver plays its tunes. Disable it if the PX4 board
+	  configuration has no tone_alarm.
+
 config PX4_STACK_OVERHEAD
 	int "Stack overhead"
 	default 1024
