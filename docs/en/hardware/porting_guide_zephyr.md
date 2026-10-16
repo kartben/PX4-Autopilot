@@ -4,7 +4,7 @@
 
 ::: warning
 The Zephyr port is experimental.
-PX4 only flies in simulation on Zephyr, as there are no actuator outputs or RC input yet (see [Limitations](#limitations)).
+PX4 only flies in simulation on Zephyr, as there is no RC input yet (see [Limitations](#limitations)).
 :::
 
 PX4 can run on the [Zephyr RTOS](https://zephyrproject.org/), using the Zephyr drivers for the board and its sensors.
@@ -37,6 +37,7 @@ The PX4 options of the Zephyr configuration are:
 | `CONFIG_PX4_SHELL`          | Add the `px4` shell command (enabled with the shell).                                               |
 | `CONFIG_PX4_SENSORS`        | Enable the Zephyr sensor API for the sensors in the devicetree (enabled by the `px4,sensors` node). |
 | `CONFIG_PX4_SERIAL`         | Open the UARTs of the devicetree as device files (enabled by the `px4,serial-ports` node).          |
+| `CONFIG_PX4_PWM_OUTPUTS`    | Enable the Zephyr PWM API for the actuator outputs (enabled by the `px4,pwm-outputs` node).         |
 | `CONFIG_PX4_STACK_OVERHEAD` | Bytes added to the stack of each PX4 task and work queue.                                           |
 
 ## Setting Up a Workspace
@@ -163,6 +164,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/serial](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/serial) tests the serial ports, termios and `device::Serial` on an emulated UART.
 - [tests/storage](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/storage) tests the parameter file and the file functions of PX4 on a RAM disk.
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
+- [tests/pwm](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/pwm) tests the PWM outputs on the Zephyr fake PWM driver: the disarmed, armed, failsafe and ESC calibration values, a pulse longer than the period, the outputs left without pulses when their functions are removed and disarmed when the driver stops, and the update rate of outputs with different periods.
 - The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
 
 ## Adding a Board
@@ -352,6 +354,45 @@ It is supported as a flight controller (`CONFIG_CYPHAL_FMU`), not as a CAN node,
 The NXP VMU RT1170 has DroneCAN on its three CAN buses.
 Its startup script doesn't start it, as Zephyr startup scripts can't check `UAVCAN_ENABLE`: start it with `px4 uavcan start`.
 
+### PWM Outputs
+
+The `zephyr_pwm_out` driver drives the PWM outputs listed in the `px4,pwm-outputs` devicetree node as the main outputs, up to 8.
+The first child node is the first output, configured with [PWM_MAIN_FUNC1](../advanced_config/parameter_reference.md#PWM_MAIN_FUNC1), [PWM_MAIN_DIS1](../advanced_config/parameter_reference.md#PWM_MAIN_DIS1), `PWM_MAIN_MIN1`, `PWM_MAIN_MAX1` and `PWM_MAIN_FAIL1`, the second one with `PWM_MAIN_FUNC2` and so on:
+
+```dts
+#include <zephyr/dt-bindings/pwm/pwm.h>
+
+/ {
+	px4-pwm-outputs {
+		compatible = "px4,pwm-outputs";
+
+		main1 {
+			pwms = <&flexpwm1_pwm0 0 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main2 {
+			pwms = <&flexpwm1_pwm1 0 PWM_HZ(50) PWM_POLARITY_NORMAL>;
+		};
+	};
+};
+```
+
+The outputs have the same parameters as with the `pwm_out` driver of NuttX on a board without an I/O processor, but _QGroundControl_ has no [Actuators](../config/actuators.md) setup for them (see [Limitations](#limitations)): they are configured with the parameters.
+The driver supports ESC calibration, and the generic board configuration starts it.
+
+Each output has the period of its `pwms` property, for example 400 Hz for ESCs or 50 Hz for analog servos, instead of the timer parameters of NuttX, such as [PWM_MAIN_TIM0](../advanced_config/parameter_reference.md#PWM_MAIN_TIM0).
+The build checks that the period is at least 2200 us, the longest pulse of the parameters.
+Many PWM controllers have one period for all their channels, such as an STM32 timer or the channels A and B of an NXP FlexPWM submodule: outputs on the same PWM device then need the same period, and the driver warns when they differ.
+
+The driver updates the outputs at the rate of the fastest one at most, and sets the slower outputs at most once per period, as some Zephyr PWM drivers wait for the end of the period to take a new pulse: the NXP FlexPWM driver busy-waits until the previous pulse is loaded.
+The fastest outputs follow the mixer with a margin for its jitter, which limits this wait to half their period.
+The outputs without a function have no pulses, and the driver leaves the outputs at their disarmed value when it stops.
+It is tested in QEMU on the Zephyr fake PWM driver.
+
+The NXP VMU RT1170 has the outputs `FMU_CH1` to `FMU_CH8` of FMU-v6XRT, at 400 Hz, and its board configuration starts `zephyr_pwm_out`.
+The prescaler of its PWM limits the period to 17 ms: a 50 Hz output needs a larger `nxp,prescaler` on its FlexPWM submodule.
+With NuttX, FMU-v6XRT drives these outputs as its AUX outputs, `PWM_AUX_FUNC1` to `PWM_AUX_FUNC8`, as its firmware also supports an I/O processor for the main outputs: the `PWM_AUX_*` parameters of its parameter files are the `PWM_MAIN_*` parameters on Zephyr.
+
 ## Footprint
 
 [Tools/footprint.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/footprint.py) breaks down the flash and static RAM of PX4 firmware by component, for NuttX and Zephyr builds alike.
@@ -402,7 +443,9 @@ Only the operating system rows compare the two systems, as the builds differ in 
 
 ## Limitations
 
-- PX4 only flies in simulation: there are no actuator outputs or RC input.
+- PX4 only flies in simulation: there is no RC input.
+- PWM outputs have the period of the devicetree, without OneShot or DShot.
+- There is no component metadata, which NuttX boards have in `/etc/extras` of their ROMFS: _QGroundControl_ has no Actuators setup.
 - Storage is on FAT file systems only, and the logs have no CPU load of the tasks.
 - Sensors are polled: the IMU FIFOs are not used.
 - Serial ports use the interrupt-driven UART API, without DMA, and have no single-wire, inverted or swapped modes.
@@ -415,7 +458,6 @@ Only the operating system rows compare the two systems, as the builds differ in 
 ## Roadmap
 
 - Read the IMU FIFOs with the Zephyr sensor streaming API.
-- Actuator outputs with the Zephyr PWM API.
 - Device files and termios for UARTs in Zephyr itself, instead of the PX4 platform layer.
 - Parameters in flash, with ZMS, on boards without an SD card.
 - Dynamic modules as Zephyr loadable extensions (below).

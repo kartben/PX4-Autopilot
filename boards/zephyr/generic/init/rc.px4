@@ -1,3 +1,4 @@
 ver all
 zephyr_sensors start
 sensors start
+zephyr_pwm_out start
