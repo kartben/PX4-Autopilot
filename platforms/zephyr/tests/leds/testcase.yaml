@@ -1,0 +1,11 @@
+common:
+  tags:
+    - px4
+  platform_allow:
+    - mps2/an386
+    - mimxrt1170_evk@A/mimxrt1176/cm7
+    - mimxrt1170_evk@B/mimxrt1176/cm7
+  integration_platforms:
+    - mps2/an386
+tests:
+  px4.leds: {}
