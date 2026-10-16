@@ -39,6 +39,7 @@ The PX4 options of the Zephyr configuration are:
 | `CONFIG_PX4_SERIAL`         | Open the UARTs of the devicetree as device files (enabled by the `px4,serial-ports` node).          |
 | `CONFIG_PX4_PWM_OUTPUTS`    | Enable the Zephyr PWM API for the actuator outputs (enabled by the `px4,pwm-outputs` node).         |
 | `CONFIG_PX4_STACK_OVERHEAD` | Bytes added to the stack of each PX4 task and work queue.                                           |
+| `CONFIG_PX4_ITCM`           | Run the most used code from the ITCM instead of the flash (enabled on the MIMXRT1170-EVK).          |
 
 ## Setting Up a Workspace
 
@@ -149,6 +150,61 @@ To build the application for another Zephyr board:
 make zephyr ZEPHYR_BOARD=vmu_rt1170/mimxrt1176/cm7
 ```
 
+## Running on the NXP MIMXRT1170-EVK
+
+The [MIMXRT1170-EVK](https://www.nxp.com/design/design-center/development-boards-and-designs/MIMXRT1170-EVKB) evaluation kit has the i.MX RT1176 of the NXP VMU RT1170, without flight sensors.
+PX4 flies the SIH quadcopter on it, with the [mimxrt1170_evk](https://github.com/PX4/PX4-Autopilot/tree/main/boards/zephyr/mimxrt1170_evk) PX4 board configuration.
+
+Set SW1 to boot from the flash (switch 3 on, the others off), connect the debug USB port (J86 on the EVKB, J11 on the EVK), and build and flash with the LinkServer runner (or `-r jlink` or `-r pyocd`):
+
+```sh
+west build -b mimxrt1170_evk/mimxrt1176/cm7 PX4-Autopilot/platforms/zephyr/app -- -DFILE_SUFFIX=sih
+west flash
+```
+
+`mimxrt1170_evk/mimxrt1176/cm7` is the EVKB, and `mimxrt1170_evk@A/mimxrt1176/cm7` the EVK.
+
+The Zephyr shell is on the serial port of the debug USB port, at 115200 baud, and flies the quadcopter as in QEMU:
+
+```sh
+uart:~$ px4 commander takeoff
+uart:~$ px4 listener vehicle_local_position
+uart:~$ px4 commander land
+```
+
+The USB OTG1 port is `/dev/ttyACM0`, a USB serial port that runs MAVLink.
+_QGroundControl_ doesn't recognise its USB IDs: add a serial link to its port (`/dev/cu.usbmodem*` on macOS) in **Application Settings > Comm Links**, and fly missions from there.
+
+- The RAM is the on-chip OCRAM from 0x20200000 (1 MiB: the OCRAM of the M4, OCRAM1 and half of OCRAM2), instead of the SDRAM that the board chooses, with which the flight stack takes about 1.5 points more of the CPU.
+- The parameters and the logs are kept on the microSD card (FAT32), and the missions in RAM, as an EVK may have no card.
+  The card runs at 50 MHz, without 1.8 V signalling, with which it often failed to initialise after a warm reset, such as the one of `west flash`.
+- DroneCAN runs on the CAN3 connector, CAN1 of PX4: start it with `px4 uavcan start`.
+- The rate controller and the simulator run at 400 Hz instead of 800 Hz.
+
+An ExpressLRS or TBS Crossfire receiver connects to the UART of the Arduino header (LPUART2, `/dev/ttyS1`), which `crsf_rc` reads:
+
+| Receiver | MIMXRT1170-EVK |
+| -------- | -------------- |
+| TX       | D0 (J9)        |
+| RX       | D1 (J9)        |
+| 5V       | 5V (J25)       |
+| GND      | GND (J25)      |
+
+The M.2 slot must be empty, as its Bluetooth module shares the UART.
+The SIH configuration disables the sticks: set [COM_RC_IN_MODE](../advanced_config/parameter_reference.md#COM_RC_IN_MODE) to 0 to fly with the transmitter, after the radio calibration of _QGroundControl_.
+At 420000 baud, the 4-byte receive FIFO of the UART overruns when its interrupt is late, which loses 0.06–0.12% of the frames.
+
+The EVK runs the firmware from its quad SPI flash, which stalls the CPU for hundreds of cycles when an instruction isn't in the cache.
+With the 32 KiB instruction cache of the Cortex-M7, the flight stack spends most of its time waiting for the flash.
+`CONFIG_PX4_ITCM` runs the most used code from the ITCM, the instruction memory of the Cortex-M7, instead: the kernel, uORB, the work queues, the sensors, the rate and attitude controllers, the control allocation, the simulator and the trigonometric functions of the C library, and the functions of [itcm_functions.ld](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/zephyr/module/itcm_functions.ld), which a profile of SIH on the EVK found running most from the flash (250 KiB in all).
+The flight stack then uses about 55% of the CPU at 400 Hz, instead of 94% with only the code that runs at the rate of the IMU.
+
+[Tools/itcm_profile.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/itcm_profile.py) makes the list again, for example after changes to the flight stack, from the program counter of a board running SIH, sampled with pyOCD, within the free space of the ITCM:
+
+```sh
+PX4-Autopilot/Tools/itcm_profile.py --target mimxrt1170_cm7 --max-size 94000 build/zephyr/zephyr.elf build/zephyr/zephyr.map --output PX4-Autopilot/platforms/zephyr/module/itcm_functions.ld
+```
+
 ## Running the Tests
 
 The tests run in QEMU with twister:
@@ -166,6 +222,12 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
 - [tests/pwm](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/pwm) tests the PWM outputs on the Zephyr fake PWM driver: the disarmed, armed, failsafe and ESC calibration values, a pulse longer than the period, the outputs left without pulses when their functions are removed and disarmed when the driver stops, and the update rate of outputs with different periods.
 - The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
+
+The tests also run on the MIMXRT1170-EVK, which twister flashes and reads on the serial port of its debug USB port:
+
+```sh
+west twister -T PX4-Autopilot/platforms/zephyr/tests -p mimxrt1170_evk@B/mimxrt1176/cm7 --device-testing --device-serial /dev/ttyACM0
+```
 
 ## Adding a Board
 
@@ -387,7 +449,7 @@ Many PWM controllers have one period for all their channels, such as an STM32 ti
 The driver updates the outputs at the rate of the fastest one at most, and sets the slower outputs at most once per period, as some Zephyr PWM drivers wait for the end of the period to take a new pulse: the NXP FlexPWM driver busy-waits until the previous pulse is loaded.
 The fastest outputs follow the mixer with a margin for its jitter, which limits this wait to half their period.
 The outputs without a function have no pulses, and the driver leaves the outputs at their disarmed value when it stops.
-It is tested in QEMU on the Zephyr fake PWM driver.
+It is tested on the Zephyr fake PWM driver, in QEMU and on the MIMXRT1170-EVK.
 
 The NXP VMU RT1170 has the outputs `FMU_CH1` to `FMU_CH8` of FMU-v6XRT, at 400 Hz, and its board configuration starts `zephyr_pwm_out`.
 The prescaler of its PWM limits the period to 17 ms: a 50 Hz output needs a larger `nxp,prescaler` on its FlexPWM submodule.
@@ -453,7 +515,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 - The GPS driver does not build, as its protocol parsers define `MIN` and `MAX`, which Zephyr defines too.
 - Dynamic modules (`DYNAMIC` in `px4_add_module()`) are not supported.
 - `native_sim` is not supported, as its POSIX API uses the host C library.
-- Only the QEMU board is tested at runtime. The NXP VMU RT1170 is only built.
+- The tests run in QEMU and on the MIMXRT1170-EVK. The NXP VMU RT1170 is only built.
 
 ## Roadmap
 
