@@ -28,6 +28,12 @@
 			zephyr,deferred-init;
 		};
 
+		sbs_gauge: sbs-gauge@b {
+			compatible = "sbs,sbs-gauge-new-api";
+			reg = <0xb>;
+			zephyr,deferred-init;
+		};
+
 		/* no emulator: the sensor doesn't respond */
 		ist8310: ist8310@e {
 			compatible = "isentek,ist8310";
@@ -74,6 +80,11 @@
 			sensor = <&power_monitor>;
 			type = "power";
 			battery = <2>;
+		};
+
+		fuel-gauge0 {
+			sensor = <&sbs_gauge>;
+			type = "fuel-gauge";
 		};
 	};
 };
