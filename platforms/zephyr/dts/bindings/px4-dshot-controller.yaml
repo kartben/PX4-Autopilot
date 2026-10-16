@@ -1,0 +1,16 @@
+description: |
+  DShot device, with the driver API of px4_dshot.h, on whose channels the PX4
+  dshot driver sends the DShot frames of the outputs of the px4,pwm-outputs
+  node that refer to them with their dshot property, for example:
+
+    dshot = <&dshot0 2>;
+
+properties:
+  "#dshot-cells":
+    type: int
+    required: true
+    const: 1
+    description: Number of cells of a dshot specifier, the channel.
+
+dshot-cells:
+  - channel
