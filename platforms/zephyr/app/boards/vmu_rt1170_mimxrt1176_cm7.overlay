@@ -227,15 +227,25 @@
 	};
 
 	/*
-	 * the board LEDs of FMU-v6XRT, and the RGB LED of a GPS module on GPS1, as the NuttX rgbled_ncp5623c
-	 * driver drives it
+	 * the board LEDs of FMU-v6XRT, the LED of the safety switch of a GPS module on GPS1, and its RGB LED,
+	 * as the NuttX rgbled_ncp5623c driver drives it
 	 */
 	px4-leds {
 		compatible = "px4,leds";
 		blue = <&blue_led>;
 		red = <&red_led>;
 		green = <&green_led>;
+		safety = <&safety_led>;
 		rgb = <&gnss_led>;
+	};
+
+	/*
+	 * the safety switch of a GPS module on GPS1, the arming button of the board: GPIO1_IO24, active high
+	 * as on FMU-v6XRT, with the pull-down of the board devicetree where NuttX enables the pull-up
+	 */
+	px4-safety-button {
+		compatible = "px4,safety-button";
+		button = <&arming_button>;
 	};
 
 	/*
@@ -465,6 +475,17 @@
 
 &blue_led {
 	gpios = <&gpio1 13 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+};
+
+/*
+ * the LED of the safety switch of a GPS module on GPS1, active low (GPIO_nSAFETY_SWITCH_LED_OUT of
+ * FMU-v6XRT), which the board devicetree doesn't have
+ */
+&{/leds} {
+	safety_led: led-safety {
+		gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+		label = "Safety LED";
+	};
 };
 
 /*

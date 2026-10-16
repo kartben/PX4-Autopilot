@@ -1,0 +1,35 @@
+description: |
+  Safety button of PX4, such as the safety switch of a GPS module, which the
+  PX4 safety_button driver reads.
+
+  The button is a node with a gpios property, such as a child of gpio-keys,
+  pressed while its GPIO is active. The driver reads it every 33 ms and
+  debounces it: it publishes a safety button event once the button has been
+  pressed for 1 second, and a ground station pairing request after 3 presses
+  within 2 seconds. It blinks the safety and armed states on the safety LED
+  of the px4,leds node, if it has one.
+
+    / {
+      gpio-keys {
+        compatible = "gpio-keys";
+
+        safety_switch: safety-switch {
+          gpios = <&gpio1 24 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
+          zephyr,code = <INPUT_KEY_0>;
+        };
+      };
+
+      px4-safety-button {
+        compatible = "px4,safety-button";
+        button = <&safety_switch>;
+      };
+    };
+
+compatible: "px4,safety-button"
+
+properties:
+  button:
+    type: phandle
+    required: true
+    description: |
+      The button, a node with a gpios property, such as a child of gpio-keys.
