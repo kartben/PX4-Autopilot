@@ -32,6 +32,8 @@
 ############################################################################
 
 add_subdirectory(adc)
+add_subdirectory(dshot)
+add_subdirectory(io_pins)
 add_subdirectory(tone_alarm)
 
 add_library(px4_layer

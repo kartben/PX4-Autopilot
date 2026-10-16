@@ -51,6 +51,9 @@
 #define BOARD_OVERRIDE_CPU_VERSION (-1)
 #define board_mcu_version(rev, revstr, errata) BOARD_OVERRIDE_CPU_VERSION
 
+/* the PWM_MAIN outputs of zephyr_pwm_out, num_channels of its module.yaml, which the dshot driver drives too */
+#define DIRECT_PWM_OUTPUT_CHANNELS 8
+
 /* the other boards read the device ID of their hwinfo driver */
 #if defined(BOARD_OVERRIDE_UUID)
 #define BOARD_HAS_NO_UUID

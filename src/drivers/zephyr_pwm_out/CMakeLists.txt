@@ -31,6 +31,14 @@
 #
 ############################################################################
 
+# with the dshot driver, PWM_MAIN_TIM<n> selects the protocol of each output, as the parameter of a timer
+# of pwm_out on NuttX
+if(CONFIG_DRIVERS_DSHOT)
+	set(module_config module_dshot.yaml)
+else()
+	set(module_config module.yaml)
+endif()
+
 px4_add_module(
 	MODULE drivers__zephyr_pwm_out
 	MAIN zephyr_pwm_out
@@ -40,7 +48,7 @@ px4_add_module(
 		ZephyrPWMOut.cpp
 		ZephyrPWMOut.hpp
 	MODULE_CONFIG
-		module.yaml
+		${module_config}
 	DEPENDS
 		mixer_module
 	)
