@@ -56,6 +56,37 @@ function(px4_os_add_flags)
 
 	link_libraries(px4_zephyr_interface)
 
+	# The board ADC channels are the io-channels of the px4,adc devicetree node, numbered from 0.
+	# The name of a channel gives the channel macro that board_config.h defines with NuttX, for
+	# example ADC_SCALED_V5_CHANNEL for "scaled-v5", so that the PX4 modules find their channels.
+	if(CONFIG_PX4_ADC)
+		dt_comp_path(adc_nodes COMPATIBLE "px4,adc")
+		set(adc_channel_names)
+		foreach(node ${adc_nodes})
+			dt_node_has_status(okay PATH ${node} STATUS okay)
+			if(okay)
+				dt_prop(adc_channel_names PATH ${node} PROPERTY "io-channel-names")
+				break()
+			endif()
+		endforeach()
+
+		list(LENGTH adc_channel_names adc_channel_count)
+		if(adc_channel_count GREATER 16)
+			message(FATAL_ERROR "px4,adc has more channels than adc_report (16)")
+		endif()
+
+		math(EXPR adc_channels "(1 << ${adc_channel_count}) - 1" OUTPUT_FORMAT HEXADECIMAL)
+		add_definitions(-DADC_CHANNELS=${adc_channels})
+
+		set(index 0)
+		foreach(name ${adc_channel_names})
+			string(TOUPPER ${name} name)
+			string(MAKE_C_IDENTIFIER ${name} name)
+			add_definitions(-DADC_${name}_CHANNEL=${index})
+			math(EXPR index "${index} + 1")
+		endforeach()
+	endif()
+
 endfunction()
 
 function(px4_os_determine_build_chip)

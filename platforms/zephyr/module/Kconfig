@@ -179,6 +179,16 @@ config PX4_LEDS
 	  the RGB LEDs on which the PX4 zephyr_rgbled driver shows the system
 	  status.
 
+config PX4_ADC
+	bool "Board ADC for PX4"
+	default y
+	depends on DT_HAS_PX4_ADC_ENABLED
+	select ADC
+	help
+	  Enable the Zephyr ADC API for the channels of the px4,adc devicetree
+	  node, which the PX4 board_adc driver samples. Disable it if the PX4
+	  board configuration has no board_adc.
+
 config PX4_STACK_OVERHEAD
 	int "Stack overhead"
 	default 1024
