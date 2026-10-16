@@ -33,7 +33,8 @@
 
 """
 Fly the SIH quadcopter from the Zephyr shell: take off, hover and land. Then
-check the flight log, and that a parameter is kept across a reboot.
+check the flight log, the CPU load, and that a parameter is kept across a
+reboot.
 """
 
 import re
@@ -131,6 +132,41 @@ def test_log(shell: Shell):
                 if name.endswith('.ulg')}
 
     wait_until(lambda: any(size > 0 for size in logs().values()), 30, 'the flight log')
+
+
+def top(shell: Shell, command: str) -> list[str]:
+    lines = []
+
+    def printed() -> bool:
+        nonlocal lines
+        lines = [re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', line) for line in px4(shell, command)]
+        return any(re.match(r'CPU usage: [\d.]+% tasks, [\d.]+% idle', line) for line in lines)
+
+    wait_until(printed, 30, f'the output of {command}')
+    return lines
+
+
+def test_cpu_load(shell: Shell):
+    # top stops after one print, as it can't read a key from the Zephyr shell
+    top(shell, 'top')
+
+    stack_left = {}
+
+    for line in top(shell, 'top once'):
+        match = re.match(r'(\S+) +\d+ +[\d.]+ +(\d+)/ *(\d+) +-?\d+ +[A-Z]+', line)
+
+        if match:
+            stack_left[match.group(1)] = int(match.group(3)) - int(match.group(2))
+
+    for thread in ('idle', 'wq:rate_ctrl', 'sih', 'logger'):
+        assert thread in stack_left, f'{thread} not in top'
+
+    # load_mon warns below 300 bytes; the logger printed the load on its stack when the flight started and ended
+    for thread, left in stack_left.items():
+        assert thread == 'idle' or left >= 300, f'{thread} has {left} bytes of stack left'
+
+    load = listener_value(shell, 'cpuload', 'load')
+    assert load is not None and 0 < load <= 1, f'CPU load {load}'
 
 
 def test_parameter_kept_after_reboot(dut: DeviceAdapter, shell: Shell):
