@@ -50,6 +50,8 @@
 # else
 #  error "No CAN driver enabled for Cyphal build"
 # endif // CONFIG_CAN
+#elif defined(__PX4_ZEPHYR)
+# include "CanardZephyr.hpp"
 #endif // NuttX
 
 
@@ -80,6 +82,8 @@ CanardHandle::CanardHandle(uint32_t node_id, const size_t capacity, const size_t
 # elif defined(CONFIG_CAN)
 	_can_interface = new CanardNuttXCDev();
 # endif // CONFIG_CAN
+#elif defined(__PX4_ZEPHYR)
+	_can_interface = new CanardZephyr();
 #endif // NuttX
 
 }
