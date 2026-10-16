@@ -38,6 +38,7 @@ project(px4_sensors_test)
 
 target_sources(app PRIVATE
 	src/fake_baro.c
+	src/fake_power_monitor.c
 	src/main.cpp
 	src/sensor_values.c
 )

@@ -40,6 +40,8 @@
 #include <zephyr/drivers/emul_sensor.h>
 
 void fake_baro_set(const struct device *dev, float pressure_kpa, float temperature);
+void fake_power_monitor_set(const struct device *dev, float voltage, float current);
+void fake_power_monitor_set_lost(const struct device *dev, bool lost);
 
 static int set_channel(const struct emul *emul, enum sensor_channel channel, float value)
 {
@@ -92,4 +94,14 @@ int sensor_values_set_mag(const float mag[3])
 void sensor_values_set_baro(float pressure_kpa, float temperature)
 {
 	fake_baro_set(DEVICE_DT_GET(DT_NODELABEL(baro)), pressure_kpa, temperature);
+}
+
+void sensor_values_set_power(float voltage, float current)
+{
+	fake_power_monitor_set(DEVICE_DT_GET(DT_NODELABEL(power_monitor)), voltage, current);
+}
+
+void sensor_values_set_power_lost(bool lost)
+{
+	fake_power_monitor_set_lost(DEVICE_DT_GET(DT_NODELABEL(power_monitor)), lost);
 }
