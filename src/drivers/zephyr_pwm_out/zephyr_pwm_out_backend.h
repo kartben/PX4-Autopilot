@@ -48,7 +48,7 @@
 extern "C" {
 #endif
 
-/* num_channels in module.yaml */
+/* num_channels in module.yaml and module_dshot.yaml */
 #define ZEPHYR_PWM_OUT_MAX_OUTPUTS 8
 
 /* the maximum of the standard parameters in module.yaml */

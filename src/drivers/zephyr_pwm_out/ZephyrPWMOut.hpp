@@ -75,9 +75,16 @@ private:
 
 	void set_pulse(size_t index, uint32_t pulse_us);
 
+	bool dshot_selected(size_t index) const;
+
+	// the values of PWM_MAIN_TIM<n> from BDShot150 to DShot600, for the outputs that the dshot driver drives
+	static constexpr int32_t DSHOT_PROTOCOL_MIN{-8};
+	static constexpr int32_t DSHOT_PROTOCOL_MAX{-3};
+
 	MixingOutput _mixing_output{"PWM_MAIN", ZEPHYR_PWM_OUT_MAX_OUTPUTS, *this, MixingOutput::SchedulingPolicy::Auto, true};
 
 	size_t _output_count{0};
+	uint32_t _dshot_outputs{0};
 	uint32_t _period_us[ZEPHYR_PWM_OUT_MAX_OUTPUTS] {};
 	uint32_t _shortest_period_us{0};
 

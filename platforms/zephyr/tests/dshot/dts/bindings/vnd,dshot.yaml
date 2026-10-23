@@ -1,0 +1,7 @@
+description: |
+  DShot device of the PX4 DShot test, which records the frames it sends and
+  replies with the replies the test gives it
+
+compatible: "vnd,dshot"
+
+include: px4-dshot-controller.yaml
