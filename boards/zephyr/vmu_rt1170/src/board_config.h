@@ -44,6 +44,11 @@
 #define BOARD_HAS_POWER_CONTROL 1
 #define CONFIG_BOARDCTL_RESET
 
+/* the board LEDs of FMU-v6XRT */
+#define BOARD_HAS_CONTROL_STATUS_LEDS 1
+#define BOARD_OVERLOAD_LED     LED_RED
+#define BOARD_ARMED_STATE_LED  LED_BLUE
+
 #define PX4_NUMBER_I2C_BUSES 1
 
 #include <system_config.h>
