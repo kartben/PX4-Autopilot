@@ -36,7 +36,7 @@ OS_RULES = [
     ("File systems", r"nuttx/fs/|zephyr/subsys/fs/"),
     ("Shell and logging", r"NuttX/apps/|zephyr/subsys/(shell|logging)/|libzephyr\.a\((log_|shell)"),
     ("Drivers and HAL",
-     r"nuttx/drivers/|libarch\.a\((?!arm_)|zephyr/drivers/|zephyr/soc/|zephyr/boards/|^modules/hal"),
+     r"nuttx/drivers/|libarch\.a\((?!arm_)|zephyr/drivers/|zephyr/subsys/usb/|zephyr/soc/|zephyr/boards/|^modules/hal"),
     ("Kernel and POSIX API", r"NuttX/nuttx/|^zephyr/"),
 ]
 
