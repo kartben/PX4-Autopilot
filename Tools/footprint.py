@@ -176,6 +176,10 @@ def component(section: str, path: str, zephyr: bool) -> str:
         px4 = re.match(r"modules/px4/px4/(.*)", path)
         px4_path = px4.group(1) if px4 else None
 
+        # the files of /etc, which NuttX has in its ROMFS
+        if "(px4_romfs_files.c.obj)" in path:
+            return PX4_ROMFS
+
         # the application, and the Zephyr libraries of the PX4 module
         if not px4 and path.startswith(("app/", "modules/px4/")):
             return PX4_PLATFORM

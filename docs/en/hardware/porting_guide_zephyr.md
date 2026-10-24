@@ -120,7 +120,7 @@ MAVLink also runs over a serial port, as with a telemetry radio.
 ```sh
 west build -b mps2/an386 PX4-Autopilot/platforms/zephyr/app -t run -- -DFILE_SUFFIX=sih \
   -DEXTRA_CONF_FILE=boards/mps2_an386_serial.conf -DEXTRA_DTC_OVERLAY_FILE=boards/mps2_an386_serial.overlay
-uart:~$ px4 mavlink start -d /dev/ttyS1 -b 115200
+uart:~$ px4 mavlink start -d /dev/ttyS1 -b 115200 -x
 ```
 
 Then add a TCP link to `127.0.0.1:5760` in _QGroundControl_.
@@ -228,7 +228,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/buzzer](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/buzzer) tests the tone alarm on a PWM buzzer of the Zephyr fake PWM driver: the frequency and duration of the notes of a tone and of tunes, a tone that overrides a tune, a stop in the middle of a note, and `CBRK_BUZZER`.
 - [tests/gps](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/gps) tests the GPS driver with an NMEA receiver on an emulated UART: the position, accuracy, dilutions of precision and velocity of the fix, and the baud rate.
 - [tests/identity](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/identity) tests the board identity, from the device ID of a hwinfo driver and from `BOARD_OVERRIDE_UUID`.
-- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log, `top` and the CPU load, and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
+- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log, `top` and the CPU load, and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port and download the component metadata with MAVLink FTP, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
 
 The tests also run on the MIMXRT1170-EVK, which twister flashes and reads on the serial port of its debug USB port:
 
@@ -457,6 +457,15 @@ Without storage, the parameters are kept in RAM only.
 
 The NXP VMU RT1170 mounts its microSD card.
 
+### Component Metadata
+
+As on NuttX, the firmware has the [metadata](../advanced/px4_metadata.md) of its parameters, events and actuators in `/etc/extras`, from where _QGroundControl_ downloads it with MAVLink FTP, for example for its [Actuators](../config/actuators.md) setup, and the logger writes the events metadata to the logs.
+`/etc` is a read-only file system of the files built into the firmware, so the metadata needs no SD card.
+MAVLink FTP, which runs on USB ports and on the links started with `-x`, serves the root of the Zephyr file systems, as it serves the root of NuttX (`CONFIG_BOARD_FS_ROOT_PATH` is empty): the storage is in `/SD:`, next to `/etc`.
+
+The metadata is built into the firmware when the PX4 board configuration has MAVLink, unless the `PX4_COMPONENT_METADATA` Kconfig option is disabled.
+It takes 38 KiB of flash on the NXP VMU RT1170, and 74 KiB with the modules of the SIH configuration, mostly for the parameter metadata.
+
 ### CAN Buses
 
 PX4 numbers the CAN buses of the `px4,can-buses` devicetree node CAN1, CAN2 and so on, in the order of its child nodes:
@@ -509,7 +518,7 @@ The first child node is the first output, configured with [PWM_MAIN_FUNC1](../ad
 };
 ```
 
-The outputs have the same parameters as with the `pwm_out` driver of NuttX on a board without an I/O processor, but _QGroundControl_ has no [Actuators](../config/actuators.md) setup for them (see [Limitations](#limitations)): they are configured with the parameters.
+The outputs have the same parameters as with the `pwm_out` driver of NuttX on a board without an I/O processor, and are configured in the [Actuators](../config/actuators.md) setup of _QGroundControl_ (see [Component Metadata](#component-metadata)).
 The driver supports ESC calibration, and the generic board configuration starts it.
 
 Each output has the period of its `pwms` property, for example 400 Hz for ESCs or 50 Hz for analog servos, instead of the timer parameters of NuttX, such as [PWM_MAIN_TIM0](../advanced_config/parameter_reference.md#PWM_MAIN_TIM0).
@@ -644,6 +653,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
   Like NuttX, whose subsystems have no debug output, it also leaves out the log messages of the Zephyr subsystems, which take 27 KiB of flash.
 - The other NuttX features aren't matched: the startup scripts are built into the firmware instead of a compressed ROM file system, PX4 uses the Zephyr CAN API instead of CAN sockets, and there is no proc file system.
 - The Zephyr builds were measured without `top` and `load_mon`, which add 4 KiB of flash.
+- The Zephyr builds were measured without the [component metadata](#component-metadata), which adds 74 KiB of flash, mostly in the ROMFS row, where NuttX has it.
 - The buffers of the 7 serial ports of the Zephyr builds (10.5 KiB) are in the PX4 platform layer.
 - NuttX copies the most used PX4 code (226 KiB) to the ITCM, the fast instruction memory of the Cortex-M7, so that this code also counts as RAM.
 - The RAM is the static RAM.
@@ -656,7 +666,6 @@ Only the operating system rows compare the two systems, as the builds differ in 
 
 - PX4 has only flown in simulation: the PWM outputs, the RC input, the GPS driver and the buzzer are only tested in QEMU.
 - PWM outputs have the period of the devicetree, without OneShot or DShot.
-- There is no component metadata, which NuttX boards have in `/etc/extras` of their ROMFS: _QGroundControl_ has no Actuators setup.
 - RC input is read from Zephyr input devices, such as SBUS receivers, and from CRSF receivers with `crsf_rc` on a serial port, as on the MIMXRT1170-EVK: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
   The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, nor the digital channels 17 and 18.
 - Storage is on FAT file systems only.
