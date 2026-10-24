@@ -39,6 +39,7 @@ The PX4 options of the Zephyr configuration are:
 | `CONFIG_PX4_SERIAL`         | Open the UARTs of the devicetree as device files (enabled by the `px4,serial-ports` node).          |
 | `CONFIG_PX4_PWM_OUTPUTS`    | Enable the Zephyr PWM API for the actuator outputs (enabled by the `px4,pwm-outputs` node).         |
 | `CONFIG_PX4_RC_INPUT`       | Enable the input subsystem for the RC input (enabled by the `px4,rc-input` node).                   |
+| `CONFIG_PX4_ADC`            | Enable the Zephyr ADC API for the board ADC (enabled by the `px4,adc` node).                        |
 | `CONFIG_PX4_BUZZER`         | Enable the buzzer driver for the tone alarm (enabled by the `buzzer0` devicetree alias).            |
 | `CONFIG_PX4_LEDS`           | Enable the LED drivers for the board and RGB LEDs (enabled by the `px4,leds` node).                 |
 | `CONFIG_PX4_STACK_OVERHEAD` | Bytes added to the stack of each PX4 task and work queue.                                           |
@@ -226,6 +227,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
 - [tests/pwm](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/pwm) tests the PWM outputs on the Zephyr fake PWM driver: the disarmed, armed, failsafe and ESC calibration values, a pulse longer than the period, the outputs left without pulses when their functions are removed and disarmed when the driver stops, and the update rate of outputs with different periods.
 - [tests/rc_input](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/rc_input) tests the RC input with the Zephyr SBUS driver, which receives SBUS frames on an emulated UART: the channel values, keys, the failsafe, the loss of RC, and the events of another input device.
+- [tests/adc](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/adc) tests the board ADC on the Zephyr ADC emulator: the channels of the ADC report, the 5 V and 3.3 V rails of the system power, a channel that can't be read, and two analog batteries with their voltage dividers, a disconnected battery and `BAT1_V_CHANNEL`.
 - [tests/buzzer](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/buzzer) tests the tone alarm on a PWM buzzer of the Zephyr fake PWM driver: the frequency and duration of the notes of a tone and of tunes, a tone that overrides a tune, a stop in the middle of a note, and `CBRK_BUZZER`.
 - [tests/leds](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/leds) tests the board LEDs on GPIO LEDs of an emulated GPIO controller, through `/dev/led0` and as Commander drives them, and the RGB LED driver on a fake LED, a group of GPIO LEDs and an emulated NCP5623C: the colors, blinks and breathing of `led_control`, `SYS_RGB_MAXBRT`, and an NCP5623C that doesn't respond.
 - [tests/gps](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/gps) tests the GPS driver with an NMEA receiver on an emulated UART: the position, accuracy, dilutions of precision and velocity of the fix, and the baud rate.
@@ -386,6 +388,48 @@ An optional fuel gauge is used if it can be read when `zephyr_sensors` starts, a
 The NXP VMU RT1170 probes SBS smart batteries on POWER1 and POWER2.
 
 The generic board configuration starts `zephyr_sensors` and the [sensors](../modules/modules_system.md#sensors) module.
+
+### Board ADC
+
+The [board_adc](../modules/modules_driver_adc.md#adc) driver samples the ADC channels listed in the `px4,adc` devicetree node with the Zephyr [ADC API](https://docs.zephyrproject.org/latest/hardware/peripherals/adc.html), at 100 Hz, and publishes them to [AdcReport], as on NuttX.
+PX4 numbers the channels from 0, in the order of `io-channels`, and the name of a channel gives the macro that `board_config.h` defines for the channel on NuttX, for example `ADC_SCALED_V5_CHANNEL` for `scaled-v5`:
+
+```dts
+/ {
+	px4-adc {
+		compatible = "px4,adc";
+		io-channels = <&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>;
+		io-channel-names = "scaled-v5", "battery-voltage", "battery-current", "adc-3v3";
+	};
+};
+```
+
+| Channel name                                                                        | Use                                                                                                                                                    |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `scaled-v5`                                                                         | 5 V rail, through a voltage divider of 2, published to [SystemPower].                                                                                  |
+| `scaled-vdd-3v3-sensors`, or `scaled-vdd-3v3-sensors1` to `scaled-vdd-3v3-sensors4` | 3.3 V rails of the sensors, through voltage dividers of 2, published to [SystemPower].                                                                 |
+| `battery-voltage`, `battery-current`                                                | Voltage and current of an analog battery, which the [battery_status](../modules/modules_system.md#battery-status) module publishes to [BatteryStatus]. |
+| `battery1-voltage`, `battery1-current`, `battery2-voltage`, `battery2-current`      | Voltages and currents of two analog batteries.                                                                                                         |
+
+[AdcReport]: ../msg_docs/AdcReport.md
+[SystemPower]: ../msg_docs/SystemPower.md
+
+The other channels, such as the inputs of an ADC connector, are only published to [AdcReport].
+Each channel is configured by its channel node on its ADC, with the `zephyr,gain`, `zephyr,reference`, `zephyr,vref-mv`, `zephyr,acquisition-time` and `zephyr,resolution` properties of the Zephyr ADC API, and all the channels need the same resolution and full scale, as [AdcReport] has one reference voltage.
+A board whose voltage dividers differ from those of the Pixhawk boards defines `ADC_V5_V_FULL_SCALE` (the 5 V rail at the full scale of 3.3 V) or `ADC_3V3_SCALE` in the `src/board_config.h` of its PX4 board configuration, as on NuttX.
+USB isn't detected: the `usb_connected` field of [SystemPower] is 0, so the commander checks the 5 V rail also when the board is powered over USB, and the power modules are always valid.
+
+`battery_status` scales the voltage and current of an analog battery with [BAT1_V_DIV](../advanced_config/parameter_reference.md#BAT1_V_DIV) and [BAT1_A_PER_V](../advanced_config/parameter_reference.md#BAT1_A_PER_V), and those of a second one with `BAT2_V_DIV` and `BAT2_A_PER_V`, as calibrated in [Battery Estimation Tuning](../config/battery.md#voltage-divider).
+A battery without a current channel has no current, and [BAT1_V_CHANNEL](../advanced_config/parameter_reference.md#BAT1_V_CHANNEL) selects another channel, by its number, for the voltage of battery 1.
+
+Add `CONFIG_DRIVERS_ADC_BOARD_ADC` to the PX4 board configuration, and `CONFIG_MODULES_BATTERY_STATUS` for analog batteries, and start them in the startup script with `board_adc start` and `battery_status start`.
+`CONFIG_PX4_ADC` enables the ADC API when the devicetree has the node, and the build fails without it if the PX4 board configuration has `board_adc`.
+A PX4 board configuration without `board_adc`, such as the SIH configuration, sets `CONFIG_PX4_ADC=n` in the Zephyr configuration.
+
+The NXP VMU RT1170 has the ADC channels of FMU-v6XRT on LPADC1, and its board configuration starts `board_adc`: the 3.3 V rails of the sensors, the 5 V rail and the 3.3 V and 6.6 V inputs of the ADC connector, numbered 0 to 6 instead of 4 to 11 with NuttX.
+Its batteries are measured by digital power modules.
+The LPADC scales its inputs by 30/64, for a full scale of 3.89 V with its 1.825 V reference, which the Zephyr ADC API takes as a gain of 1/2: the overlay gives the reference as 1947 mV, so that the voltages are those of NuttX.
+This adds 6.2 KiB of flash and 0.4 KiB of static RAM.
 
 ### Serial Ports
 
@@ -728,6 +772,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
   The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, nor the digital channels 17 and 18.
 - The LEDs are only tested in QEMU, and an RGB LED needs a Zephyr LED driver: the NCP5623C, LP5562 and IS31FL319x have one, but not the TCA62724, IS31FL3195 and AW2023 of the NuttX RGB LED drivers.
 - Storage is on FAT file systems only.
+- The board ADC is only tested in QEMU, doesn't detect USB, and doesn't read the valid signals of the power modules nor the hardware version.
 - Serial ports use the interrupt-driven UART API, without DMA, and have no single-wire, inverted or swapped modes.
 - DroneCAN isn't started at boot, and a frame that a CAN controller has started to send is sent even once its deadline has passed. Cyphal uses classic CAN frames only.
 - Dynamic modules (`DYNAMIC` in `px4_add_module()`) are not supported.

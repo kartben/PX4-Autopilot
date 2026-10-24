@@ -56,6 +56,43 @@
 #define BOARD_HAS_NO_UUID
 #endif
 
+/* the board ADC publishes the 5 V rail to system_power, without detecting USB */
+#if defined(ADC_SCALED_V5_CHANNEL) && !defined(BOARD_ADC_USB_CONNECTED)
+#define BOARD_ADC_USB_CONNECTED 0
+#endif
+
+/*
+ * the analog batteries of the board ADC: two, always valid, if channels are named battery1-* or
+ * battery2-*, and one otherwise, whose missing channels are -1 for BATn_V_CHANNEL to select one
+ */
+#if defined(ADC_BATTERY1_VOLTAGE_CHANNEL) || defined(ADC_BATTERY1_CURRENT_CHANNEL) || \
+    defined(ADC_BATTERY2_VOLTAGE_CHANNEL) || defined(ADC_BATTERY2_CURRENT_CHANNEL)
+#  if !defined(BOARD_NUMBER_BRICKS)
+#    define BOARD_NUMBER_BRICKS 2
+#    define BOARD_ADC_BRICK1_VALID (1)
+#    define BOARD_ADC_BRICK2_VALID (1)
+#  endif
+#  if !defined(ADC_BATTERY1_VOLTAGE_CHANNEL)
+#    define ADC_BATTERY1_VOLTAGE_CHANNEL (-1)
+#  endif
+#  if !defined(ADC_BATTERY1_CURRENT_CHANNEL)
+#    define ADC_BATTERY1_CURRENT_CHANNEL (-1)
+#  endif
+#  if !defined(ADC_BATTERY2_VOLTAGE_CHANNEL)
+#    define ADC_BATTERY2_VOLTAGE_CHANNEL (-1)
+#  endif
+#  if !defined(ADC_BATTERY2_CURRENT_CHANNEL)
+#    define ADC_BATTERY2_CURRENT_CHANNEL (-1)
+#  endif
+#else
+#  if !defined(ADC_BATTERY_VOLTAGE_CHANNEL)
+#    define ADC_BATTERY_VOLTAGE_CHANNEL (-1)
+#  endif
+#  if !defined(ADC_BATTERY_CURRENT_CHANNEL)
+#    define ADC_BATTERY_CURRENT_CHANNEL (-1)
+#  endif
+#endif
+
 #define CONFIG_NFILE_STREAMS 1
 #define CONFIG_SCHED_WORKQUEUE 1
 #define CONFIG_SCHED_HPWORK 1
