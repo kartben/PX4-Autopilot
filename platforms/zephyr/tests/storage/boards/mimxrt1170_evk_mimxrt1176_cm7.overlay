@@ -1,0 +1,11 @@
+/* The RAM disk of app.overlay, instead of the microSD card, whose disk is also named SD */
+
+#include "../app.overlay"
+
+&usdhc1 {
+	status = "disabled";
+
+	sdmmc {
+		status = "disabled";
+	};
+};
