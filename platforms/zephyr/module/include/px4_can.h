@@ -120,6 +120,13 @@ unsigned px4_can_bus_count(void);
 int px4_can_open(unsigned bus, uint32_t bitrate, px4_can_event_t event, void *arg);
 
 /**
+ * Stop a CAN bus: the event callback is no longer called.
+ *
+ * @return 0, or a negative errno
+ */
+int px4_can_close(unsigned bus);
+
+/**
  * Return true if px4_can_send() would accept the frame now.
  */
 bool px4_can_tx_ready(unsigned bus, const struct px4_can_frame *frame);

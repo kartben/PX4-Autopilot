@@ -140,10 +140,13 @@ static bool px4_can_same_frame(const struct px4_can_frame *a, const struct px4_c
 
 static void px4_can_signal(struct px4_can_bus *bus)
 {
-	px4_can_event_t event = bus->event;
+	k_spinlock_key_t key = k_spin_lock(&bus->lock);
+	const px4_can_event_t event = bus->event;
+	void *const arg = bus->event_arg;
+	k_spin_unlock(&bus->lock, key);
 
 	if (event != NULL) {
-		event(bus->event_arg);
+		event(arg);
 	}
 }
 
@@ -326,6 +329,24 @@ int px4_can_open(unsigned bus_index, uint32_t bitrate, px4_can_event_t event, vo
 	}
 
 	return can_start(bus->dev);
+}
+
+int px4_can_close(unsigned bus_index)
+{
+	struct px4_can_bus *bus = px4_can_get_bus(bus_index);
+
+	if (bus == NULL) {
+		return -ENODEV;
+	}
+
+	k_spinlock_key_t key = k_spin_lock(&bus->lock);
+	bus->event = NULL;
+	bus->event_arg = NULL;
+	k_spin_unlock(&bus->lock, key);
+
+	const int ret = can_stop(bus->dev);
+
+	return (ret == -EALREADY) ? 0 : ret;
 }
 
 bool px4_can_tx_ready(unsigned bus_index, const struct px4_can_frame *frame)
