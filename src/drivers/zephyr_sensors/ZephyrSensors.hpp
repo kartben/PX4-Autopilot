@@ -48,6 +48,7 @@
 #include <lib/drivers/gyroscope/PX4Gyroscope.hpp>
 #include <lib/drivers/magnetometer/PX4Magnetometer.hpp>
 #include <lib/perf/perf_counter.h>
+#include <px4_platform_common/atomic.h>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
@@ -58,28 +59,28 @@
 
 using namespace time_literals;
 
-class ZephyrSensors : public ModuleBase, public ModuleParams, public px4::ScheduledWorkItem
+class ZephyrSensors;
+
+/**
+ * The sensors of a bus, read in turn on the work queue of the bus.
+ */
+class SensorBus : public ModuleParams, public px4::ScheduledWorkItem
 {
 public:
-	static Descriptor desc;
-
-	ZephyrSensors();
-	~ZephyrSensors() override;
-
-	static int task_spawn(int argc, char *argv[]);
-
-	static int custom_command(int argc, char *argv[]);
-
-	static int print_usage(const char *reason = nullptr);
-
-	int init();
-
-	int print_status() override;
-
-private:
 	static constexpr size_t MAX_SENSORS{16};
 
-	static constexpr hrt_abstime IMU_INTERVAL{1_ms};
+	SensorBus(ZephyrSensors &module, const zephyr_sensor_info &info);
+	~SensorBus() override;
+
+	bool has(const zephyr_sensor_info &info) const;
+
+	bool add_sensor(size_t index, const zephyr_sensor_info &info);
+
+	void start();
+
+	void print_status() const;
+
+private:
 	static constexpr hrt_abstime MAG_INTERVAL{10_ms};
 	static constexpr hrt_abstime BARO_INTERVAL{20_ms};
 	static constexpr hrt_abstime BATTERY_INTERVAL{100_ms};
@@ -107,11 +108,15 @@ private:
 
 	void Run() override;
 
-	bool add_sensor(size_t index);
 	void publish(Sensor &sensor, const zephyr_sensor_sample &sample);
 	void publish_fuel_gauge(Sensor &sensor, const zephyr_sensor_sample *sample, hrt_abstime timestamp);
 
-	Sensor _sensors[MAX_SENSORS] {};
+	ZephyrSensors &_module;
+	const zephyr_sensor_bus_type _bus_type;
+	const uint8_t _bus;
+	const char *const _queue_name;
+
+	Sensor *_sensors[MAX_SENSORS] {};
 	size_t _sensor_count{0};
 	hrt_abstime _interval{0};
 
@@ -125,4 +130,32 @@ private:
 
 	perf_counter_t _cycle_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
 	perf_counter_t _read_error_perf{perf_alloc(PC_COUNT, MODULE_NAME": read error")};
+};
+
+class ZephyrSensors : public ModuleBase
+{
+public:
+	static Descriptor desc;
+
+	~ZephyrSensors() override;
+
+	static int task_spawn(int argc, char *argv[]);
+
+	static int custom_command(int argc, char *argv[]);
+
+	static int print_usage(const char *reason = nullptr);
+
+	int init();
+
+	int print_status() override;
+
+	// called by each bus when it stops after a stop request, the module exits with the last one
+	void bus_stopped();
+
+private:
+	SensorBus *_buses[SensorBus::MAX_SENSORS] {};
+	size_t _bus_count{0};
+	size_t _sensor_count{0};
+
+	px4::atomic<size_t> _running_buses{0};
 };
