@@ -216,7 +216,7 @@ west twister -T PX4-Autopilot/platforms/zephyr -p mps2/an386
 
 or `make zephyr_tests`, which also builds the application for the boards that are only build-tested.
 
-- [tests/platform](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/platform) tests the platform layer: time, callouts from interrupts, tasks, work queues, uORB and parameters.
+- [tests/platform](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/platform) tests the platform layer: time, callouts from interrupts, tasks, work queues, uORB, parameters, and the CPU load that `top` and `load_mon` show.
 - [tests/sensors](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/sensors) tests the sensor driver with Zephyr's sensor emulators, on emulated SPI and I2C buses, with a sensor that doesn't respond, a power monitor and an emulated SBS fuel gauge.
 - [tests/serial](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/serial) tests the serial ports, termios and `device::Serial` on an emulated UART.
 - [tests/storage](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/storage) tests the parameter file and the file functions of PX4 on a RAM disk.
@@ -224,13 +224,51 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/pwm](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/pwm) tests the PWM outputs on the Zephyr fake PWM driver: the disarmed, armed, failsafe and ESC calibration values, a pulse longer than the period, the outputs left without pulses when their functions are removed and disarmed when the driver stops, and the update rate of outputs with different periods.
 - [tests/rc_input](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/rc_input) tests the RC input with the Zephyr SBUS driver, which receives SBUS frames on an emulated UART: the channel values, keys, the failsafe, the loss of RC, and the events of another input device.
 - [tests/identity](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/identity) tests the board identity, from the device ID of a hwinfo driver and from `BOARD_OVERRIDE_UUID`.
-- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
+- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log, `top` and the CPU load, and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
 
 The tests also run on the MIMXRT1170-EVK, which twister flashes and reads on the serial port of its debug USB port:
 
 ```sh
 west twister -T PX4-Autopilot/platforms/zephyr/tests -p mimxrt1170_evk@B/mimxrt1176/cm7 --device-testing --device-serial /dev/ttyACM0
 ```
+
+## CPU Load
+
+`top` shows the CPU load, stack usage, priority and state of the threads, from the [runtime statistics](https://docs.zephyrproject.org/latest/kernel/services/threads/index.html#runtime-statistics) of the Zephyr threads, here in the SIH configuration:
+
+```sh
+uart:~$ px4 top once
+COMMAND                   CPU(ms) CPU(%)  USED/STACK PRIO STATE
+idle                        14619 40.654    72/  320  100 READY
+sysworkq                        0  0.000   272/ 1024   -1 WAIT
+...
+wq:rate_ctrl                 2407  7.876  2432/ 4176    0 WAIT
+sih                          6009 20.726  1384/ 2584    0 WAIT
+...
+logger                        493  1.951  3112/ 4728   25 READY
+log_writer_file                49  0.212   576/ 2200   25 WAIT
+top                             0  0.003  2428/ 5120   18 RUN
+
+Threads: 23 total, 4 running, 19 sleeping
+CPU usage: 58.99% tasks, 40.65% idle
+Uptime: 32.817s total, 14.620s idle
+```
+
+The oldest threads come first.
+`PRIO` is the Zephyr priority, which runs first when it is lower: the PX4 priorities 0 to 99 are the Zephyr priorities 99 to 0, and the cooperative threads of Zephyr have negative priorities.
+`STATE` is `RUN`, `READY`, `WAIT` (for a kernel object), `SLEEP` or `SUSP` (suspended).
+Unlike NuttX, Zephyr threads have no process ID nor file descriptors of their own, `top` has no line for the interrupt stack, and the CPU usage has no `sched` share.
+The time of an interrupt counts for the thread that it interrupted, and at most 64 threads are listed, as on NuttX.
+As PX4 commands don't get the input of the Zephyr shell, `top` stops after its first print, of the load over 0.2 s, while `top once` prints the load over 1.2 s.
+
+The [load_mon](../modules/modules_system.md#load-mon) module publishes the CPU load and the RAM usage to [Cpuload](../msg_docs/Cpuload.md).
+The RAM usage is the share of the heaps that is allocated: the C library heap of the PX4 objects and the kernel heap of the thread stacks.
+As on NuttX, `load_mon` checks the free stack of a thread every 0.5 s if [SYS_STCK_EN](../advanced_config/parameter_reference.md#SYS_STCK_EN) is set, publishes it to [TaskStackInfo](../msg_docs/TaskStackInfo.md), and warns when less than 300 bytes are left.
+The logger writes the output of `top` to the log when it starts and stops logging.
+The generic and NXP VMU RT1170 board configurations start `load_mon`.
+
+PX4 enables the Zephyr options that they need: the runtime statistics of the threads (`CONFIG_THREAD_RUNTIME_STATS`), which the POSIX API enables too, the pattern written to the stack of a thread when it is created, which shows how much of the stack is used (`CONFIG_INIT_STACKS`), and the statistics of the heaps (`CONFIG_SYS_HEAP_RUNTIME_STATS`).
+With `top` and `load_mon`, the CPU load adds 4 KiB of flash and almost no static RAM to the SIH configuration of the NXP VMU RT1170.
 
 ## Adding a Board
 
@@ -550,7 +588,8 @@ Only the operating system rows compare the two systems, as the builds differ in 
   The Zephyr build has the FAT file system, the SD card, USB, the three CAN buses, Ethernet with UDP, and the Zephyr shell and logging.
   The matched build adds TCP, DHCP, DNS, IGMP, the shell over telnet and the network commands of the shell, which count as networking (29 KiB of flash).
   Like NuttX, whose subsystems have no debug output, it also leaves out the log messages of the Zephyr subsystems, which take 27 KiB of flash.
-- The other NuttX features aren't matched: the startup scripts are built into the firmware instead of a compressed ROM file system, PX4 uses the Zephyr CAN API instead of CAN sockets, and there is no proc file system nor CPU load of the tasks.
+- The other NuttX features aren't matched: the startup scripts are built into the firmware instead of a compressed ROM file system, PX4 uses the Zephyr CAN API instead of CAN sockets, and there is no proc file system.
+- The Zephyr builds were measured without `top` and `load_mon`, which add 4 KiB of flash.
 - The buffers of the 7 serial ports of the Zephyr builds (10.5 KiB) are in the PX4 platform layer.
 - NuttX copies the most used PX4 code (226 KiB) to the ITCM, the fast instruction memory of the Cortex-M7, so that this code also counts as RAM.
 - The RAM is the static RAM.
@@ -566,7 +605,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 - There is no component metadata, which NuttX boards have in `/etc/extras` of their ROMFS: _QGroundControl_ has no Actuators setup.
 - RC input is read from Zephyr input devices, such as SBUS receivers, and from CRSF receivers with `crsf_rc` on a serial port, as on the MIMXRT1170-EVK: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
   The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, nor the digital channels 17 and 18.
-- Storage is on FAT file systems only, and the logs have no CPU load of the tasks.
+- Storage is on FAT file systems only.
 - Sensors are polled: the IMU FIFOs are not used.
 - Serial ports use the interrupt-driven UART API, without DMA, and have no single-wire, inverted or swapped modes.
 - DroneCAN isn't started at boot, and a frame that a CAN controller has started to send is sent even once its deadline has passed. Cyphal uses classic CAN frames only.

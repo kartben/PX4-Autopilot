@@ -1,5 +1,6 @@
 # Serial ports as on the FMUv6X-RT, see platforms/zephyr/app/boards/vmu_rt1170_mimxrt1176_cm7.overlay
 ver all
+load_mon start
 zephyr_sensors start
 zephyr_rc_input start
 sensors start
