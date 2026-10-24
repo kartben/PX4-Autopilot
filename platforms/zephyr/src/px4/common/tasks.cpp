@@ -47,6 +47,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <zephyr/kernel.h>
+
 #define PX4_MAX_TASKS CONFIG_POSIX_THREAD_THREADS_MAX
 
 // a task id is the slot of the task in taskmap, and the generation of the slot above it, so that the id of a task
@@ -100,6 +102,10 @@ static int task_slot(px4_task_t id)
 typedef struct {
 	px4_main_t entry;
 	int slot; // in taskmap
+#if defined(CONFIG_THREAD_CUSTOM_DATA)
+	// the custom data of the thread that started the task, which has the shell of its standard output
+	void *custom_data;
+#endif
 	int argc;
 	char *argv[];
 	// strings are allocated after the struct data
@@ -112,6 +118,10 @@ static void *entry_adapter(void *ptr)
 	// px4_task_delete() is expected to stop the task immediately, as task_delete() on NuttX, see px4_task_delete()
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, nullptr);
 	pthread_setname_np(pthread_self(), taskmap[data->slot].name);
+
+#if defined(CONFIG_THREAD_CUSTOM_DATA)
+	k_thread_custom_data_set(data->custom_data);
+#endif
 
 	px4_task_exit(data->entry(data->argc, data->argv));
 
@@ -185,6 +195,9 @@ px4_task_t px4_task_spawn_cmd(const char *name, int scheduler, int priority, int
 	}
 
 	taskdata->entry = entry;
+#if defined(CONFIG_THREAD_CUSTOM_DATA)
+	taskdata->custom_data = k_thread_custom_data_get();
+#endif
 	taskdata->argc = argc + 1;
 
 	// argv[0] is the task name, as on NuttX
