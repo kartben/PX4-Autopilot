@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/px4/rotation.h>
+#include <zephyr/dt-bindings/dma/stm32_dma.h>
 #include <zephyr/dt-bindings/pwm/pwm.h>
 
 / {
@@ -89,25 +90,30 @@
 
 	/*
 	 * CH1 to CH4 (TIM1), on the ESC connector and the PWM pads of the FPV carrier, and CH5 to CH8
-	 * (TIM2) on the PWM pads, at 400 Hz
+	 * (TIM2) on the PWM pads, at 400 Hz. CH1 to CH4 can also be DShot outputs, on the channels of
+	 * TIM1: as PWM and DShot share the timer, they all need the same protocol.
 	 */
 	px4-pwm-outputs {
 		compatible = "px4,pwm-outputs";
 
 		main1 {
 			pwms = <&cn1_pwm 1 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+			dshot = <&dshot0 0>;
 		};
 
 		main2 {
 			pwms = <&cn1_pwm 2 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+			dshot = <&dshot0 1>;
 		};
 
 		main3 {
 			pwms = <&cn1_pwm 3 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+			dshot = <&dshot0 2>;
 		};
 
 		main4 {
 			pwms = <&cn1_pwm 4 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+			dshot = <&dshot0 3>;
 		};
 
 		main5 {
@@ -125,6 +131,12 @@
 		main8 {
 			pwms = <&cn1_pwm 8 PWM_HZ(400) PWM_POLARITY_NORMAL>;
 		};
+	};
+
+	dshot0: dshot {
+		compatible = "px4,dshot-pulse-io";
+		#dshot-cells = <1>;
+		pulse-ios = <&tim1_pio 0>, <&tim1_pio 1>, <&tim1_pio 2>, <&tim1_pio 3>;
 	};
 
 	/* the white LED, BOARD_LED of the NuttX build */
@@ -149,6 +161,19 @@
 			automount;
 			disk-access;
 		};
+	};
+};
+
+/* the DShot frames on CH1 to CH4, 16 cells and two idle cells, with the DMA request of TIM1_UP */
+&timers1 {
+	tim1_pio: pulse-io {
+		compatible = "st,stm32-pulse-io";
+		pinctrl-0 = <&tim1_ch1_pa8 &tim1_ch2_pe11 &tim1_ch3_pe13 &tim1_ch4_pe14>;
+		pinctrl-names = "default";
+		dmas = <&dmamux1 1 15 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH)>;
+		dma-names = "tx";
+		#pulse-io-cells = <1>;
+		st,max-cells = <18>;
 	};
 };
 

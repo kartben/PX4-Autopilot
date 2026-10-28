@@ -17,6 +17,11 @@ param set-default PWM_MAIN_FUNC1 101
 param set-default PWM_MAIN_FUNC2 102
 param set-default PWM_MAIN_FUNC3 103
 param set-default PWM_MAIN_FUNC4 104
+# DShot600 on the ESC connector
+param set-default PWM_MAIN_TIM0 -3
+param set-default PWM_MAIN_TIM1 -3
+param set-default PWM_MAIN_TIM2 -3
+param set-default PWM_MAIN_TIM3 -3
 ver all
 # missions in RAM, as the microSD card is optional
 dataman start -r
@@ -37,6 +42,7 @@ mag_bias_estimator start
 gyro_calibration start
 control_allocator start
 zephyr_pwm_out start
+dshot start
 mc_rate_control start
 mc_att_control start
 mc_hover_thrust_estimator start
