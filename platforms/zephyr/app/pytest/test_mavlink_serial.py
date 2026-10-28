@@ -362,3 +362,20 @@ def test_mavlink_shell_reopen(shell: Shell, mav):
 
     # the PX4 commands of the console still print to the console
     assert any('OS: Zephyr' in line for line in px4(shell, 'ver all'))
+
+
+def test_mavlink_shell_instance_stopped(shell: Shell, mav):
+    # the MAVLink instance stops with the shell open, as cdcacm_autostart stops the instance of a USB port whose
+    # ground station disconnected: the shell is free for the next instance
+    mavlink_shell = MavlinkShell(mav)
+    assert 'OS: Zephyr' in mavlink_shell.run('ver all')
+
+    px4(shell, 'mavlink stop -d /dev/ttyS1')
+    time.sleep(2)
+    px4(shell, 'mavlink start -d /dev/ttyS1 -b 115200 -x')
+    assert mav.wait_heartbeat(timeout=30), 'no heartbeat'
+
+    mavlink_shell = MavlinkShell(mav)
+    assert 'OS: Zephyr' in mavlink_shell.run('ver all')
+    mavlink_shell.close()
+    time.sleep(1)
