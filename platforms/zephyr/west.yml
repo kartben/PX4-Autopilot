@@ -2,15 +2,19 @@ manifest:
   remotes:
     - name: zephyrproject-rtos
       url-base: https://github.com/zephyrproject-rtos
+    - name: kartben
+      url-base: https://github.com/kartben
 
   projects:
     - name: zephyr
-      remote: zephyrproject-rtos
-      revision: 6f240640cd6a5917ffa5be8eac24bcb71a7b210e
+      # control-n1-board-support: the 3DR Control N1 board and its carriers
+      remote: kartben
+      revision: 5c66cc299a5a649e05a773f15245396650efcb21
       import:
         name-allowlist:
           - cmsis
           - cmsis_6
           - fatfs
           - hal_nxp
+          - hal_stm32
           - picolibc
