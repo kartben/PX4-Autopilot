@@ -43,6 +43,32 @@
 #include <zephyr/net/socket.h>
 #endif
 #undef device
+// The kernel headers include the CMSIS device header of the SoC, whose STM32 peripheral macros are also names in PX4
+// C++ code: the work queues SPI1 and I2C1, RNG in EKF2, RTC and FLASH in the GPS driver, and others. PX4 C++ code
+// doesn't access peripheral registers.
+#undef ADC1
+#undef CRC
+#undef ETH
+#undef EXTI
+#undef FLASH
+#undef GPIOA
+#undef GPIOB
+#undef I2C1
+#undef I2C2
+#undef I2C3
+#undef I2C4
+#undef PWR
+#undef RNG
+#undef RTC
+#undef SPI1
+#undef SPI2
+#undef SPI3
+#undef SPI4
+#undef SPI5
+#undef SPI6
+#undef TIM5
+#undef USART1
+#undef USART3
 #else
 #include_next <pthread.h>
 #endif
