@@ -17,3 +17,6 @@ properties:
   cell-duty-bits:
     type: int
     required: true
+  multi:
+    type: boolean
+    description: the channels can start together (tx_sync_multi_channel)

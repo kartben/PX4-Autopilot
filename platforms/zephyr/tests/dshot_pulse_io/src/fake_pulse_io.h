@@ -57,8 +57,10 @@ struct fake_pio_channel {
 	struct pulse_cell cells[FAKE_PIO_MAX_ENTRIES];
 	struct pulse_symbol symbols[FAKE_PIO_MAX_ENTRIES];
 	uint32_t transmits;
-	/* sequence number of the last transmit, across the controllers */
+	/* sequence number of the last transmit, across the controllers, the same for the channels that start together */
 	uint32_t sequence;
+	/* the last transmit started together with other channels */
+	bool multi;
 	/* error of the next transmits, 0 to send */
 	int transmit_error;
 };

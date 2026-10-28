@@ -50,6 +50,7 @@ struct fake_pio_config {
 	uint8_t num_channels;
 	uint32_t modes;
 	uint8_t cell_duty_bits;
+	bool multi;
 };
 
 struct fake_pio_data {
@@ -85,6 +86,7 @@ static int fake_pio_get_capabilities(const struct device *dev, struct pulse_io_c
 		.cell_duty_bits = cfg->cell_duty_bits,
 		.num_channels = cfg->num_channels,
 		.supports_tx = true,
+		.tx_sync_multi_channel = cfg->multi,
 	};
 
 	return 0;
@@ -143,22 +145,10 @@ static int fake_pio_channel_configure(const struct device *dev, struct pulse_io_
 	return 0;
 }
 
-static int fake_pio_transmit_sync(const struct device *dev, struct pulse_io_channel *chan,
-				  const struct pulse_io_tx_req *req, k_timeout_t timeout)
+static int transmit(struct fake_pio_channel *ch, const struct pulse_io_tx_req *req, uint32_t seq, bool multi)
 {
-	struct fake_pio_channel *ch = get_channel(dev, chan);
-
-	ARG_UNUSED(timeout);
-
-	if ((ch == NULL) || !ch->configured) {
-		return -EINVAL;
-	}
-
-	if (req->count > FAKE_PIO_MAX_ENTRIES) {
-		return -ENOMEM;
-	}
-
-	ch->sequence = ++sequence;
+	ch->sequence = seq;
+	ch->multi = multi;
 
 	if (ch->transmit_error != 0) {
 		return ch->transmit_error;
@@ -175,6 +165,68 @@ static int fake_pio_transmit_sync(const struct device *dev, struct pulse_io_chan
 	ch->transmits++;
 
 	return 0;
+}
+
+static int fake_pio_transmit_sync(const struct device *dev, struct pulse_io_channel *chan,
+				  const struct pulse_io_tx_req *req, k_timeout_t timeout)
+{
+	struct fake_pio_channel *ch = get_channel(dev, chan);
+
+	ARG_UNUSED(timeout);
+
+	if ((ch == NULL) || !ch->configured) {
+		return -EINVAL;
+	}
+
+	if (req->count > FAKE_PIO_MAX_ENTRIES) {
+		return -ENOMEM;
+	}
+
+	return transmit(ch, req, ++sequence, false);
+}
+
+static int fake_pio_transmit_multi_sync(const struct device *dev, struct pulse_io_channel *const *chans,
+					const struct pulse_io_tx_req *reqs, size_t num, k_timeout_t timeout)
+{
+	const struct fake_pio_config *cfg = dev->config;
+	int ret = 0;
+
+	ARG_UNUSED(timeout);
+
+	if (!cfg->multi) {
+		return -ENOSYS;
+	}
+
+	for (size_t i = 0; i < num; i++) {
+		struct fake_pio_channel *ch = get_channel(dev, chans[i]);
+
+		if ((ch == NULL) || !ch->configured) {
+			return -EINVAL;
+		}
+
+		for (size_t j = 0; j < i; j++) {
+			if (chans[j] == chans[i]) {
+				return -EINVAL;
+			}
+		}
+
+		if (reqs[i].count > FAKE_PIO_MAX_ENTRIES) {
+			return -ENOMEM;
+		}
+	}
+
+	/* the channels start together: one sequence number for all */
+	sequence++;
+
+	for (size_t i = 0; i < num; i++) {
+		const int err = transmit(get_channel(dev, chans[i]), &reqs[i], sequence, true);
+
+		if ((err < 0) && (ret == 0)) {
+			ret = err;
+		}
+	}
+
+	return ret;
 }
 
 static int fake_pio_receive_sync(const struct device *dev, struct pulse_io_channel *chan,
@@ -196,6 +248,7 @@ static DEVICE_API(pulse_io, fake_pio_api) = {
 	.transmit_sync = fake_pio_transmit_sync,
 	.receive_sync = fake_pio_receive_sync,
 	.stop = fake_pio_stop,
+	.transmit_multi_sync = fake_pio_transmit_multi_sync,
 };
 
 #define FAKE_PIO_DEFINE(inst)                                                                                  \
@@ -204,6 +257,7 @@ static DEVICE_API(pulse_io, fake_pio_api) = {
 		.num_channels = DT_INST_PROP(inst, num_channels),                                              \
 		.modes = DT_INST_PROP(inst, modes),                                                            \
 		.cell_duty_bits = DT_INST_PROP(inst, cell_duty_bits),                                          \
+		.multi = DT_INST_PROP(inst, multi),                                                            \
 	};                                                                                                     \
 	static struct fake_pio_data fake_pio_data_##inst;                                                      \
 	DEVICE_DT_INST_DEFINE(inst, NULL, NULL, &fake_pio_data_##inst, &fake_pio_config_##inst, POST_KERNEL,   \
@@ -224,6 +278,7 @@ void fake_pio_clear(void)
 			ch->count = 0;
 			ch->transmits = 0;
 			ch->sequence = 0;
+			ch->multi = false;
 			ch->transmit_error = 0;
 		}
 	}

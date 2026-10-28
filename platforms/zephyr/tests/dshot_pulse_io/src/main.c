@@ -33,8 +33,8 @@
 
 /*
  * DShot device on pulse_io channels (px4,dshot-pulse-io), on pulse_io controllers of the test: the
- * configuration of the channels for each bit rate, the cells and symbols of the frames, the order of the
- * channels, and the errors.
+ * configuration of the channels for each bit rate, the cells and symbols of the frames, the channels of a
+ * controller that start together and the others, and the errors.
  */
 
 #include "fake_pulse_io.h"
@@ -188,7 +188,7 @@ ZTEST(dshot_pulse_io, test_channels)
 
 	zassert_ok(px4_dshot_configure(dshot, BIT(0) | BIT(1) | BIT(2), 0, 600000));
 
-	/* the given channels, each with its frame, one after the other in the order of the channels */
+	/* the given channels, each with its frame, which start together on the same controller */
 	zassert_ok(px4_dshot_send(dshot, BIT(0) | BIT(2), frames));
 	zassert_equal(CH0->transmits, 1);
 	zassert_equal(CH1->transmits, 0);
@@ -196,11 +196,20 @@ ZTEST(dshot_pulse_io, test_channels)
 	zassert_equal(CH0->cells[15].duty, ONE_TICKS);
 	zassert_equal(CH2->cells[13].duty, ONE_TICKS);
 	zassert_equal(CH2->cells[15].duty, ZERO_TICKS);
-	zassert_true(CH0->sequence < CH2->sequence);
+	zassert_true(CH0->multi);
+	zassert_true(CH2->multi);
+	zassert_equal(CH0->sequence, CH2->sequence);
 
+	/* the channel of the other controller after them */
 	zassert_ok(px4_dshot_send(dshot, BIT(0) | BIT(1) | BIT(2), frames));
+	zassert_equal(CH0->sequence, CH2->sequence);
 	zassert_true(CH0->sequence < CH1->sequence);
-	zassert_true(CH1->sequence < CH2->sequence);
+	zassert_false(CH1->multi);
+
+	/* a single channel of a controller */
+	zassert_ok(px4_dshot_send(dshot, BIT(2), frames));
+	zassert_false(CH2->multi);
+	zassert_equal(CH2->transmits, 3);
 }
 
 ZTEST(dshot_pulse_io, test_transmit_error)
@@ -214,6 +223,13 @@ ZTEST(dshot_pulse_io, test_transmit_error)
 	zassert_equal(px4_dshot_send(dshot, BIT(0) | BIT(1) | BIT(2), frames), -EIO);
 	zassert_equal(CH0->transmits, 1);
 	zassert_equal(CH2->transmits, 1);
+
+	/* also those that start together with the failing one */
+	CH1->transmit_error = 0;
+	CH2->transmit_error = -EIO;
+	zassert_equal(px4_dshot_send(dshot, BIT(0) | BIT(1) | BIT(2), frames), -EIO);
+	zassert_equal(CH0->transmits, 2);
+	zassert_equal(CH1->transmits, 1);
 }
 
 ZTEST(dshot_pulse_io, test_no_reply)

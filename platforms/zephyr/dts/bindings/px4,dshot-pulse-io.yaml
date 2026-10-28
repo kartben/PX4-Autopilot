@@ -10,9 +10,10 @@ description: |
     };
 
   The frames are sent as fixed-period cells, or as symbols if the
-  controller has no cells with a duty cycle. The pulse_io API has no
-  transmit that starts several channels at once: the frames of the channels
-  are sent one after the other. Bidirectional DShot isn't supported.
+  controller has no cells with a duty cycle. The frames of the channels of
+  a controller that can start several channels together start together,
+  and the others are sent one after the other. Bidirectional DShot isn't
+  supported.
 
 compatible: "px4,dshot-pulse-io"
 

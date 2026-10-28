@@ -37,8 +37,9 @@
  * DShot device on pulse_io channels (px4,dshot-pulse-io), with the driver API of px4_dshot.h. A frame is 16 bits,
  * the most significant first, each a bit period whose high time is 3/4 of the period for a 1 and 3/8 for a 0,
  * then the line rests low. It is sent as 16 cells and an idle cell, or as 32 symbols on a controller without
- * cells with a duty cycle. The pulse_io API has no transmit that starts several channels at once, so the frames
- * of the channels are sent one after the other, and the replies of bidirectional DShot aren't received.
+ * cells with a duty cycle. The frames of the channels of a controller that can start several channels together
+ * (tx_sync_multi_channel) start together, and the others are sent one after the other. The replies of
+ * bidirectional DShot aren't received.
  */
 
 #define DT_DRV_COMPAT px4_dshot_pulse_io
@@ -73,6 +74,14 @@ struct dshot_pio_channel {
 	/* NULL while the pulse_io channel isn't reserved */
 	struct pulse_io_channel *chan;
 	enum pulse_io_mode mode;
+	/* the controller starts several channels together */
+	bool multi;
+	/* the frame being sent */
+	union {
+		/* the idle cell ends the high time of the last bit on every controller */
+		struct pulse_cell cells[DSHOT_FRAME_BITS + 1];
+		struct pulse_symbol symbols[2 * DSHOT_FRAME_BITS];
+	};
 };
 
 struct dshot_pio_config {
@@ -126,6 +135,8 @@ static int configure_channel(const struct dshot_pio_channel_config *channel_cfg,
 	} else {
 		return -EINVAL;
 	}
+
+	ch->multi = caps.tx_sync_multi_channel;
 
 	const struct pulse_io_config pio_cfg = {
 		.resolution_hz = bit_rate * DSHOT_BIT_TICKS,
@@ -194,41 +205,35 @@ static int dshot_pio_configure(const struct device *dev, uint32_t channels, uint
 	return ret;
 }
 
-static int send_frame(const struct dshot_pio_channel_config *channel_cfg, const struct dshot_pio_channel *ch,
-		      uint16_t frame)
+/* the request of a frame in the buffer of its channel */
+static struct pulse_io_tx_req encode_frame(struct dshot_pio_channel *ch, uint16_t frame)
 {
 	struct pulse_io_tx_req req = {0};
 
 	if (ch->mode == PULSE_IO_MODE_CELL) {
-		/* the idle cell ends the high time of the last bit on every controller */
-		struct pulse_cell cells[DSHOT_FRAME_BITS + 1] = {0};
-
 		for (unsigned i = 0; i < DSHOT_FRAME_BITS; i++) {
 			const bool one = (frame & BIT(DSHOT_FRAME_BITS - 1 - i)) != 0;
 
-			cells[i].duty = one ? DSHOT_ONE_TICKS : DSHOT_ZERO_TICKS;
-			cells[i].level = 1;
+			ch->cells[i] = (struct pulse_cell) {.duty = one ? DSHOT_ONE_TICKS : DSHOT_ZERO_TICKS, .level = 1};
 		}
 
-		req.cells = cells;
-		req.count = ARRAY_SIZE(cells);
+		ch->cells[DSHOT_FRAME_BITS] = (struct pulse_cell) {.duty = 0, .level = 0};
+		req.cells = ch->cells;
+		req.count = ARRAY_SIZE(ch->cells);
 
-		return pulse_io_transmit_sync(channel_cfg->dev, ch->chan, &req, DSHOT_SEND_TIMEOUT);
+	} else {
+		for (unsigned i = 0; i < DSHOT_FRAME_BITS; i++) {
+			const uint32_t high = ((frame & BIT(DSHOT_FRAME_BITS - 1 - i)) != 0) ? DSHOT_ONE_TICKS : DSHOT_ZERO_TICKS;
+
+			ch->symbols[2 * i] = (struct pulse_symbol) {.duration = high, .level = 1};
+			ch->symbols[2 * i + 1] = (struct pulse_symbol) {.duration = DSHOT_BIT_TICKS - high, .level = 0};
+		}
+
+		req.symbols = ch->symbols;
+		req.count = ARRAY_SIZE(ch->symbols);
 	}
 
-	struct pulse_symbol symbols[2 * DSHOT_FRAME_BITS];
-
-	for (unsigned i = 0; i < DSHOT_FRAME_BITS; i++) {
-		const uint32_t high = ((frame & BIT(DSHOT_FRAME_BITS - 1 - i)) != 0) ? DSHOT_ONE_TICKS : DSHOT_ZERO_TICKS;
-
-		symbols[2 * i] = (struct pulse_symbol) {.duration = high, .level = 1};
-		symbols[2 * i + 1] = (struct pulse_symbol) {.duration = DSHOT_BIT_TICKS - high, .level = 0};
-	}
-
-	req.symbols = symbols;
-	req.count = ARRAY_SIZE(symbols);
-
-	return pulse_io_transmit_sync(channel_cfg->dev, ch->chan, &req, DSHOT_SEND_TIMEOUT);
+	return req;
 }
 
 static int dshot_pio_send(const struct device *dev, uint32_t channels, const uint16_t *frames)
@@ -241,23 +246,40 @@ static int dshot_pio_send(const struct device *dev, uint32_t channels, const uin
 
 	if ((channels & ~data->configured) != 0) {
 		ret = -EINVAL;
+		goto unlock;
+	}
 
-	} else {
-		/* the channels one after the other, as the API can't start them together */
-		uint32_t remaining = channels;
+	uint32_t remaining = channels;
 
-		while (remaining != 0) {
-			const unsigned i = u32_count_trailing_zeros(remaining);
-			const int err = send_frame(&cfg->channels[i], &data->channels[i], frames[i]);
+	while (remaining != 0) {
+		/* the first channel left, and the other channels of its controller if they start together */
+		const unsigned first = u32_count_trailing_zeros(remaining);
+		const struct device *pio = cfg->channels[first].dev;
+		struct pulse_io_channel *chans[PULSE_IO_TX_MULTI_MAX];
+		struct pulse_io_tx_req reqs[PULSE_IO_TX_MULTI_MAX];
+		size_t num = 0;
 
-			remaining &= ~BIT(i);
-
-			if ((err < 0) && (ret == 0)) {
-				ret = err;
+		for (unsigned i = first; (i < cfg->num_channels) && (num < ARRAY_SIZE(chans)); i++) {
+			if (((remaining & BIT(i)) == 0) || ((i != first) && (!data->channels[first].multi ||
+							    (cfg->channels[i].dev != pio)))) {
+				continue;
 			}
+
+			chans[num] = data->channels[i].chan;
+			reqs[num] = encode_frame(&data->channels[i], frames[i]);
+			num++;
+			remaining &= ~BIT(i);
+		}
+
+		const int err = (num > 1) ? pulse_io_transmit_multi_sync(pio, chans, reqs, num, DSHOT_SEND_TIMEOUT)
+				: pulse_io_transmit_sync(pio, chans[0], &reqs[0], DSHOT_SEND_TIMEOUT);
+
+		if ((err < 0) && (ret == 0)) {
+			ret = err;
 		}
 	}
 
+unlock:
 	k_mutex_unlock(&data->lock);
 
 	return ret;

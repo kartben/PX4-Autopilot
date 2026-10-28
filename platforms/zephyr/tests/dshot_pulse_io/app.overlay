@@ -1,11 +1,12 @@
 / {
-	/* cells with a duty cycle, as an STM32 timer */
+	/* cells with a duty cycle, whose channels start together, as an STM32 timer */
 	cells_pio: pulse-io-cells {
 		compatible = "vnd,pulse-io";
 		#pulse-io-cells = <1>;
 		num-channels = <4>;
 		modes = <3>;
 		cell-duty-bits = <16>;
+		multi;
 	};
 
 	/* symbols only, as the RMT of the ESP32 */
