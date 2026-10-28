@@ -1,0 +1,27 @@
+description: |
+  DShot device on pulse_io channels, with the driver API of px4_dshot.h:
+  DShot channel n is the pulse_io channel of entry n of pulse-ios, for
+  example the channels of an STM32 timer (st,stm32-pulse-io):
+
+    dshot0: dshot {
+      compatible = "px4,dshot-pulse-io";
+      #dshot-cells = <1>;
+      pulse-ios = <&tim1_pio 0>, <&tim1_pio 1>, <&tim1_pio 2>, <&tim1_pio 3>;
+    };
+
+  The frames are sent as fixed-period cells, or as symbols if the
+  controller has no cells with a duty cycle. The pulse_io API has no
+  transmit that starts several channels at once: the frames of the channels
+  are sent one after the other. Bidirectional DShot isn't supported.
+
+compatible: "px4,dshot-pulse-io"
+
+include: px4-dshot-controller.yaml
+
+properties:
+  pulse-ios:
+    type: phandle-array
+    required: true
+    description: |
+      pulse_io channel of each DShot channel, in the order of the DShot
+      channels, at most 32.

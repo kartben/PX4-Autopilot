@@ -236,6 +236,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/pwm](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/pwm) tests the PWM outputs on the Zephyr fake PWM driver: the disarmed, armed, failsafe and ESC calibration values, a pulse longer than the period, the outputs left without pulses when their functions are removed and disarmed when the driver stops, and the update rate of outputs with different periods.
 - [tests/dshot](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/dshot) tests the `dshot` driver on two fake DShot devices of the test, with PWM and DShot outputs: the frames of the disarmed and armed outputs, with the inverted checksum of bidirectional DShot, sent on all the channels of a device at once, the PWM outputs that `zephyr_pwm_out` drives and the DShot outputs that it leaves alone, a spin direction command, the eRPM of the ESC replies with the pole count of the motors, their extended telemetry, the CRC errors, frame errors and missing replies, the ESCs going offline and back online, and a channel whose reply can still arrive.
   The test builds the ESC replies with GCR encoding of its own, rather than with the decoder of PX4.
+- [tests/dshot_pulse_io](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/dshot_pulse_io) tests the DShot device on pulse_io controllers of the test, with cells and with symbols: the configuration of the channels for each bit rate, the cells and symbols of the frames, the channels sent one after the other, and a bidirectional channel or a controller without duty cycles that fail.
 - [tests/rc_input](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/rc_input) tests the RC input with the Zephyr SBUS driver, which receives SBUS frames on an emulated UART: the channel values, keys, the failsafe, the loss of RC, and the events of another input device.
 - [tests/adc](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/adc) tests the board ADC on the Zephyr ADC emulator: the channels of the ADC report, the 5 V and 3.3 V rails of the system power, a channel that can't be read, and two analog batteries with their voltage dividers, a disconnected battery and `BAT1_V_CHANNEL`.
 - [tests/buzzer](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/buzzer) tests the tone alarm on a PWM buzzer of the Zephyr fake PWM driver: the frequency and duration of the notes of a tone and of tunes, a tone that overrides a tune, a stop in the middle of a note, and `CBRK_BUZZER`.
@@ -632,7 +633,26 @@ The driver takes care of the bit timing of the frames, of turning the line of a 
 The platform layer builds the frames, with the inverted checksum of bidirectional DShot, decodes the GCR replies into eRPM or extended telemetry, and counts the CRC errors, frame errors and missing replies, with the protocol code of [src/lib/dshot](https://github.com/PX4/PX4-Autopilot/tree/main/src/lib/dshot), which the NuttX driver of the i.MX RT shares.
 An ESC is online after 200 valid replies in a row, and offline after 200 missing or invalid ones.
 
-There is no driver for DShot hardware yet: DShot is only tested on the fake DShot devices of [tests/dshot](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/dshot), in QEMU, and no board configuration enables it.
+The `px4,dshot-pulse-io` DShot device sends the frames on the channels of [pulse_io](https://docs.zephyrproject.org/latest/hardware/peripherals/pulse_io.html) controllers, such as the channels of an STM32 timer (`st,stm32-pulse-io`), which load the duty cycle of each bit from DMA, or the RMT of the ESP32:
+
+```dts
+/ {
+	dshot0: dshot {
+		compatible = "px4,dshot-pulse-io";
+		#dshot-cells = <1>;
+		pulse-ios = <&tim1_pio 0>, <&tim1_pio 1>, <&tim1_pio 2>, <&tim1_pio 3>;
+	};
+};
+```
+
+DShot channel n is the pulse_io channel of entry n of `pulse-ios`.
+A frame is 16 cells of a bit period, whose high time is 3/4 of the period for a 1 and 3/8 for a 0, and an idle cell, or 32 symbols on a controller without cells with a duty cycle.
+The pulse_io API has no transmit that starts several channels at once: the frames of the channels are sent one after the other, about 65 us each at DShot600 on an STM32H7.
+It doesn't receive the replies of bidirectional DShot, whose configuration fails.
+`CONFIG_PX4_DSHOT_PULSE_IO` enables it when the devicetree has the node.
+The channels of a pulse_io controller may share their timing, as those of an STM32 timer: the outputs on a timer then all need the same protocol, PWM or DShot.
+
+The 3DR Control N1 sends DShot600 on its outputs 1 to 4, the ESC connector of its FPV carrier, on the channels of TIM1.
 
 ### RC Input
 
@@ -894,7 +914,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 
 - PX4 has only flown in simulation: the PWM outputs, the RC input, the GPS driver, the buzzer and the safety button are only tested in QEMU.
 - PWM outputs have the period of the devicetree, without OneShot.
-- DShot has no driver for DShot hardware, and only runs on the fake DShot devices of the tests.
+- DShot runs on pulse_io channels, which send the frames of the channels one after the other and don't receive the replies of bidirectional DShot, and is not tested with ESCs.
 - RC input is read from Zephyr input devices, such as SBUS and CRSF receivers, and from CRSF receivers with `crsf_rc` on a serial port: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
   The Zephyr CRSF driver doesn't bind the receiver, as `crsf_rc` does on a command of the ground station.
   The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, nor the digital channels 17 and 18.

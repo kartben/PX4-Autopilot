@@ -1,0 +1,19 @@
+description: |
+  pulse_io controller of the PX4 DShot pulse_io test, which records the
+  configuration of its channels and what they send
+
+compatible: "vnd,pulse-io"
+
+include: pulse-io-controller.yaml
+
+properties:
+  num-channels:
+    type: int
+    required: true
+  modes:
+    type: int
+    required: true
+    description: pulse_io_mode bitmask of the capabilities
+  cell-duty-bits:
+    type: int
+    required: true

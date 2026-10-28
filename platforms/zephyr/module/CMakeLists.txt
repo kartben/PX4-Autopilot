@@ -90,6 +90,11 @@ zephyr_library_named(px4_pthread)
 # px4_pthread_attr_destroy() keeps the stacks that threads run on, see px4_pthread.c
 zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_pthread.c)
 
+if(CONFIG_PX4_DSHOT_PULSE_IO)
+	zephyr_library_named(px4_dshot_pulse_io)
+	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/dshot/dshot_pulse_io.c)
+endif()
+
 if(CONFIG_PX4_CAN)
 	zephyr_library_named(px4_can)
 	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_can.c)

@@ -1,0 +1,35 @@
+/ {
+	/* cells with a duty cycle, as an STM32 timer */
+	cells_pio: pulse-io-cells {
+		compatible = "vnd,pulse-io";
+		#pulse-io-cells = <1>;
+		num-channels = <4>;
+		modes = <3>;
+		cell-duty-bits = <16>;
+	};
+
+	/* symbols only, as the RMT of the ESP32 */
+	symbols_pio: pulse-io-symbols {
+		compatible = "vnd,pulse-io";
+		#pulse-io-cells = <1>;
+		num-channels = <2>;
+		modes = <1>;
+		cell-duty-bits = <0>;
+	};
+
+	/* cells without a duty cycle, which can't send DShot */
+	levels_pio: pulse-io-levels {
+		compatible = "vnd,pulse-io";
+		#pulse-io-cells = <1>;
+		num-channels = <1>;
+		modes = <2>;
+		cell-duty-bits = <0>;
+	};
+
+	/* channels in another order than those of the controllers */
+	dshot0: dshot {
+		compatible = "px4,dshot-pulse-io";
+		#dshot-cells = <1>;
+		pulse-ios = <&cells_pio 2>, <&symbols_pio 1>, <&cells_pio 0>, <&levels_pio 0>;
+	};
+};
