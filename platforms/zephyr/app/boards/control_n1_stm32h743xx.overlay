@@ -1,0 +1,159 @@
+/*
+ * 3DR Control N1 on a carrier with the Pixhawk ports of the 3dr_n1_fpv or 3dr_n1_longy shield
+ * (--shield 3dr_n1_fpv): sensor orientation and serial ports as in boards/3dr/ctrl-n1, the ESC
+ * outputs, the microSD card and the CAN buses
+ */
+
+#include <dt-bindings/px4/rotation.h>
+#include <zephyr/dt-bindings/pwm/pwm.h>
+
+/ {
+	/*
+	 * The NuttX drivers of the IIM-42653 flip the Y and Z axes of the chip before their rotation
+	 * (-R 14, ROLL_180_YAW_270), and the Zephyr driver gives the axes of the chip: YAW_270 here.
+	 * The AK09940A has the rotation of the NuttX build (-R 4).
+	 */
+	px4-sensors {
+		compatible = "px4,sensors";
+
+		imu0 {
+			sensor = <&imu1>;
+			type = "imu";
+			rotation = <PX4_ROTATION_YAW_270>;
+		};
+
+		imu1 {
+			sensor = <&imu2>;
+			type = "imu";
+			rotation = <PX4_ROTATION_YAW_270>;
+		};
+
+		mag0 {
+			sensor = <&ak09940a>;
+			type = "mag";
+			rotation = <PX4_ROTATION_YAW_180>;
+		};
+
+		baro0 {
+			sensor = <&baro>;
+			type = "baro";
+		};
+	};
+
+	/* the paths of the NuttX build; SG3 (UART7) is the Zephyr console */
+	px4-serial-ports {
+		compatible = "px4,serial-ports";
+
+		telem1 {
+			uart = <&pixhawk_telem1>;
+			path = "/dev/ttyS1";
+		};
+
+		gps2 {
+			uart = <&cn1_sg4_serial>;
+			path = "/dev/ttyS2";
+		};
+
+		telem2 {
+			uart = <&pixhawk_telem2>;
+			path = "/dev/ttyS3";
+		};
+
+		rc {
+			uart = <&cn1_sg6_serial>;
+			path = "/dev/ttyS4";
+		};
+
+		gps1 {
+			uart = <&pixhawk_gps1_serial>;
+			path = "/dev/ttyS6";
+		};
+
+		usb {
+			uart = <&cdc_acm_uart0>;
+			path = "/dev/ttyACM0";
+		};
+	};
+
+	px4-can-buses {
+		compatible = "px4,can-buses";
+
+		can1 {
+			can = <&fdcan1>;
+		};
+
+		can2 {
+			can = <&fdcan2>;
+		};
+	};
+
+	/*
+	 * CH1 to CH4 (TIM1), on the ESC connector and the PWM pads of the FPV carrier, and CH5 to CH8
+	 * (TIM2) on the PWM pads, at 400 Hz
+	 */
+	px4-pwm-outputs {
+		compatible = "px4,pwm-outputs";
+
+		main1 {
+			pwms = <&cn1_pwm 1 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main2 {
+			pwms = <&cn1_pwm 2 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main3 {
+			pwms = <&cn1_pwm 3 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main4 {
+			pwms = <&cn1_pwm 4 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main5 {
+			pwms = <&cn1_pwm 5 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main6 {
+			pwms = <&cn1_pwm 6 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main7 {
+			pwms = <&cn1_pwm 7 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+
+		main8 {
+			pwms = <&cn1_pwm 8 PWM_HZ(400) PWM_POLARITY_NORMAL>;
+		};
+	};
+
+	/* the white LED, BOARD_LED of the NuttX build */
+	px4-leds {
+		compatible = "px4,leds";
+		blue = <&white_led>;
+	};
+
+	/* the ADC channels of boards/3dr/ctrl-n1/src/board_config.h */
+	px4-adc {
+		compatible = "px4,adc";
+		io-channels = <&adc1 8>, <&adc1 18>, <&adc1 10>;
+		io-channel-names = "scaled-v5", "battery-voltage", "battery-current";
+	};
+
+	fstab {
+		compatible = "zephyr,fstab";
+
+		sd {
+			compatible = "zephyr,fstab,fatfs";
+			mount-point = "/SD:";
+			automount;
+			disk-access;
+		};
+	};
+};
+
+&zephyr_udc0 {
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};

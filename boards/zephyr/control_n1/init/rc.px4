@@ -1,0 +1,52 @@
+# Quadcopter on the ESC connector of the FPV carrier (CH1 to CH4), serial ports as in boards/3dr/ctrl-n1,
+# see platforms/zephyr/app/boards/control_n1_stm32h743xx.overlay
+param set-default MAV_TYPE 2
+param set-default CA_AIRFRAME 0
+param set-default CA_ROTOR_COUNT 4
+param set-default CA_ROTOR0_PX 0.15
+param set-default CA_ROTOR0_PY 0.25
+param set-default CA_ROTOR1_PX -0.15
+param set-default CA_ROTOR1_PY -0.25
+param set-default CA_ROTOR2_PX 0.15
+param set-default CA_ROTOR2_PY -0.25
+param set-default CA_ROTOR2_KM -0.05
+param set-default CA_ROTOR3_PX -0.15
+param set-default CA_ROTOR3_PY 0.25
+param set-default CA_ROTOR3_KM -0.05
+param set-default PWM_MAIN_FUNC1 101
+param set-default PWM_MAIN_FUNC2 102
+param set-default PWM_MAIN_FUNC3 103
+param set-default PWM_MAIN_FUNC4 104
+ver all
+# missions in RAM, as the microSD card is optional
+dataman start -r
+load_mon start
+tone_alarm start
+board_adc start
+battery_status start
+zephyr_sensors start
+sensors start
+commander start
+# CRSF receiver on SG6, the RC port of the NuttX build
+crsf_rc start -d /dev/ttyS4
+rc_update start
+manual_control start
+gps start -d /dev/ttyS6
+ekf2 start
+mag_bias_estimator start
+gyro_calibration start
+control_allocator start
+zephyr_pwm_out start
+mc_rate_control start
+mc_att_control start
+mc_hover_thrust_estimator start
+flight_mode_manager start
+mc_pos_control start
+land_detector start multicopter
+navigator start
+mavlink start -d /dev/ttyS1 -b 57600 -x
+# MAVLink on the USB port, while a ground station has it open
+cdcacm_autostart start
+logger start
+tune_control play -t 1
+mavlink boot_complete
