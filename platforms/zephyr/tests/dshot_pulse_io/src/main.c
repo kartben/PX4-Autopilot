@@ -34,7 +34,8 @@
 /*
  * DShot device on pulse_io channels (px4,dshot-pulse-io), on pulse_io controllers of the test: the
  * configuration of the channels for each bit rate, the cells and symbols of the frames, the channels of a
- * controller that start together and the others, and the errors.
+ * controller that start together and the others, the inverted frames of bidirectional channels and the
+ * replies received after them, and the errors.
  */
 
 #include "fake_pulse_io.h"
@@ -129,8 +130,9 @@ ZTEST(dshot_pulse_io, test_configure_errors)
 {
 	zassert_ok(px4_dshot_configure(dshot, BIT(0), 0, 600000));
 
-	/* no reply is received */
-	zassert_equal(px4_dshot_configure(dshot, BIT(0), BIT(0), 600000), -EINVAL);
+	/* a bidirectional channel on a controller that doesn't receive */
+	zassert_equal(px4_dshot_configure(dshot, BIT(1), BIT(1), 600000), -EINVAL);
+	zassert_ok(px4_dshot_configure(dshot, BIT(0), 0, 600000));
 
 	zassert_equal(px4_dshot_configure(dshot, BIT(0), 0, 400000), -EINVAL);
 	zassert_equal(px4_dshot_configure(dshot, BIT(4), 0, 600000), -EINVAL);
@@ -239,4 +241,105 @@ ZTEST(dshot_pulse_io, test_no_reply)
 	zassert_ok(px4_dshot_configure(dshot, BIT(0), 0, 600000));
 	zassert_ok(px4_dshot_send(dshot, BIT(0), (const uint16_t[1]) {0}));
 	zassert_equal(px4_dshot_get_reply(dshot, 0, &reply), -ENODATA);
+}
+
+/* ticks of a bit of the reply, at 5/4 of the bit rate */
+#define REPLY_BIT_TICKS 32
+
+/* the symbols of a reply 30 us after the frame: the start bit, then 20 bits as line levels, the first in bit 19 */
+static size_t make_reply(struct pulse_symbol *symbols, uint32_t bits)
+{
+	size_t n = 0;
+
+	symbols[n++] = (struct pulse_symbol) {.duration = 720, .level = 1};
+	symbols[n++] = (struct pulse_symbol) {.duration = REPLY_BIT_TICKS, .level = 0};
+
+	for (int i = 19; i >= 0; i--) {
+		const uint32_t level = (bits >> i) & 1;
+
+		if (symbols[n - 1].level == level) {
+			symbols[n - 1].duration += REPLY_BIT_TICKS;
+
+		} else {
+			symbols[n++] = (struct pulse_symbol) {.duration = REPLY_BIT_TICKS, .level = level};
+		}
+	}
+
+	/* the line idles high after the reply */
+	if (symbols[n - 1].level == 1) {
+		symbols[n - 1].duration += 1440;
+
+	} else {
+		symbols[n++] = (struct pulse_symbol) {.duration = 1440, .level = 1};
+	}
+
+	return n;
+}
+
+ZTEST(dshot_pulse_io, test_bidirectional_configure)
+{
+	zassert_ok(px4_dshot_configure(dshot, BIT(0) | BIT(2), BIT(0), 600000));
+
+	/* half duplex, idling high, with a receive that ends 60 us after the last edge */
+	zassert_equal(CH0->cfg.dir, PULSE_IO_DIR_TX_RX);
+	zassert_true(CH0->cfg.idle_high);
+	zassert_equal(CH0->cfg.rx_idle_threshold_ticks, 24 * 60);
+	zassert_equal(CH2->cfg.dir, PULSE_IO_DIR_TX);
+	zassert_false(CH2->cfg.idle_high);
+
+	/* a controller that doesn't receive, and a bidirectional channel that isn't configured */
+	zassert_equal(px4_dshot_configure(dshot, BIT(1), BIT(1), 600000), -EINVAL);
+	zassert_equal(px4_dshot_configure(dshot, BIT(0), BIT(2), 600000), -EINVAL);
+}
+
+ZTEST(dshot_pulse_io, test_bidirectional_frame)
+{
+	/* bits 1010 0101 1100 0011 */
+	const uint16_t frame = 0xa5c3;
+	uint32_t reply;
+
+	zassert_equal(px4_dshot_get_reply(dshot, 0, &reply), -ENODATA);
+
+	zassert_ok(px4_dshot_configure(dshot, BIT(0), BIT(0), 600000));
+	zassert_ok(px4_dshot_send(dshot, BIT(0), &frame));
+
+	/* inverted: the line is low for 3/4 of a 1 and 3/8 of a 0, then idles high, sent without the others */
+	zassert_equal(CH0->transmits, 1);
+	zassert_false(CH0->multi);
+	zassert_equal(CH0->count, 17);
+
+	for (int i = 0; i < 16; i++) {
+		const bool one = (frame & BIT(15 - i)) != 0;
+
+		zassert_equal(CH0->cells[i].duty, one ? BIT_TICKS - ONE_TICKS : BIT_TICKS - ZERO_TICKS, "cell %d", i);
+	}
+
+	zassert_equal(CH0->cells[16].duty, BIT_TICKS);
+
+	/* the line stays high: no reply */
+	zassert_equal(CH0->receives, 1);
+	zassert_equal(px4_dshot_get_reply(dshot, 0, &reply), -ENODATA);
+}
+
+ZTEST(dshot_pulse_io, test_bidirectional_reply)
+{
+	const uint32_t bits[] = {0xa5c3f, 0x00001, 0xfffff, 0x55555};
+	uint32_t reply;
+
+	zassert_ok(px4_dshot_configure(dshot, BIT(0) | BIT(2), BIT(0) | BIT(2), 600000));
+
+	for (size_t i = 0; i < ARRAY_SIZE(bits); i++) {
+		CH0->reply_count = make_reply(CH0->reply, bits[i]);
+		CH2->reply_count = make_reply(CH2->reply, bits[i] ^ 0xfffff);
+
+		zassert_ok(px4_dshot_send(dshot, BIT(0) | BIT(2), (const uint16_t[3]) {0}));
+
+		zassert_ok(px4_dshot_get_reply(dshot, 0, &reply));
+		zassert_equal(reply, bits[i], "reply 0x%05x instead of 0x%05x", reply, bits[i]);
+		zassert_ok(px4_dshot_get_reply(dshot, 2, &reply));
+		zassert_equal(reply, bits[i] ^ 0xfffff);
+
+		/* returned once */
+		zassert_equal(px4_dshot_get_reply(dshot, 0, &reply), -ENODATA);
+	}
 }

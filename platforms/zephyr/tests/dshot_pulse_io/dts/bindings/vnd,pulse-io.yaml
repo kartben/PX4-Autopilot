@@ -20,3 +20,6 @@ properties:
   multi:
     type: boolean
     description: the channels can start together (tx_sync_multi_channel)
+  rx:
+    type: boolean
+    description: the channels receive the reply set by the test after a transmit, through RTIO

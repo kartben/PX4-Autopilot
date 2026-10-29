@@ -7,6 +7,7 @@
 		modes = <3>;
 		cell-duty-bits = <16>;
 		multi;
+		rx;
 	};
 
 	/* symbols only, as the RMT of the ESP32 */

@@ -44,6 +44,7 @@
 #include <string.h>
 
 #include <zephyr/kernel.h>
+#include <zephyr/rtio/rtio.h>
 #include <zephyr/sys/util.h>
 
 struct fake_pio_config {
@@ -51,6 +52,7 @@ struct fake_pio_config {
 	uint32_t modes;
 	uint8_t cell_duty_bits;
 	bool multi;
+	bool rx;
 };
 
 struct fake_pio_data {
@@ -86,6 +88,8 @@ static int fake_pio_get_capabilities(const struct device *dev, struct pulse_io_c
 		.cell_duty_bits = cfg->cell_duty_bits,
 		.num_channels = cfg->num_channels,
 		.supports_tx = true,
+		.supports_rx = cfg->rx,
+		.rx_channel_mask = cfg->rx ? BIT_MASK(cfg->num_channels) : 0,
 		.tx_sync_multi_channel = cfg->multi,
 	};
 
@@ -135,7 +139,8 @@ static int fake_pio_channel_configure(const struct device *dev, struct pulse_io_
 		return -EINVAL;
 	}
 
-	if (((pio_cfg->mode & cfg->modes) == 0) || (pio_cfg->dir != PULSE_IO_DIR_TX)) {
+	if (((pio_cfg->mode & cfg->modes) == 0) ||
+	    ((pio_cfg->dir != PULSE_IO_DIR_TX) && ((pio_cfg->dir != PULSE_IO_DIR_TX_RX) || !cfg->rx))) {
 		return -ENOTSUP;
 	}
 
@@ -240,6 +245,63 @@ static int fake_pio_stop(const struct device *dev, struct pulse_io_channel *chan
 	return 0;
 }
 
+static void fake_pio_submit(const struct device *dev, struct rtio_iodev_sqe *iodev_sqe)
+{
+	const struct fake_pio_config *cfg = dev->config;
+	struct fake_pio_channel *ch = get_channel(dev, pulse_io_iodev_channel(iodev_sqe));
+	const struct rtio_sqe *sqe = &iodev_sqe->sqe;
+
+	if ((ch == NULL) || !ch->configured) {
+		rtio_iodev_sqe_err(iodev_sqe, -EINVAL);
+		return;
+	}
+
+	if (sqe->op == RTIO_OP_TX) {
+		const struct pulse_io_tx_req req = {
+			.symbols = (const struct pulse_symbol *)sqe->tx.buf,
+			.count = sqe->tx.buf_len / sizeof(struct pulse_symbol),
+		};
+
+		if (req.count > FAKE_PIO_MAX_ENTRIES) {
+			rtio_iodev_sqe_err(iodev_sqe, -ENOMEM);
+			return;
+		}
+
+		const int ret = transmit(ch, &req, ++sequence, false);
+
+		if (ret < 0) {
+			rtio_iodev_sqe_err(iodev_sqe, ret);
+
+		} else {
+			rtio_iodev_sqe_ok(iodev_sqe, 0);
+		}
+
+		return;
+	}
+
+	if ((sqe->op != RTIO_OP_RX) || !cfg->rx || (ch->cfg.dir != PULSE_IO_DIR_TX_RX)) {
+		rtio_iodev_sqe_err(iodev_sqe, -ENOTSUP);
+		return;
+	}
+
+	/* without a reply, the line stays at its idle level */
+	const struct pulse_symbol idle = {.duration = ch->cfg.rx_idle_threshold_ticks, .level = 1};
+	const struct pulse_symbol *reply = (ch->reply_count > 0) ? ch->reply : &idle;
+	const size_t count = MAX(ch->reply_count, 1);
+	uint8_t *buf;
+	uint32_t buf_len;
+	const int ret = rtio_sqe_rx_buf(iodev_sqe, count * sizeof(reply[0]), count * sizeof(reply[0]), &buf, &buf_len);
+
+	if (ret < 0) {
+		rtio_iodev_sqe_err(iodev_sqe, ret);
+		return;
+	}
+
+	memcpy(buf, reply, count * sizeof(reply[0]));
+	ch->receives++;
+	rtio_iodev_sqe_ok(iodev_sqe, count * sizeof(reply[0]));
+}
+
 static DEVICE_API(pulse_io, fake_pio_api) = {
 	.get_capabilities = fake_pio_get_capabilities,
 	.channel_get = fake_pio_channel_get,
@@ -249,6 +311,7 @@ static DEVICE_API(pulse_io, fake_pio_api) = {
 	.receive_sync = fake_pio_receive_sync,
 	.stop = fake_pio_stop,
 	.transmit_multi_sync = fake_pio_transmit_multi_sync,
+	.submit = fake_pio_submit,
 };
 
 #define FAKE_PIO_DEFINE(inst)                                                                                  \
@@ -258,6 +321,7 @@ static DEVICE_API(pulse_io, fake_pio_api) = {
 		.modes = DT_INST_PROP(inst, modes),                                                            \
 		.cell_duty_bits = DT_INST_PROP(inst, cell_duty_bits),                                          \
 		.multi = DT_INST_PROP(inst, multi),                                                            \
+		.rx = DT_INST_PROP(inst, rx),                                                                  \
 	};                                                                                                     \
 	static struct fake_pio_data fake_pio_data_##inst;                                                      \
 	DEVICE_DT_INST_DEFINE(inst, NULL, NULL, &fake_pio_data_##inst, &fake_pio_config_##inst, POST_KERNEL,   \
@@ -280,6 +344,8 @@ void fake_pio_clear(void)
 			ch->sequence = 0;
 			ch->multi = false;
 			ch->transmit_error = 0;
+			ch->reply_count = 0;
+			ch->receives = 0;
 		}
 	}
 }

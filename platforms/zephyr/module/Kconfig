@@ -229,10 +229,12 @@ config PX4_DSHOT_PULSE_IO
 	default y
 	depends on DT_HAS_PX4_DSHOT_PULSE_IO_ENABLED
 	select PULSE_IO
+	select RTIO
 	help
 	  Enable the DShot devices of the px4,dshot-pulse-io devicetree nodes,
 	  which send the frames of the PX4 dshot driver on pulse_io channels,
-	  such as the channels of an STM32 timer.
+	  such as the channels of an STM32 timer, and receive the replies of
+	  bidirectional DShot on half duplex channels through RTIO.
 
 config PX4_DSHOT_PULSE_IO_INIT_PRIORITY
 	int "Init priority of the DShot devices on pulse_io channels"

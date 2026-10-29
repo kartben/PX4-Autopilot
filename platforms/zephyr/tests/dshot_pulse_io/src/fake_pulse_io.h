@@ -63,6 +63,10 @@ struct fake_pio_channel {
 	bool multi;
 	/* error of the next transmits, 0 to send */
 	int transmit_error;
+	/* the reply received after each transmit through RTIO, the line idling high without one */
+	struct pulse_symbol reply[FAKE_PIO_MAX_ENTRIES];
+	size_t reply_count;
+	uint32_t receives;
 };
 
 /* reset the recordings, keeping the reservations and configurations */
