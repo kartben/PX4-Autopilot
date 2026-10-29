@@ -1,5 +1,7 @@
 # Quadcopter on the ESC connector of the FPV carrier (CH1 to CH4), serial ports as in boards/3dr/ctrl-n1,
 # see platforms/zephyr/app/boards/control_n1_stm32h743xx.overlay
+# the airframe that ground stations show, the quadcopter X below: there is no airframe script to apply on Zephyr
+param set-default SYS_AUTOSTART 4001
 param set-default MAV_TYPE 2
 param set-default CA_AIRFRAME 0
 param set-default CA_ROTOR_COUNT 4
