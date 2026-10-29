@@ -86,6 +86,11 @@ if(CONFIG_PX4_FLEXSPI_PREFETCH_OFF)
 	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_flexspi.c)
 endif()
 
+if(CONFIG_PX4_PC_PROFILE)
+	zephyr_library_named(px4_pc_profile)
+	zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_pc_profile.c)
+endif()
+
 zephyr_library_named(px4_pthread)
 # px4_pthread_attr_destroy() keeps the stacks that threads run on, see px4_pthread.c
 zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_pthread.c)

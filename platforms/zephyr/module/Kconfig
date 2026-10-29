@@ -282,6 +282,22 @@ config PX4_ITCM
 	  and run it from there instead of in place from the flash. For boards
 	  whose flash is slow to fetch instructions from.
 
+config PX4_PC_PROFILE
+	bool "Program counter sampling"
+	depends on ARMV7_M_ARMV8_M_MAINLINE && !ARMV8_M_MAINLINE
+	depends on CPU_CORTEX_M_HAS_DWT
+	depends on SHELL
+	help
+	  Sample the program counter on a cycle count match of the DWT, from
+	  the DebugMonitor exception, without a debug probe. The pc_profile
+	  shell command starts and stops the sampling and prints the samples,
+	  which Tools/itcm_profile.py ranks for the ITCM function list.
+
+config PX4_PC_PROFILE_SAMPLES
+	int "Number of program counter samples"
+	default 16384
+	depends on PX4_PC_PROFILE
+
 config PX4_FLEXSPI_PREFETCH_OFF
 	bool "No AHB read prefetch of the FlexSPI flash"
 	default y
