@@ -164,17 +164,41 @@
 	};
 };
 
-/* the DShot frames on CH1 to CH4, 16 cells and two idle cells, with the DMA request of TIM1_UP */
+/*
+ * the DShot frames on CH1 to CH4, 16 cells and two idle cells, with the DMA request of TIM1_UP, and the replies of
+ * bidirectional DShot with the capture DMA requests of TIM1_CH1 to TIM1_CH4
+ */
 &timers1 {
 	tim1_pio: pulse-io {
 		compatible = "st,stm32-pulse-io";
 		pinctrl-0 = <&tim1_ch1_pa8 &tim1_ch2_pe11 &tim1_ch3_pe13 &tim1_ch4_pe14>;
 		pinctrl-names = "default";
-		dmas = <&dmamux1 1 15 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH)>;
-		dma-names = "tx";
+		dmas = <&dmamux1 1 15 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH)>,
+		       <&dmamux1 2 11 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>,
+		       <&dmamux1 3 12 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>,
+		       <&dmamux1 4 13 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>,
+		       <&dmamux1 5 14 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>;
+		dma-names = "tx", "ch1", "ch2", "ch3", "ch4";
 		#pulse-io-cells = <1>;
 		st,max-cells = <18>;
 	};
+};
+
+/* the lines of bidirectional DShot idle high while the ESC replies */
+&tim1_ch1_pa8 {
+	bias-pull-up;
+};
+
+&tim1_ch2_pe11 {
+	bias-pull-up;
+};
+
+&tim1_ch3_pe13 {
+	bias-pull-up;
+};
+
+&tim1_ch4_pe14 {
+	bias-pull-up;
 };
 
 &zephyr_udc0 {
