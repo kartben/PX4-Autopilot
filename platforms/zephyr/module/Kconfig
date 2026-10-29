@@ -276,11 +276,43 @@ config PX4_ITCM
 	bool "Run the most used code from ITCM"
 	depends on XIP
 	depends on $(dt_chosen_enabled,$(DT_CHOSEN_PX4_ITCM))
+	help
+	  Copy the code that runs most to the ITCM at boot, and run it from
+	  there instead of in place from the flash. The build takes the code of
+	  module/itcm_functions.ld, ranked by Tools/itcm_profile.py, in order
+	  while it fits in the ITCM.
+
+config PX4_ITCM_LIBRARIES
+	bool "Whole libraries in ITCM"
+	default y if SOC_SERIES_IMXRT11XX
+	depends on PX4_ITCM
 	select CODE_DATA_RELOCATION
 	help
-	  Copy the code that runs at the rate of the IMU to the ITCM at boot,
-	  and run it from there instead of in place from the flash. For boards
-	  whose flash is slow to fetch instructions from.
+	  Also copy whole libraries to the ITCM: the kernel, the interrupt
+	  entry and exit, uORB, the work queues, the sensors, the rate and
+	  attitude controllers, the control allocation, SIH, the USB device
+	  stack and the math functions of the C library. For boards whose ITCM
+	  holds them, with a flash slow to fetch instructions from.
+
+config PX4_ITCM_RESERVE
+	int "ITCM bytes kept for other code"
+	default 147456 if PX4_ITCM_LIBRARIES
+	default 0
+	depends on PX4_ITCM
+	help
+	  Bytes of the ITCM left out of the ranked list, for the whole
+	  libraries of PX4_ITCM_LIBRARIES and any other code in the ITCM.
+
+config PX4_ITCM_FILL
+	int "Share of the ITCM filled from the ranked list, in percent"
+	range 10 100
+	default 80 if SPEED_OPTIMIZATIONS
+	default 95
+	depends on PX4_ITCM
+	help
+	  The sizes of the ranked list are those of the profiled firmware. The
+	  margin covers the code that the compiler builds larger, as at -O2
+	  for a list profiled at -Os.
 
 config PX4_PC_PROFILE
 	bool "Program counter sampling"

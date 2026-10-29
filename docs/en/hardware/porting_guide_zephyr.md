@@ -46,7 +46,8 @@ The PX4 options of the Zephyr configuration are:
 | `CONFIG_PX4_LEDS`                 | Enable the LED drivers for the board and RGB LEDs (enabled by the `px4,leds` node).                 |
 | `CONFIG_PX4_SAFETY_BUTTON`        | Enable the Zephyr GPIO API for the safety button (enabled by the `px4,safety-button` node).         |
 | `CONFIG_PX4_STACK_OVERHEAD`       | Bytes added to the stack of each PX4 task and work queue.                                           |
-| `CONFIG_PX4_ITCM`                 | Run the most used code from the ITCM instead of the flash (enabled on the MIMXRT1170-EVK).          |
+| `CONFIG_PX4_ITCM`                 | Run the most used code from the ITCM, see [Code in the ITCM](#code-in-the-itcm).                    |
+| `CONFIG_PX4_PC_PROFILE`           | Sample the program counter without a debug probe, for the ITCM list (`pc_profile` shell command).   |
 | `CONFIG_PX4_FLEXSPI_PREFETCH_OFF` | Turn off the AHB read prefetch of the flash the firmware runs from (enabled on the i.MX RT1170).    |
 
 ## Setting Up a Workspace
@@ -205,17 +206,11 @@ The driver receives with DMA, and sends the telemetry of `crsf_rc`.
 
 The EVK runs the firmware from its quad SPI flash, which stalls the CPU for hundreds of cycles when an instruction isn't in the cache.
 With the 32 KiB instruction cache of the Cortex-M7, the flight stack spends most of its time waiting for the flash.
-`CONFIG_PX4_ITCM` runs the most used code from the ITCM, the instruction memory of the Cortex-M7, instead: the kernel, uORB, the work queues, the sensors, the rate and attitude controllers, the control allocation, the simulator and the trigonometric functions of the C library, and the functions of [itcm_functions.ld](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/zephyr/module/itcm_functions.ld), which a profile of SIH on the EVK found running most from the flash, within the free space of the ITCM.
+`CONFIG_PX4_ITCM` runs the most used code from the ITCM, the instruction memory of the Cortex-M7, instead: on the i.MX RT1170, `CONFIG_PX4_ITCM_LIBRARIES` copies the kernel, uORB, the work queues, the sensors, the rate and attitude controllers, the control allocation, the simulator, the USB device stack and the trigonometric functions of the C library, and the rest of the ITCM takes the ranked list of [Code in the ITCM](#code-in-the-itcm).
 The flight stack then uses about 55% of the CPU at 400 Hz, instead of 94% with only the code that runs at the rate of the IMU.
 
 The boot ROM also leaves the AHB read prefetch of the FlexSPI on, which Zephyr keeps when running in place: a fetch from the flash then waits for the prefetch of other data to finish, and the CPU stalls for 50 to 60 µs many times per second, also with interrupts locked, which delays them by as much.
 `CONFIG_PX4_FLEXSPI_PREFETCH_OFF` turns it off at boot: in SIH at 400 Hz, the CPU load goes from 28% to 18%, and no hrt callout runs more than 100 µs late, instead of several per minute.
-
-[Tools/itcm_profile.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/itcm_profile.py) makes the list again, for example after changes to the flight stack, from the program counter of a board running SIH, sampled with pyOCD, within the free space of the ITCM:
-
-```sh
-PX4-Autopilot/Tools/itcm_profile.py --target mimxrt1170_cm7 --max-size 82500 build/zephyr/zephyr.elf build/zephyr/zephyr.map --output PX4-Autopilot/platforms/zephyr/module/itcm_functions.ld
-```
 
 ## Running the Tests
 
@@ -859,6 +854,21 @@ The NXP VMU RT1170 has the safety switch of FMU-v6XRT, on GPS1: the arming butto
 The Zephyr board has a pull-down on the button, with which a disconnected switch is released, where NuttX enables the pull-up of the pin.
 Its board configuration starts `safety_button`, but has no Commander, so that the button doesn't turn safety off, and the LED stays off.
 This adds 1.3 KiB of flash and 20 bytes of static RAM.
+
+### Code in the ITCM
+
+On a Cortex-M7, `CONFIG_PX4_ITCM` copies the code that runs most to the ITCM at boot, where it runs without waiting for the flash or the instruction cache.
+[itcm_functions.ld](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/zephyr/module/itcm_functions.ld) ranks that code by samples per byte, each line with the size of its input section, and the build takes the lines in order while they fit in the ITCM of the chosen `zephyr,itcm` node, less `CONFIG_PX4_ITCM_RESERVE`, filled to `CONFIG_PX4_ITCM_FILL` percent: the sizes are those of the profiled firmware, built at -Os, so that -O2 leaves a larger margin.
+On the 3DR Control N1, whose STM32H743 has 64 KiB of ITCM, 538 input sections fit at -Os and 490 at -O2; in SIH at 400 Hz, the CPU load goes from 32.5% to 28.1% at -Os, and from 22.9% to 19.9% at -O2.
+
+[Tools/itcm_profile.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/itcm_profile.py) makes the list again, for example after changes to the flight stack, from the program counter of a board flying SIH with no code in the ITCM.
+A probe samples it with pyOCD, or the firmware itself with `CONFIG_PX4_PC_PROFILE`: the cycle counter of the DWT raises the DebugMonitor exception, which records the interrupted program counter, only while the CPU runs.
+In the MAVLink shell, `pc_profile start` samples 16384 times, at about 2 kHz of CPU time, `pc_profile status` tells when it is done, and `pc_profile dump` prints the samples, which the script reads:
+
+```sh
+PX4-Autopilot/Tools/itcm_profile.py build/zephyr/zephyr.elf build/zephyr/zephyr.map --samples-file samples_*.txt --output PX4-Autopilot/platforms/zephyr/module/itcm_functions.ld
+PX4-Autopilot/Tools/itcm_profile.py build/zephyr/zephyr.elf build/zephyr/zephyr.map --target mimxrt1170_cm7 --output PX4-Autopilot/platforms/zephyr/module/itcm_functions.ld
+```
 
 ## Footprint
 

@@ -1,244 +1,1044 @@
-/* Functions that run most from the flash, from Tools/itcm_profile.py */
+/*
+ * Code that runs most from the flash, ranked by samples per byte, with the size of each
+ * input section, from Tools/itcm_profile.py. The build takes the lines in order while
+ * they fit in the ITCM, see itcm_fit.py.
+ */
 
-*(.text._ZN21ActuatorEffectiveness24allocateAuxilaryControlsEfiRN6matrix6VectorIfLj16EEE)
-*(.text._ZN7Battery13updateVoltageEf)
-*(.text.px4_sem_post)
-*(.text._ZN3px46logger15watchdog_updateERNS0_15watchdog_data_tEb)
-*(.text._Z12get_orb_meta6ORB_ID)
-*(.text._ZThn16_N4EKF23RunEv)
-*(.text.led_off)
-*(.text.pthread_mutex_lock)
-*(.text.hrt_absolute_time)
-*(.text.hrt_elapsed_time)
-*(.text.px4_sem_getvalue)
-*(.text._ZNK3px46logger9LogWriter20had_file_write_errorEv)
-*(.text.px4_sem_wait)
-*(.text._ZL14hrt_call_enterP8hrt_call)
-*(.text._ZN17GainCompression3d5resetEv)
-*(.text.z_arm_mpu_stack_guard_and_fpu_adjust)
-*(.text._ZN11AlphaFilterIN6matrix7Vector2IfEEE17updateCalculationERKS2_)
-*(.text.sys_bitarray_test_bit)
-*(.text._ZN39ControlAllocationSequentialDesaturation19desaturateActuatorsERN6matrix6VectorIfLj16EEERKS2_b)
-*(.text._ZL14timer_callbackPv)
-*(.text._ZThn24_N31MulticopterHoverThrustEstimator3RunEv)
-*(.text._ZL19hrt_call_reschedulev)
-*(.text._ZThn16_N7sensors19VehicleAcceleration3RunEv)
-*(.text._ZN17AtomicTransaction10_get_mutexEv)
-*(.text._ZThn8_N6PWMSim3RunEv)
-*(.text._ZThn16_N7sensors14VehicleAirData3RunEv)
-*(.text._ZN39ControlAllocationSequentialDesaturation23computeDesaturationGainERKN6matrix6VectorIfLj16EEES4_)
-*(.text._ZNK8Failsafe22modifyUserIntendedModeEN12FailsafeBase6ActionES1_h)
-*(.text._ZNK13MapProjection7projectEddRfS0_)
-*(.text._ZN15PositionControl15setThrustLimitsEff)
-*(.text.px4_usleep)
-*(.text._ZN7Battery29updateAndPublishBatteryStatusERKy)
-*(.text._ZNK6matrix10QuaternionIfE12rotateVectorERKNS_7Vector3IfEE)
-*(.text.rand)
-*(.text._ZN3px46logger6Logger13update_paramsEv)
-*(.text._ZN4EKF215PublishAttitudeERKy.part.0.isra.0)
-*(.text._ZL16hrt_timer_expiryP7k_timer)
-*(.text._ZNK21ActuatorEffectiveness16getStoppedMotorsEv)
-*(.text.memcmp)
-*(.text._ZNK3px46logger9LogWriter10is_startedENS0_7LogTypeE)
-*(.text._ZN3Ekf17measurementUpdateERN6matrix6VectorIfLj24EEERKS2_ff)
-*(.text.hrt_call_after)
-*(.text._ZN13land_detector23MulticopterLandDetector19_get_freefall_stateEv)
-*(.text._ZThn24_N16BatterySimulator3RunEv)
-*(.text._ZNK14ModeManagement20modeExecutorInChargeEv)
-*(.text.random)
-*(.text._ZN39ControlAllocationSequentialDesaturation6mixYawEv)
-*(.text._ZN12FailsafeBase14deferFailsafesEbi)
-*(.text._Z22get_mag_strength_gaussff)
-*(.text.set_led)
-*(.text._ZNK18EstimatorInterface11getPositionEv)
-*(.text._ZN6PWMSim13updateOutputsEPfjj)
-*(.text._ZN15PositionControl8setStateERK21PositionControlStates)
-*(.text._Z7led_offi)
-*(.text._ZN4EKF215PublishOdometryERKyRKN9estimator9imuSampleE)
-*(.text._ZN12FailsafeBase25removeNonActivatedActionsEv)
-*(.text._ZN4EKF221PublishGlobalPositionERKy.part.0)
-*(.text._ZN15PositionControl6updateEf)
-*(.text._ZN11ControlMath19addIfNotNanVector3fERN6matrix7Vector3IfEERKS2_)
-*(.text._ZN4EKF225UpdateRangingBeaconSampleER17ekf2_timestamps_s)
-*(.text._ZN10FlightTask8activateERK21trajectory_setpoint_s)
-*(.text._ZN11ControlMath20setZeroIfNanVector3fERN6matrix7Vector3IfEE)
-*(.text._ZNK10EKFGSF_yaw17ahrsCalcAccelGainEv)
-*(.text._ZNK17ControlAllocation20clipActuatorSetpointERN6matrix6VectorIfLj16EEE)
-*(.text._ZN11ControlMath16thrustToAttitudeERKN6matrix7Vector3IfEEfR27vehicle_attitude_setpoint_s)
-*(.text._ZN15PositionControl16_positionControlEv)
-*(.text._ZN39ControlAllocationSequentialDesaturation8allocateEv)
-*(.text._ZN3Ekf17constrainStateVarERKN9estimator6IdxDofEff)
-*(.text._ZNK18EstimatorInterface23isNorthEastAidingActiveEv)
-*(.text._ZN6matrix9AxisAngleIfEC2ERKNS_10QuaternionIfEE)
-*(.text._ZN3Ekf27constrainStateVarLimitRatioERKN9estimator6IdxDofEfff)
-*(.text._ZN8Failsafe17isFailsafeIgnoredEhi)
-*(.text._ZN14ImuDownSampler6updateERKN9estimator9imuSampleE)
-*(.text._ZNK6matrix10QuaternionIfE19rotateVectorInverseERKNS_7Vector3IfEE)
-*(.text._ZN4EKF215PublishBaroBiasERKy)
-*(.text._ZN4EKF221UpdateGyroCalibrationERKy)
-*(.text.led_gpio_set_brightness)
-*(.text._ZN12AdsbConflict23valid_wgs84_coordinatesEdd)
-*(.text._ZN3Ekf26fuseDirectStateMeasurementEfffib)
-*(.text._ZNK3Ekf39getHeightAboveGroundInnovationTestRatioEv)
-*(.text._ZN4EKF219UpdateGnssYawSampleEv)
-*(.text._ZN13land_detector12LandDetector3RunEv)
-*(.text._ZN3px46logger6Logger29handle_vehicle_command_updateEv)
-*(.text._ZNK10EKFGSF_yaw10getLogDataEPfS0_S0_S0_S0_S0_)
-*(.text._ZN4math11NotchFilterIN6matrix7Vector2IfEEE13applyInternalERKS3_)
-*(.text._ZN11RateControl19setSaturationStatusERKN6matrix7Vector3IbEES4_)
-*(.text._ZN39ControlAllocationSequentialDesaturation18mixAirmodeDisabledEv)
-*(.text._ZN6Safety19safetyButtonHandlerEv)
-*(.text._ZN4EKF220PublishLocalPositionERKy)
-*(.text._ZN18EstimatorInterface10setIMUDataERKN9estimator9imuSampleE)
-*(.text._ZNK3Ekf21updateAidSourceStatusI24estimator_aid_source3d_sN6matrix7Vector3IfEES4_EEvRT_RKyRKT1_RKT0_SE_SE_f.isra.0)
-*(.text._ZN6matrix9constrainIfLj3ELj1EEENS_6MatrixIT_XT0_EXT1_EEERKS3_S2_S2_)
-*(.text._ZN10FlightTask10reActivateEv)
-*(.text._Z27get_mag_declination_degreesff)
-*(.text._ZN3LED5ioctlEPN4cdev6file_tEim)
-*(.text._Z27get_mag_inclination_degreesff)
-*(.text._ZN4EKF222PublishAidSourceStatusI24estimator_aid_source2d_sEEvRKyRKT_RyRN4uORB16PublicationMultiIS4_EE.isra.0)
-*(.text._ZN8StickYaw5resetEff)
-*(.text._ZN4EKF227PublishInnovationTestRatiosERKy)
-*(.text._ZN10EKFGSF_yaw7predictERKN6matrix7Vector3IfEEfS4_fb)
-*(.text._ZN10EKFGSF_yaw11ahrsPredictEhRKN6matrix7Vector3IfEEf)
-*(.text._ZN6PWMSim3RunEv)
-*(.text._ZN17FlightModeManager26generateTrajectorySetpointEfRK24vehicle_local_position_s)
-*(.text._ZN3Ekf21updateTerrainValidityEv)
-*(.text._ZN15PositionControl11_inputValidEv)
-*(.text.mcux_igpio_port_set_bits_raw)
-*(.text._ZN3Ekf20controlGravityFusionERKN9estimator9imuSampleE)
-*(.text._ZN7sensors19VehicleAcceleration3RunEv)
-*(.text._ZN4math15LowPassFilter2pIN6matrix7Vector3IfEEE5applyERKS3_)
-*(.text._ZN7sensors19VehicleAcceleration16SensorBiasUpdateEb)
-*(.text._ZN11RateControl6updateERKN6matrix7Vector3IfEES4_S4_fb)
-*(.text._ZN9RtlDirect11on_inactiveEv)
-*(.text._ZN3Ekf19controlHeightFusionERKN9estimator9imuSampleE)
-*(.text._ZN17VelocitySmoothing5resetEfff)
-*(.text._ZN7Battery16getBatteryStatusEv)
-*(.text._ZN7Battery19updateBatteryStatusERKy)
-*(.text._ZN4EKF216UpdateBaroSampleER17ekf2_timestamps_s)
-*(.text._ZN13NavigatorMode3runEb)
-*(.text._ZN4EKF218PublishInnovationsERKy)
-*(.text._ZN8Failsafe14fromGfActParamEi)
-*(.text._ZN9Commander17checkWorkerThreadEv)
-*(.text._ZN4EKF213PublishStatusERKy)
-*(.text._ZNK3Ekf29getHeadingInnovationTestRatioEv)
-*(.text._ZN4EKF222PublishAidSourceStatusERKy)
-*(.text._ZN15PositionControl20_accelerationControlEv)
-*(.text._ZN13BiasEstimator7predictEf)
-*(.text._ZN3Ekf33updateVerticalDeadReckoningStatusEv)
-*(.text._ZN17FlightModeManager3RunEv)
-*(.text._ZN7Battery13updateCurrentEf)
-*(.text.pthread_mutex_unlock)
-*(.text.acquire_mutex)
-*(.text._ZN4EKF222PublishAidSourceStatusI24estimator_aid_source1d_sEEvRKyRKT_RyRN4uORB16PublicationMultiIS4_EE.isra.0)
-*(.text._ZN11ControlMath9limitTiltERN6matrix7Vector3IfEERKS2_f)
-*(.text._ZN13land_detector23MulticopterLandDetector25_get_ground_contact_stateEv)
-*(.text._ZN4EKF215UpdateMagSampleER17ekf2_timestamps_s)
-*(.text._ZThn16_N31ActuatorEffectivenessMultirotor22getEffectivenessMatrixERN21ActuatorEffectiveness13ConfigurationE25EffectivenessUpdateReason)
-*(.text._ZN3Ekf12predictStateERKN9estimator9imuSampleE)
-*(.text._ZN13land_detector23MulticopterLandDetector23_get_maybe_landed_stateEv)
-*(.text._ZNK3Ekf13getRotVarBodyEv)
-*(.text._ZN16HeadingSmoothing5resetEff)
-*(.text._ZN4EKF217UpdateCalibrationERKyRNS_19InFlightCalibrationERKN6matrix7Vector3IfEES8_fbb)
-*(.text._ZN3Ekf17predictCovarianceERKN9estimator9imuSampleE)
-*(.text._ZN15FailureDetector20updateAttitudeStatusERK16vehicle_status_s)
-*(.text._ZN14ImuDownSampler5resetEv)
-*(.text._ZN4EKF222UpdateAccelCalibrationERKy)
-*(.text._ZNK14ModeManagement18getNavStateDisplayEh)
-*(.text._ZN26MulticopterPositionControl18set_vehicle_statesERK24vehicle_local_position_sf)
-*(.text._ZN3Ekf11fuseHaglRngER24estimator_aid_source1d_sbb.part.0)
-*(.text._ZNK14FlightTaskAuto16isTargetModifiedEv)
-*(.text._ZNK3Ekf19get_ekf_ctrl_limitsEPfS0_S0_S0_S0_)
-*(.text._ZN9Commander16vtolStatusUpdateEv)
-*(.text._ZN11GotoControl16checkForSetpointERKyb)
-*(.text._ZN14FlightTaskAuto10reActivateEv)
-*(.text._ZNK3Ekf36estimateInertialNavFallingLikelihoodEv)
-*(.text._ZN14ModeManagement20checkConfigOverridesEv)
-*(.text._ZNK3Ekf40getHorizontalPositionInnovationTestRatioEv)
-*(.text._ZNK3Ekf12getRotVarNedEv)
-*(.text._ZNK15PositionControl24getLocalPositionSetpointER33vehicle_local_position_setpoint_s)
-*(.text._ZN4EKF222PublishAidSourceStatusI24estimator_aid_source3d_sEEvRKyRKT_RyRN4uORB16PublicationMultiIS4_EE.isra.0)
-*(.text._ZN15PX4Magnetometer6updateERKyfff)
-*(.text._ZN10FlightTask29_evaluateVehicleLocalPositionEv)
-*(.text._ZN17VelocitySmoothing10updateTrajEff)
-*(.text._ZN4EKF218PublishGnssHgtBiasERKy)
-*(.text._ZN15TakeoffHandling10updateRampEff)
-*(.text._Z35mavlink_wpm_distance_to_point_localffffffPfS_)
-*(.text._ZN3px46logger6Logger23handle_file_write_errorEv)
-*(.text._ZN4EKF220PublishFusionControlERKy.part.0)
-*(.text._ZN9Navigator23reset_position_setpointER19position_setpoint_s)
-*(.text._ZN3Ekf6updateEv.part.0)
-*(.text._Z8set_tunei)
-*(.text._ZThn24_N12SensorMagSim3RunEv)
-*(.text._ZThn24_N26MulticopterPositionControl3RunEv)
-*(.text._ZN4EKF219PublishWindEstimateERKy)
-*(.text._ZN4EKF225PublishYawEstimatorStatusERKy)
-*(.text._ZN14ModeManagement33checkConfigControlSetpointUpdatesEhb)
-*(.text._ZN12SensorMagSim3RunEv.part.0)
-*(.text._ZN6matrix10QuaternionIfEC2ERKNS_7Vector3IfEES5_f)
-*(.text._ZN9Commander3runEv)
-*(.text._ZN3Ekf4fuseERKN6matrix6VectorIfLj24EEEf)
-*(.text._ZN9systemlib10Hysteresis20set_state_and_updateEbRKy)
-*(.text._ZN12HomePosition31hasMovedFromCurrentHomeLocationEv)
-*(.text._ZNK17PositionSmoothing14_getMaxXYSpeedERA3_KN6matrix7Vector3IfEE)
-*(.text._ZN3Ekf18controlFusionModesERKN9estimator9imuSampleE)
-*(.text._ZN12FailsafeBase10modeCanRunERK16failsafe_flags_sh)
-*(.text._ZN3Ekf31checkVerticalAccelerationHealthERKN9estimator9imuSampleE)
-*(.text._ZNK3Ekf38getVerticalPositionInnovationTestRatioEv)
-*(.text._ZN7sensors19VehicleMagnetometer12UpdateStatusEv)
-*(.text._ZN18ZeroVelocityUpdate6updateER3EkfRKN9estimator9imuSampleE)
-*(.text._ZNK3Ekf30clearInhibitedStateKalmanGainsERN6matrix6VectorIfLj24EEE)
-*(.text._ZNK3Ekf21get_ekf_lpos_accuracyEPfS0_)
-*(.text._ZN3Ekf20updateIMUBiasInhibitERKN9estimator9imuSampleE)
-*(.text._ZNK3Ekf19get_ekf_soln_statusEv)
-*(.text._ZN9Commander11updateTunesEv)
-*(.text._ZN9Commander30handleModeIntentionAndFailsafeEv)
-*(.text._ZN14ModeManagement20checkUnregistrationsEhRNS_13UpdateRequestE)
-*(.text._ZN7Mission11on_inactiveEv)
-*(.text.nanosleep)
-*(.text._ZN15PositionControl16_velocityControlEf)
-*(.text._ZN21HealthAndArmingChecks6updateEbb)
-*(.text._ZN14ModeManagement29getNavStateReplacementIfValidEhb)
-*(.text._ZN10FlightTask37_evaluateVehicleLocalPositionSetpointEv)
-*(.text._ZN3Ekf23constrainStateVariancesEv)
-*(.text._ZN3px46logger6Logger18start_stop_loggingEv)
-*(.text._ZN12FailsafeBase6updateERKyRKNS_5StateEbbRK16failsafe_flags_s)
-*(.text._ZN4EKF217PublishEventFlagsERKy)
-*(.text._ZN17PositionSmoothing19_generateTrajectoryERKN6matrix7Vector3IfEES4_fRNS_26PositionSmoothingSetpointsE.part.0)
-*(.text.px4_board_led_set)
-*(.text._ZNK3Ekf18getHeadingInnovVarEv)
-*(.text._ZNK14DetectAndAvoid20gather_ownship_inputER11daa_input_s)
-*(.text._ZN9Navigator24publish_navigator_statusEv)
-*(.text.board_read_VBUS_state)
-*(.text._ZN8Geofence18isBelowMaxAltitudeEf)
-*(.text._ZN3Ekf35updateHorizontalDeadReckoningstatusEv)
-*(.text._ZN7Battery20computeRemainingTimeEf)
-*(.text._ZN11ControlMath15bodyzToAttitudeEN6matrix7Vector3IfEEfR27vehicle_attitude_setpoint_s)
-*(.text._ZN12HomePosition6updateEbb)
-*(.text._ZN4EKF23RunEv)
-*(.text._ZN31MulticopterHoverThrustEstimator3RunEv)
-*(.text._ZNK3Ekf40getHorizontalVelocityInnovationTestRatioEv)
-*(.text._ZN14FlightTaskAuto10_smoothYawEv)
-*(.text._ZNK18DynamicSparseLayer3getEt)
-*(.text._ZN8Failsafe17checkStateAndModeERKyRKN12FailsafeBase5StateERK16failsafe_flags_s)
-*(.text._ZN13SensorBaroSim3RunEv.part.0)
-*(.text._ZNK3Ekf20get_ekf_vel_accuracyEPfS0_)
-*(.text._ZN9Commander20battery_status_checkEv)
-*(.text._ZN7Battery21estimateStateOfChargeEv)
-*(.text._ZN14FlightTaskAuto16updateInitializeEv)
-*(.text._ZN3Ekf24controlTerrainFakeFusionEv)
-*(.text.px4_clock_gettime)
-*(.text._ZN7sensors14VehicleAirData12UpdateStatusEv)
-*(.text._ZN12PX4Barometer6updateERKyf)
-*(.text._ZN16BatterySimulator3RunEv.part.0)
-*(.text._ZN14ModeManagement27updateActiveConfigOverridesEhR18config_overrides_s)
-*(.text._ZN4EKF223UpdateSystemFlagsSampleER17ekf2_timestamps_s)
-*(.text._ZN26MulticopterPositionControl3RunEv.part.0)
-*(.text._ZL14get_table_dataffPA37_Ks)
-*(.text._ZN9Commander17systemPowerUpdateEv)
-*(.text._ZN4EKF220UpdateMagCalibrationERKy)
-*(.text._ZN13land_detector23MulticopterLandDetector14_update_topicsEv)
-*(.text._ZN14FlightTaskAuto22_updateTrajConstraintsEv)
-*(.text._ZN11ControlMath11constrainXYERKN6matrix7Vector2IfEES4_RKf)
-*(.text._ZN17GainCompression3d6updateERKN6matrix7Vector3IfEEf)
+*(.text._ZN13MavlinkStream10const_rateEv) /* 4 */
+*(.text._ZN13MavlinkStream11update_dataEv) /* 2 */
+*(.text.sys_clock_cycle_get_64) /* 4 */
+*(.text.timer_core_cycle_get) /* 44 */
+*(.text.USB_ReadInterrupts) /* 8 */
+*(.text._ZN4uORB7Manager17updates_availableEPKvj) /* 36 */
+*(.text.hrt_absolute_time) /* 18 */
+*(.text.sys_clock_cycle_get_32) /* 8 */
+*(.text.timer_driver_cycle_get) /* 20 */
+*(.text._ZN13MavlinkStream12get_size_avgEv) /* 6 */
+*(.text._Z12get_orb_meta6ORB_ID) /* 20 */
+*(.text.px4_sem_post) /* 10 */
+*(.text.z_thread_mark_switched_out) /* 4 */
+*(.text.elapsed) /* 72 */
+*(.text.arm_core_mpu_configure_dynamic_mpu_regions) /* 56 */
+*(.text._ZN4uORB7Manager27orb_add_internal_subscriberE6ORB_IDhPj) /* 160 */
+*(.text._ZN4uORB12Subscription6updateEPv) /* 80 */
+*(.text._ZN4uORB7Manager13is_advertisedEPKv) /* 16 */
+*(.text._ZN6matrix6MatrixIfLj3ELj1EEC2ERKS1_) /* 14 */
+*(.text.crc_accumulate) /* 34 */
+*(.text.z_handle_obj_poll_events) /* 58 */
+*(.text._ZN4uORB12Subscription10advertisedEv) /* 64 */
+*(.text._ZN13MavlinkStream6updateERKy) /* 236 */
+*(.text.z_swap_irqlock) /* 52 */
+*(.text.z_impl_k_sem_take) /* 68 */
+*(.text._ZN4uORB12Subscription7updatedEv) /* 68 */
+*(.text.z_thread_mark_switched_in) /* 12 */
+*(.text.px4_sem_wait) /* 12 */
+*(.text.atomic_test_bit) /* 18 */
+*(.text.z_timeout_q_first) /* 16 */
+*(.text.SDMMC_GetCmdResp1) /* 292 */
+*(.text._ZNK6matrix6MatrixIfLj3ELj3EEmlILj1EEENS0_IfLj3EXT_EEERKS3_) /* 58 */
+*(.text.z_time_slice_reset) /* 14 */
+*(.text.z_impl_k_sem_give) /* 116 */
+*(.text.z_sched_usage_stop) /* 84 */
+*(.text.z_sched_usage_start) /* 24 */
+*(.text._ZN4uORB24SubscriptionIntervalBaseILb0EE6updateEPv) /* 60 */
+*(.text.SDMMC_WriteFIFO) /* 10 */
+*(.text.slice_reset) /* 100 */
+*(.text.z_try_abort_timeout) /* 128 */
+*(.text.sq_rem) /* 44 */
+*(.text.sys_bitarray_test_bit) /* 62 */
+*(.text._ZN21MavlinkStreamTimesync8get_sizeEv) /* 4 */
+*(.text._ZN4uORB7Manager13orb_data_copyEPvS1_Rjb) /* 244 */
+*(.text.sys_dlist_remove) /* 16 */
+*(.text._ZN17MavlinkStreamPing10const_rateEv) /* 4 */
+*(.text._ZN4uORB7Manager17get_device_masterEv) /* 84 */
+*(.text.mpu_configure_regions) /* 112 */
+*(.text.sys_clock_elapsed) /* 36 */
+*(.text.get_posix_mutex) /* 56 */
+*(.text.elapsed) /* 16 */
+*(.text.sched_cpu_update_usage) /* 32 */
+*(.text.z_arm_configure_dynamic_mpu_regions) /* 44 */
+*(.text.stm32_sdmmc_isr) /* 8 */
+*(.text.USB_GetMode) /* 8 */
+*(.text.SDMMC_GetResponse) /* 6 */
+*(.text._ZNK3px46atomicIbE4loadEv) /* 14 */
+*libgcc.a:_udivmoddi4.o(.text .text.*) /* 700 */
+*(.text.hrt_elapsed_time) /* 34 */
+*(.text.z_add_timeout) /* 292 */
+*(.text.z_arm_mpu_stack_guard_and_fpu_adjust) /* 84 */
+*(.text.size_to_mpu_rasr_size) /* 32 */
+*(.text._ZN3Ekf17measurementUpdateERN6matrix6VectorIfLj24EEERKS2_ff) /* 336 */
+*(.text._ZN4uORB10DeviceNode12publish_dataEPKv) /* 88 */
+*(.text.rand) /* 12 */
+*(.text.perf_begin) /* 28 */
+*(.text.usbd_bus_speed) /* 10 */
+*(.text.region_allocate_and_init) /* 84 */
+*(.text.z_pend_curr) /* 96 */
+*(.text._ZN3px48WorkItem11ScheduleNowEv) /* 12 */
+*(.text._ZN6matrix6MatrixIfLj3ELj1EEaSERKS1_.isra.0) /* 10 */
+*(.text._isr_wrapper) /* 36 */
+*(.text._ZN7Mavlink16update_rate_multEv) /* 504 */
+*(.text.SDMMC_SendCommand) /* 40 */
+*(.text.ioctl) /* 26 */
+*(.text._ZNK6matrix6VectorIfLj3EE4normEv) /* 30 */
+*(.text._ZL14hrt_call_enterP8hrt_call) /* 76 */
+*(.text.to_posix_mutex) /* 16 */
+*(.text._ZN3px49WorkQueue3RunEv) /* 176 */
+*(.text._ZN6matrix6MatrixIfLj3ELj1EEaSERKS1_.part.0) /* 14 */
+*(.text._ZN4uORB10DeviceNode5writeEPN4cdev6file_tEPKcj) /* 340 */
+*(.text.sys_clock_tick_get) /* 44 */
+*(.text._ZN26MavlinkStreamCameraTrigger10const_rateEv) /* 4 */
+*(.text.z_time_slice_size) /* 64 */
+*(.text._ZN32MavlinkStreamOpenDroneIdLocation8get_sizeEv) /* 4 */
+*(.text.pthread_mutex_unlock) /* 30 */
+*(.text._ZN4uORB24SubscriptionIntervalBaseILb0EE7updatedEv) /* 52 */
+*(.text._ZNK6matrix6VectorIfLj4EE3dotERKNS_6MatrixIfLj4ELj1EEE) /* 32 */
+*(.text._check_fd) /* 56 */
+*(.text._ZNK6matrix7Vector3IfEmlEf) /* 52 */
+*(.text.cdc_acm_irq_rx_ready) /* 8 */
+*(.text.perf_end) /* 48 */
+*(.text._ZNK6matrix7Vector3IfEplES1_) /* 64 */
+*(.text._ZN4uORB12Subscription4copyEPv) /* 80 */
+*(.text._ZN3px49WorkQueue3AddEPNS_8WorkItemE) /* 88 */
+*(.text._ZN39ControlAllocationSequentialDesaturation23computeDesaturationGainERKN6matrix6VectorIfLj16EEES4_) /* 188 */
+*(.text._ZN29MavlinkStreamHygrometerSensor8get_sizeEv) /* 36 */
+*(.text._ZN24MavlinkStreamADSBVehicle10const_rateEv) /* 4 */
+*(.text.udc_buf_put) /* 4 */
+*(.text.pthread_mutex_lock) /* 12 */
+*(.text._ZN24MavlinkStreamCurrentMode8get_sizeEv) /* 4 */
+*(.text._ZN32MavlinkStreamCameraImageCaptured10const_rateEv) /* 4 */
+*(.text.z_impl_k_uptime_ticks) /* 4 */
+*(.text._ZN22MavlinkStreamSysStatus8get_sizeEv) /* 4 */
+*(.text._ZN20MavlinkStreamESCInfo8get_sizeEv) /* 4 */
+*(.text.fixed_data_unref) /* 2 */
+*(.text._ZN16FullMissionCache6updateERK9mission_s) /* 2 */
+*(.text.udc_buf_peek) /* 4 */
+*(.text.ring_buf_size_get) /* 26 */
+*(.text.idle) /* 22 */
+*(.text.cdc_acm_tx_fifo_space_get) /* 66 */
+*(.text.perf_set_elapsed) /* 172 */
+*(.text._ZNK6matrix6MatrixIfLj3ELj1EEmlEf) /* 46 */
+*(.text._ZN6matrix6MatrixIfLj2ELj1EEC2ERKS1_) /* 10 */
+*(.text.uart_stm32_poll_out) /* 46 */
+*(.text.zvfs_ioctl) /* 48 */
+*(.text.USB_ReadDevAllInEpInterrupt) /* 16 */
+*(.text.px4_sem_getvalue) /* 8 */
+*(.text._ZN6matrix6MatrixIfLj3ELj1EEpLERKS1_) /* 50 */
+*(.text.hrt_call_after) /* 84 */
+*(.text._ZN3px417ScheduledWorkItem15ScheduleDelayedEj) /* 32 */
+*(.text.memmove) /* 50 */
+*(.text.sq_addafter) /* 28 */
+*(.text._ZN27MavlinkStreamDistanceSensor8get_sizeEv) /* 40 */
+*(.text._ZN4uORB24SubscriptionIntervalBaseILb1EE6updateEPv) /* 88 */
+*(.text._ZN29MavlinkStreamExtendedSysState8get_sizeEv) /* 4 */
+*(.text._ZN4uORB22SubscriptionMultiArrayI16battery_status_sLh3EE16advertised_countEv) /* 32 */
+*(.text._ZN27MavlinkStreamLinkNodeStatus8get_sizeEv) /* 4 */
+*(.text.sys_clock_set_timeout) /* 4 */
+*(.text.k_mutex_lock.constprop.0.isra.0) /* 4 */
+*(.text.random) /* 56 */
+*(.text.unpend_thread_no_timeout) /* 26 */
+*(.text._ZN4uORB15PublicationBase7publishEPKv) /* 80 */
+*(.text._ZN4uORB24SubscriptionIntervalBaseILb1EE4copyEPv) /* 152 */
+*(.text.USB_WritePacket) /* 38 */
+*(.text.z_queue_node_peek) /* 24 */
+*(.text.HAL_SD_GetCardState) /* 40 */
+*(.text._ZNK7sensors18VotedSensorsUpdate10imuEnabledEh) /* 28 */
+*(.text.__kernel_cos) /* 208 */
+*(.text.z_impl_k_mutex_unlock) /* 312 */
+*(.text._ZN6matrix6MatrixIfLj3ELj1EEaSERKS1_.isra.0) /* 18 */
+*(.text.k_is_in_isr) /* 12 */
+*(.text._ZN19MavlinkStreamRawRpm8get_sizeEv) /* 36 */
+*(.text._ZN14FunctionMotors5valueE14OutputFunction) /* 12 */
+*(.text.SDMMC_ReadFIFO) /* 6 */
+*(.text.z_work_submit_to_queue) /* 56 */
+*(.text.sys_clock_from_clockid) /* 14 */
+*(.text.__kernel_sin) /* 176 */
+*(.text._ZN3Ekf26fuseDirectStateMeasurementEfffib) /* 316 */
+*(.text._ZN7Mavlink15get_free_tx_bufEv) /* 108 */
+*(.text.z_impl_k_mutex_lock) /* 336 */
+*(.text._ZNK14FunctionMotors10reversibleE14OutputFunction) /* 16 */
+*(.text._ZN39ControlAllocationSequentialDesaturation19desaturateActuatorsERN6matrix6VectorIfLj16EEERKS2_b) /* 136 */
+*(.text.notify_queue_locked.isra.0) /* 68 */
+*(.text.usbd_class_handle_xfer) /* 18 */
+*(.text._ZN6matrix6MatrixIdLj3ELj1EEC2ERKS1_) /* 28 */
+*(.text.z_impl_k_msgq_put) /* 14 */
+*(.text._ZN8Thruster15throttle_to_rpmEff) /* 32 */
+*(.text.SDMMC_CmdSendStatus) /* 52 */
+*(.text.acquire_mutex) /* 144 */
+*(.text.udc_get_ep_cfg) /* 18 */
+*(.text._ZN18MavlinkStreamDebug8get_sizeEv) /* 18 */
+*(.text.submit_to_queue_locked) /* 164 */
+*(.text.z_timeout_inflight_superseded) /* 40 */
+*(.text._ZN6matrix6VectorIfLj4EE9normalizeEv) /* 46 */
+*(.text._ZN3Sih11read_motorsEf) /* 124 */
+*(.text.sys_clock_isr) /* 72 */
+*(.text.cdc_acm_irq_update) /* 60 */
+*(.text._ZN3px46atomicIjE9fetch_addEj.isra.0) /* 24 */
+*(.text._ZN3px417ScheduledWorkItem19schedule_trampolineEPv) /* 4 */
+*(.text._ZN6matrix6MatrixIfLj4ELj1EEaSERKS1_.isra.0) /* 22 */
+*(.text.k_work_submit) /* 12 */
+*(.text._ZN20MavlinkCommandSender8instanceEv) /* 20 */
+*(.text._ZN4uORB7Manager16orb_get_instanceEPKv) /* 12 */
+*(.text.z_impl_k_yield) /* 4 */
+*(.text.zvfs_write) /* 16 */
+*(.text.write) /* 6 */
+*(.text._Z35px4_indicate_external_reset_lockout16LockoutComponentb) /* 2 */
+*(.text.net_buf_alloc_fixed) /* 8 */
+*(.text._ZN29MavlinkStreamMountOrientation8get_sizeEv) /* 12 */
+*(.text._ZN21ActuatorEffectiveness24allocateAuxilaryControlsEfiRN6matrix6VectorIfLj16EEE) /* 4 */
+*(.text.udc_ep_buf_has_zlp) /* 8 */
+*(.text._ZN22MavlinkStreamESCStatus8get_sizeEv) /* 4 */
+*(.text._ZN3px46logger15watchdog_updateERNS0_15watchdog_data_tEb) /* 4 */
+*(.text._ZNK6matrix10QuaternionIfEmlERKS1_) /* 136 */
+*(.text.__kernel_sinf) /* 144 */
+*(.text._mav_finalize_message_chan_send_target) /* 396 */
+*(.text.z_impl_sys_clock_getrtoffset) /* 36 */
+*(.text.USB_ReadDevInEPInterrupt) /* 34 */
+*(.text._ZNK6matrix10QuaternionIfE8inversedEv) /* 94 */
+*(.text._ZN20MavlinkStreamESCInfo11update_dataEv) /* 240 */
+*(.text.z_impl_k_queue_peek_head) /* 30 */
+*(.text.cdc_acm_get_bulk_in) /* 28 */
+*(.text.px4_tty_connected) /* 42 */
+*(.text._ZNK3Sih10num_motorsEv) /* 20 */
+*(.text.__kernel_cosf) /* 176 */
+*(.text._ZN32MavlinkStreamNavControllerOutput8get_sizeEv) /* 18 */
+*(.text._ZN22MavlinkStreamESCStatus11update_dataEv) /* 148 */
+*(.text.z_time_slice) /* 112 */
+*(.text._ZN7Mavlink10send_bytesEPKhj) /* 62 */
+*(.text._ZN3Sih12generate_wgnEv) /* 224 */
+*(.text._ZN6matrix6MatrixIfLj3ELj3EEaSERKS1_.isra.0) /* 40 */
+*(.text.sys_timepoint_timeout) /* 66 */
+*(.text.k_work_schedule) /* 12 */
+*(.text.nanosleep) /* 56 */
+*(.text.flag_test_and_clear) /* 22 */
+*(.text._ZN4uORB20PublicationMultiBase7publishEPKv) /* 88 */
+*(.text.sys_clock_announce_locked) /* 224 */
+*(.text.atomic_clear_bit) /* 30 */
+*(.text._ZN6matrix6MatrixIfLj3ELj1EEC2Ev) /* 10 */
+*(.text.net_buf_simple_add_mem) /* 18 */
+*(.text.fixed_data_alloc) /* 36 */
+*(.text.udc_is_initialized.isra.0) /* 18 */
+*(.text._ZN22MavlinkStreamEfiStatus8get_sizeEv) /* 18 */
+*(.text._ZN21MavlinkStreamAttitude8get_sizeEv) /* 18 */
+*(.text.work_queue_main) /* 388 */
+*(.text._ZN19MavlinkStreamRawRpm4sendEv) /* 88 */
+*(.text.udc_stm32_lock) /* 16 */
+*(.text.z_impl_k_timer_start) /* 72 */
+*(.text.cdc_acm_irq_tx_ready) /* 16 */
+*(.text.cdc_acm_tx_fifo_handler) /* 8 */
+*(.text._ZNK21ActuatorEffectiveness16getStoppedMotorsEv) /* 32 */
+*(.text._ZThn8_N6PWMSim3RunEv) /* 8 */
+*(.text.udc_stm32_unlock) /* 8 */
+*(.text.sys_clock_tick_get_32) /* 8 */
+*libgcc.a:_arm_addsubsf3.o(.text .text.*) /* 540 */
+*(.text.z_impl_k_sleep_ticks) /* 168 */
+*(.text.k_queue_append) /* 38 */
+*(.text._ZN3Ekf17constrainStateVarERKN9estimator6IdxDofEff) /* 140 */
+*(.text.k_queue_prepend) /* 36 */
+*(.text._ZNK6matrix7Vector3IfEmiES1_) /* 64 */
+*(.text.cdc_acm_tx_schedule_leftover_locked) /* 28 */
+*(.text._ZN3Sih12noiseGauss3fEfff) /* 70 */
+*(.text._ZN6matrix6MatrixIfLj3ELj1EEC2EPKf) /* 14 */
+*(.text._ZN26MavlinkStreamBatteryStatus8get_sizeEv) /* 14 */
+*(.text.next_timeout) /* 68 */
+*(.text._ZN4uORB24SubscriptionIntervalBaseILb1EE7updatedEv) /* 80 */
+*(.text._ZN32MavlinkStreamCameraImageCaptured8get_sizeEv) /* 20 */
+*(.text.mavlink_send_uart_bytes) /* 20 */
+*(.text.cdc_acm_irq_cb_handler) /* 204 */
+*(.text.timer_core_announce_from) /* 112 */
+*(.text._ZN6PWMSim13updateOutputsEPfjj) /* 184 */
+*(.text.atanf) /* 408 */
+*(.text.HAL_SD_IRQHandler) /* 616 */
+*(.text._ZN23MavlinkStreamFuelStatus8get_sizeEv) /* 36 */
+*(.text._ZN29MavlinkStreamLocalPositionNED8get_sizeEv) /* 18 */
+*(.text._ZN28MavlinkStreamEstimatorStatus8get_sizeEv) /* 18 */
+*(.text.gpio_stm32_port_clear_bits_raw) /* 12 */
+*(.text._ZN36MavlinkStreamPositionTargetGlobalInt8get_sizeEv) /* 18 */
+*(.text._ZN7Battery13updateVoltageEf) /* 6 */
+*(.text._ZN14FlightTaskAuto13_checkTakeoffEv) /* 6 */
+*(.text.udc_ep_is_busy) /* 6 */
+*(.text._ZNK5Modes5validEh) /* 18 */
+*(.text._ZN31MavlinkStreamAttitudeQuaternion8get_sizeEv) /* 18 */
+*(.text.led_off) /* 6 */
+*(.text.sys_timepoint_calc) /* 74 */
+*(.text._ZNK7Mavlink22radio_status_availableEv) /* 34 */
+*(.text._ZN15TimestampedListIN20MavlinkCommandSender14command_item_sELi3EE8get_nextEv) /* 50 */
+*(.text.usbd_event_carrier) /* 72 */
+*(.text.px4_usleep) /* 44 */
+*(.text.sinf) /* 120 */
+*(.text._ZN3Ekf20controlGravityFusionERKN9estimator9imuSampleE) /* 1276 */
+*(.text._ZN6matrix3DcmIfEC2ERKNS_10QuaternionIfEE) /* 190 */
+*(.text.k_work_schedule_for_queue) /* 80 */
+*(.text._ZNK6matrix6MatrixIfLj3ELj3EE9transposeEv) /* 50 */
+*(.text.uart_irq_tx_enable) /* 10 */
+*(.text.z_impl_uart_irq_tx_disable) /* 10 */
+*(.text.atan2f) /* 380 */
+*(.text._ZN9systemlib10Hysteresis20set_state_and_updateEbRKy) /* 34 */
+*(.text._ZN29MavlinkStreamHygrometerSensor4sendEv) /* 144 */
+*(.text._ZL16hrt_timer_expiryP7k_timer) /* 244 */
+*(.text.z_thread_timeout) /* 38 */
+*(.text._ZN7Mavlink10send_startEi) /* 80 */
+*(.text.pthread_cond_broadcast) /* 28 */
+*(.text._ZN7Mavlink9lock_sendEv) /* 28 */
+*(.text.z_impl_k_queue_get) /* 96 */
+*(.text.sq_remafter) /* 32 */
+*(.text.px4_tty_ioctl) /* 324 */
+*(.text._ZN39ControlAllocationSequentialDesaturation8allocateEv) /* 68 */
+*(.text.net_buf_unref) /* 104 */
+*(.text._ZN36MavlinkStreamGimbalDeviceSetAttitude8get_sizeEv) /* 18 */
+*(.text._ZN24MavlinkStreamADSBVehicle8get_sizeEv) /* 18 */
+*(.text.z_sched_wait) /* 36 */
+*(.text._ZN27MavlinkStreamServoOutputRawILi0EE8get_sizeEv) /* 18 */
+*(.text._ZN30MavlinkStreamFigureEightStatus8get_sizeEv) /* 18 */
+*(.text._ZN35MavlinkStreamPositionTargetLocalNed8get_sizeEv) /* 18 */
+*(.text._ZN21MavlinkStreamOdometry8get_sizeEv) /* 18 */
+*(.text._ZNK9LatLonAlt26computeAngularRateNavFrameERKN6matrix7Vector3IfEE) /* 168 */
+*(.text.clock_gettime) /* 44 */
+*(.text.udc_submit_ep_event) /* 48 */
+*(.text._mav_finalize_message_chan_send) /* 26 */
+*(.text.px4_mavlink_shell_available) /* 52 */
+*(.text.net_buf_destroy) /* 56 */
+*libgcc.a:_fixunssfdi.o(.text .text.*) /* 64 */
+*(.text.logf) /* 480 */
+*(.text._ZNK6matrix6MatrixIfLj3ELj1EEdvEf) /* 54 */
+*(.text._ZNK6matrix7Vector3IfE5crossERKNS_6MatrixIfLj3ELj1EEE) /* 62 */
+*(.text._ZNK17ControlAllocation19getAllocatedControlEv) /* 240 */
+*(.text._ZN13DataValidator3putEyPKfjh) /* 316 */
+*(.text.z_stack_space_get) /* 24 */
+*(.text._ZThn24_N16BatterySimulator3RunEv) /* 8 */
+*(.text._ZThn16_N7sensors22VehicleAngularVelocity3RunEv) /* 8 */
+*(.text._ZN19MavlinkStreamVFRHUD8get_sizeEv) /* 28 */
+*(.text.cdc_acm_line_ctrl_get) /* 36 */
+*(.text._ZThn16_N7sensors10VehicleIMU3RunEv) /* 8 */
+*(.text._ZN21ActuatorEffectiveness14updateSetpointERKN6matrix6VectorIfLj6EEEiRNS1_IfLj16EEERKS5_S8_) /* 4 */
+*(.text.k_sem_take.constprop.0.isra.0) /* 4 */
+*(.text.poll) /* 4 */
+*(.text._ZN12MissionBlock20updateFailsafeChecksEv) /* 4 */
+*(.text._ZThn8_N6PWMSim13updateOutputsEPfjj) /* 8 */
+*(.text._ZThn24_N16ControlAllocator3RunEv) /* 8 */
+*(.text._ZThn16_N4EKF23RunEv) /* 8 */
+*(.text._ZN22MavlinkStreamHeartbeat10const_rateEv) /* 4 */
+*(.text._ZN3Ekf27constrainStateVarLimitRatioERKN9estimator6IdxDofEfff) /* 144 */
+*(.text._ZN3Ekf11fuseHaglRngER24estimator_aid_source1d_sbb.part.0) /* 284 */
+*(.text.z_sched_yield) /* 132 */
+*(.text._ZN11calibration9Gyroscope13set_device_idEjb) /* 50 */
+*(.text._ZN15OutputPredictor37applyCorrectionToVerticalOutputBufferEff) /* 146 */
+*(.text._ZN24MavlinkStreamOrbitStatus8get_sizeEv) /* 30 */
+*(.text.HAL_PCD_EP_Transmit) /* 52 */
+*(.text.queue_insert) /* 206 */
+*(.text.px4_sem_trywait) /* 44 */
+*(.text.px4_tty_isr) /* 436 */
+*(.text._ZN24VariableLengthRingbuffer9pop_frontEPhj) /* 40 */
+*(.text._ZThn16_N31ActuatorEffectivenessMultirotor22getEffectivenessMatrixERN21ActuatorEffectiveness13ConfigurationE25EffectivenessUpdateReason) /* 40 */
+*(.text._ZN33MavlinkStreamOpenDroneIdArmStatus8get_sizeEv) /* 18 */
+*(.text._ZN23MavlinkStreamRCChannels8get_sizeEv) /* 18 */
+*(.text._ZN22MavlinkStreamGPSStatus8get_sizeEv) /* 18 */
+*(.text._ZN32MavlinkStreamHILActuatorControls8get_sizeEv) /* 18 */
+*(.text._ZN29MavlinkStreamObstacleDistance8get_sizeEv) /* 18 */
+*(.text._ZN23MavlinkStreamStatustext8get_sizeEv) /* 18 */
+*(.text._ZN32MavlinkStreamGimbalManagerStatus8get_sizeEv) /* 18 */
+*(.text.udc_stm32_ep_enqueue) /* 86 */
+*(.text._ZNK6matrix6VectorIfLj4EE4unitEv) /* 82 */
+*(.text.put_msg_in_queue) /* 196 */
+*(.text._ZN3px46logger6Logger3runEv) /* 2156 */
+*(.text.cosf) /* 116 */
+*(.text._ZN27MavlinkStreamAvailableModes8get_sizeEv) /* 14 */
+*(.text._ZNK6matrix6MatrixIfLj3ELj1EE6copyToEPf) /* 14 */
+*(.text._ZN22MavlinkStreamVibration8get_sizeEv) /* 42 */
+*(.text.HAL_PCD_DataInStageCallback) /* 56 */
+*(.text._ZN7Mavlink11unlock_sendEv) /* 28 */
+*(.text.perf_count) /* 52 */
+*(.text.timer_core_arm) /* 216 */
+*(.text.usbd_ep_enqueue) /* 48 */
+*(.text.udc_ep_enqueue) /* 140 */
+*(.text._ZN9LatLonAlt20deltaLatLonToDeltaXYEdf) /* 128 */
+*(.text._ZN39ControlAllocationSequentialDesaturation6mixYawEv) /* 312 */
+*(.text.mavlink_end_uart_send) /* 20 */
+*(.text.mavlink_start_uart_send) /* 20 */
+*(.text._ZN28MavlinkStreamDebugFloatArray8get_sizeEv) /* 20 */
+*(.text.z_sched_wake_thread_locked) /* 40 */
+*(.text._ZN6matrix6MatrixIfLj3ELj1EE7setZeroEv) /* 10 */
+*(.text.usbd_is_suspended) /* 10 */
+*(.text._ZN9LatLonAlt8fromEcefERKN6matrix7Vector3IdEE) /* 416 */
+*(.text._ZNK13MapProjection7projectEddRfS0_) /* 272 */
+*(.text.net_buf_id) /* 36 */
+*(.text._ZN4uORB24SubscriptionIntervalBaseILb0EE4copyEPv) /* 88 */
+*(.text._ZN18DataValidatorGroup16get_sensor_stateEj) /* 26 */
+*(.text._ZNK6matrix6VectorIfLj2EE3dotERKNS_6MatrixIfLj2ELj1EEE) /* 26 */
+*(.text._ZN27MavlinkStreamScaledPressure8get_sizeEv) /* 26 */
+*(.text.px4_tty_write) /* 272 */
+*(.text._ZNK6matrix10QuaternionIfE19rotateVectorInverseERKNS_7Vector3IfEE) /* 220 */
+*(.text._ZL4qinvRKN6matrix10QuaternionIfEE) /* 84 */
+*(.text._ZN23MavlinkStreamSystemTime4sendEv) /* 132 */
+*(.text.udc_stm32_tx.isra.0) /* 112 */
+*(.text._ZN7Mavlink15should_transmitEv) /* 32 */
+*(.text._ZN6matrix5EulerIfEC2ERKNS_10QuaternionIfEE) /* 248 */
+*(.text._ZL19hrt_call_reschedulev) /* 92 */
+*(.text._ZN6matrix9constrainIfLj3ELj1EEENS_6MatrixIT_XT0_EXT1_EEERKS3_S2_S2_) /* 168 */
+*(.text._ZN15OutputPredictor29applyCorrectionToOutputBufferERKN6matrix7Vector3IfEES4_) /* 74 */
+*(.text.usbd_cdc_acm_request) /* 360 */
+*(.text._ZN4math17WelfordMeanVectorIfLj3EE6updateERKN6matrix6VectorIfLj3EEE.isra.0) /* 760 */
+*(.text.timespec_compare) /* 76 */
+*(.text._ZN29MavlinkStreamObstacleDistance4sendEv) /* 112 */
+*(.text._ZNK12MixingOutput24output_limit_calc_singleEif) /* 372 */
+*(.text._ZN6matrix7wrap_piIfEET_S1_) /* 72 */
+*(.text._ZN22MavlinkStreamDebugVect8get_sizeEv) /* 18 */
+*(.text._ZNK3px46atomicIPN18DynamicSparseLayer4SlotEE4loadEv) /* 12 */
+*(.text._ZN7Battery20publishBatteryStatusERK16battery_status_s) /* 18 */
+*(.text.pthread_cond_wait) /* 6 */
+*(.text._ZN27MavlinkStreamOpticalFlowRad8get_sizeEv) /* 18 */
+*(.text._ZN26MavlinkStreamCameraTrigger8get_sizeEv) /* 18 */
+*(.text._ZN25MavlinkStreamHomePosition8get_sizeEv) /* 18 */
+*(.text.udc_ep_set_busy) /* 6 */
+*(.text.k_poll_signal_raise.constprop.0.isra.0) /* 6 */
+*(.text._ZN37MavlinkStreamGimbalManagerSetPitchyaw8get_sizeEv) /* 18 */
+*(.text.udc_is_enabled.isra.0) /* 18 */
+*(.text.cdc_acm_tx_fifo_enqueue) /* 268 */
+*(.text._ZN11RateControl14updateIntegralERN6matrix7Vector3IfEEf) /* 208 */
+*(.text._ZNK17ControlAllocation20clipActuatorSetpointERN6matrix6VectorIfLj16EEE) /* 112 */
+*(.text._ZNK6matrix6MatrixIfLj2ELj1EEmlEf) /* 32 */
+*(.text.z_impl_k_msgq_get) /* 180 */
+*(.text.px4_clock_gettime) /* 84 */
+*(.text._ZNK7Mavlink21active_bulk_transfersEv) /* 52 */
+*(.text.z_impl_k_poll_signal_raise) /* 72 */
+*(.text.asinf) /* 448 */
+*(.text._ZNK6matrix6MatrixIfLj3ELj1EEplERKS1_) /* 60 */
+*(.text.cdc_acm_fifo_fill) /* 150 */
+*(.text._ZN3Sih18publish_esc_statusEv) /* 308 */
+*(.text._ZN3px46logger9LogWriter13write_messageENS0_7LogTypeEPvjy) /* 96 */
+*(.text.zvfs_rw) /* 200 */
+*(.text._ZN6matrix10QuaternionIfEC2ERKNS_9AxisAngleIfEE) /* 156 */
+*(.text._ZNK3px46logger9LogWriter10is_startedENS0_7LogTypeE) /* 64 */
+*(.text._ZN6matrix6MatrixIfLj3ELj1EEmIERKS1_) /* 50 */
+*(.text._ZNK17VelocitySmoothing12evaluatePolyEfffffi.isra.0) /* 80 */
+*(.text.perf_count_interval) /* 220 */
+*(.text._ZN8StickYaw5resetEff) /* 44 */
+*(.text._ZN11ControlMath20setZeroIfNanVector3fERN6matrix7Vector3IfEE) /* 22 */
+*(.text.z_impl_device_is_ready) /* 22 */
+*(.text._ZNK6matrix6VectorIfLj2EE4normEv) /* 22 */
+*(.text.timespec_add) /* 96 */
+*(.text._ZNK6matrix7Vector3IfEngEv) /* 52 */
+*(.text._ZN6PWMSim3RunEv) /* 104 */
+*(.text._ZNK6matrix6MatrixIfLj3ELj3EEmlEf) /* 82 */
+*(.text._ZN30MavlinkStreamOpenDroneIdSystem8get_sizeEv) /* 30 */
+*(.text._ZN9systemlib10Hysteresis6updateERKy) /* 76 */
+*(.text._ZNK6matrix6VectorIfLj3EE3dotERKNS_6MatrixIfLj3ELj1EEE) /* 38 */
+*(.text.z_timer_expiration_handler) /* 236 */
+*(.text.cdc_acm_irq_tx_enable) /* 54 */
+*(.text._ZN39ControlAllocationSequentialDesaturation18mixAirmodeDisabledEv) /* 248 */
+*(.text._ZN14FunctionMotors6updateEv) /* 280 */
+*(.text._ZThn16_N7sensors19VehicleMagnetometer3RunEv) /* 8 */
+*(.text._ZN6matrix6MatrixIfLj3ELj3EEC2ERKS1_) /* 56 */
+*(.text._ZThn24_N13SensorBaroSim3RunEv) /* 8 */
+*(.text.get_posix_cond) /* 56 */
+*(.text.to_posix_cond) /* 16 */
+*(.text._ZThn24_N17FlightModeManager3RunEv) /* 8 */
+*(.text._ZN11ControlMath11addIfNotNanERff) /* 56 */
+*libc.a:strlen.S.o(.text .text.*) /* 16 */
+*(.text.udc_buf_get) /* 8 */
+*(.text.z_impl_sys_clock_nanosleep) /* 504 */
+*(.text._ZN7Mavlink11send_finishEv) /* 132 */
+*(.text.sys_clock_gettime) /* 108 */
+*(.text.__rem_pio2) /* 632 */
+*(.text._ZN28MavlinkStreamNamedValueFloat4sendEv) /* 92 */
+*(.text._ZN13DataValidator10confidenceEy) /* 160 */
+*(.text.z_impl_k_condvar_broadcast) /* 104 */
+*(.text.net_buf_alloc_len) /* 244 */
+*(.text.z_impl_k_condvar_wait) /* 88 */
+*libgcc.a:_fixsfdi.o(.text .text.*) /* 44 */
+*(.text._ZN4EKF222PublishAidSourceStatusI24estimator_aid_source2d_sEEvRKyRKT_RyRN4uORB16PublicationMultiIS4_EE.isra.0) /* 88 */
+*(.text._ZN7Mavlink24handleMavlinkShellOutputEv) /* 186 */
+*(.text._ZN12MixingOutput6updateEv) /* 452 */
+*(.text._ZN3Sih27reconstruct_sensors_signalsERKy) /* 260 */
+*(.text._ZN27MavlinkStreamAttitudeTarget8get_sizeEv) /* 18 */
+*(.text._ZN7Battery13updateCurrentEf) /* 36 */
+*(.text._ZN28MavlinkStreamNamedValueFloat8get_sizeEv) /* 18 */
+*(.text._ZN39MavlinkStreamGimbalDeviceAttitudeStatus8get_sizeEv) /* 18 */
+*(.text._ZN30MavlinkStreamGlobalPositionInt8get_sizeEv) /* 18 */
+*(.text._ZN7Mavlink9task_mainEiPPc) /* 2680 */
+*(.text._ZN23MavlinkStreamFuelStatus4sendEv) /* 118 */
+*(.text._ZN3Sih11sensor_stepEv) /* 336 */
+*(.text._ZN7Mavlink29check_requested_subscriptionsEv) /* 128 */
+*(.text._ZN4EKF213PublishStatesERKy) /* 128 */
+*(.text._ZL14timer_callbackPv) /* 64 */
+*(.text._ZN6matrix6MatrixIfLj3ELj1EEdVEf) /* 46 */
+*(.text._ZN12MixingOutput24updateLatencyPerfCounterERK18actuator_outputs_s) /* 56 */
+*(.text._ZN7sensors18VotedSensorsUpdate21setRelativeTimestampsER17sensor_combined_s) /* 28 */
+*(.text._ZN39MavlinkStreamGimbalDeviceAttitudeStatus4sendEv) /* 150 */
+*(.text._ZN11ControlMath19addIfNotNanVector3fERN6matrix7Vector3IfEERKS2_) /* 38 */
+*(.text._ZN3Sih19equations_of_motionEf) /* 1464 */
+*(.text._ZNK6matrix7Vector2IfEmiES1_) /* 48 */
+*(.text._ZN11calibration9Gyroscope23SensorCorrectionsUpdateEb) /* 106 */
+*(.text._ZL4qmulRKN6matrix10QuaternionIfEES3_) /* 116 */
+*(.text.HAL_PCD_IRQHandler) /* 1752 */
+*(.text.udc_stm32_thread_handler) /* 440 */
+*(.text._ZN16ControlAllocator21handle_stopped_motorsEy) /* 180 */
+*libc.a:strcmp.S.o(.text .text.*) /* 20 */
+*(.text._ZNK3px46logger9LogWriter20had_file_write_errorEv) /* 20 */
+*(.text._ZN11calibration13Accelerometer13set_device_idEjb) /* 50 */
+*(.text._ZNK14FunctionMotors24getLatestSampleTimestampERy) /* 20 */
+*(.text._ZN4EKF215PublishAttitudeERKy.part.0.isra.0) /* 100 */
+*(.text._ZN15DaaActionPolicy26action_param_to_daa_actionEi) /* 20 */
+*(.text._ZN22MavlinkStreamDebugVect4sendEv) /* 90 */
+*(.text._ZN18MavlinkStreamDebug4sendEv) /* 82 */
+*(.text._ZN4uORB20PublicationMultiBase12get_instanceEv) /* 52 */
+*(.text._ZThn24_N22MulticopterRateControl3RunEv) /* 52 */
+*(.text._ZN12MixingOutput17output_limit_calcEbiPKf) /* 396 */
+*(.text._ZN7sensors16IntegratorConing3putERKN6matrix7Vector3IfEEf) /* 304 */
+*(.text._ZL6qzaxisRKN6matrix10QuaternionIfEE) /* 84 */
+*(.text._ZN18DataValidatorGroup3putEjyPKfjh) /* 42 */
+*(.text._ZN7sensors18VotedSensorsUpdate22calcAccelInconsistencyEv) /* 284 */
+*(.text._mav_header_pack) /* 148 */
+*(.text._ZNK6matrix10QuaternionIfE12rotateVectorERKNS_7Vector3IfEE) /* 74 */
+*(.text._ZN10EKFGSF_yaw11ahrsPredictEhRKN6matrix7Vector3IfEEf) /* 816 */
+*(.text._ZN32MavlinkStreamGimbalManagerStatus4sendEv) /* 106 */
+*(.text._ZN24MavlinkParametersManager11send_paramsEv) /* 32 */
+*(.text.timespec_normalize) /* 140 */
+*(.text._ZN27ActuatorGroupPreflightCheck14applyOverridesERA2_N6matrix6VectorIfLj6EEEbR21ActuatorEffectiveness) /* 184 */
+*(.text._ZN16ControlAllocator23check_allocation_healthEi) /* 76 */
+*(.text._ZN24MavlinkStreamOrbitStatus4sendEv) /* 144 */
+*(.text._ZN3Sih20publish_ground_truthERKy) /* 412 */
+*(.text._ZN4EKF222PublishAidSourceStatusI24estimator_aid_source1d_sEEvRKyRKT_RyRN4uORB16PublicationMultiIS4_EE.isra.0) /* 112 */
+*(.text._ZN14ModeManagement29getNavStateReplacementIfValidEhb) /* 112 */
+*(.text._ZNK6matrix6MatrixIfLj2ELj1EE11isAllFiniteEv) /* 56 */
+*(.text._ZN27MavlinkStreamAvailableModes11update_dataEv) /* 214 */
+*(.text._ZN7sensors10Integrator9integrateERKN6matrix7Vector3IfEEf) /* 124 */
+*(.text._ZN16ControlAllocator25publish_actuator_controlsEv.part.0) /* 372 */
+*(.text._ZN7sensors22VehicleAngularVelocity19CalibrateAndPublishERKyRKN6matrix7Vector3IfEES7_) /* 396 */
+*(.text._ZNK6matrix6SliceTINS_6MatrixIfLj3ELj1EEEfLj2ELj1ELj3ELj1EE4normEv) /* 34 */
+*(.text._ZN12PX4Gyroscope6updateERKyfff) /* 216 */
+*(.text._ZN30MavlinkStreamFigureEightStatus4sendEv) /* 126 */
+*(.text._ZN3Sih9ecefToNedEv) /* 174 */
+*(.text._ZN10EKFGSF_yaw10predictEKFEhRKN6matrix7Vector3IfEEfS4_fb) /* 524 */
+*(.text.__kernel_tanf) /* 444 */
+*(.text._ZN37MavlinkStreamGimbalManagerSetPitchyaw4sendEv) /* 94 */
+*(.text._ZNK9LatLonAlt19computeRotEcefToNedEv) /* 212 */
+*(.text._ZN11calibration13Accelerometer23SensorCorrectionsUpdateEb) /* 106 */
+*(.text.sq_addfirst) /* 12 */
+*(.text._ZN33MavlinkStreamTimeEstimateToTarget4sendEv) /* 96 */
+*(.text._ZN6matrix6SliceTINS_6MatrixIfLj3ELj1EEEfLj2ELj1ELj3ELj1EEaSERKNS1_IfLj2ELj1EEE.isra.0) /* 36 */
+*(.text.cbputc) /* 12 */
+*(.text._ZN4uORB10DeviceNode10poll_stateEPN4cdev6file_tE) /* 12 */
+*(.text._ZN3Sih13realtime_loopEv) /* 184 */
+*(.text._ZN4math10trajectory27computeMaxSpeedFromDistanceEffff) /* 62 */
+*(.text._ZN27MavlinkStreamAvailableModes4sendEv) /* 50 */
+*(.text._ZN22MulticopterRateControl28updateActuatorControlsStatusERK25vehicle_torque_setpoint_sf) /* 152 */
+*(.text._ZN23MavlinkStreamStatustext4sendEv) /* 292 */
+*(.text._ZN7sensors10VehicleIMU3RunEv) /* 752 */
+*(.text._ZN3px46logger6Logger13update_paramsEv) /* 64 */
+*(.text._ZN6Safety19safetyButtonHandlerEv) /* 64 */
+*(.text._ZN31MavlinkStreamHILStateQuaternion8get_sizeEv) /* 26 */
+*(.text._ZN23ZeroOrderHoverThrustEkf7predictEf) /* 26 */
+*(.text._ZN6events12SendProtocol6updateERKy) /* 196 */
+*(.text.stm32_sdmmc_access_write) /* 144 */
+*(.text._ZN28MavlinkStreamDebugFloatArray4sendEv) /* 118 */
+*(.text.USB_EPStartXfer) /* 460 */
+*(.text.tanf) /* 92 */
+*(.text._ZN7Battery16getBatteryStatusEv) /* 308 */
+*(.text.usbd_thread) /* 504 */
+*(.text._ZN3px46logger6Logger13write_messageENS0_7LogTypeEPvj) /* 164 */
+*(.text._ZN16ControlAllocator3RunEv) /* 1252 */
+*(.text._ZNK3Ekf13getRotVarBodyEv) /* 348 */
+*(.text._ZN6matrix6MatrixIfLj2ELj1EEaSERKS1_.isra.0) /* 14 */
+*(.text._ZNK6matrix6MatrixIfLj2ELj1EEplERKS1_) /* 42 */
+*(.text._ZN11RateControl19setSaturationStatusERKN6matrix7Vector3IbEES4_) /* 56 */
+*(.text._ZN4EKF218UpdateAuxVelSampleER17ekf2_timestamps_s.part.0) /* 84 */
+*(.text._ZN9systemlib10Hysteresis24set_hysteresis_time_fromEby) /* 14 */
+*(.text._ZN24MavlinkStreamCommandLong4sendEv) /* 212 */
+*(.text._ZNK6matrix6MatrixIfLj3ELj1EE11isAllFiniteEv) /* 72 */
+*(.text._ZN7sensors19VehicleAcceleration3RunEv) /* 464 */
+*(.text._ZN10Ringbuffer9pop_frontEPhj) /* 116 */
+*(.text._ZN36MavlinkStreamGimbalDeviceSetAttitude4sendEv) /* 102 */
+*(.text._ZN26MulticopterPositionControl3RunEv) /* 44 */
+*(.text._ZN7sensors22VehicleAngularVelocity3RunEv) /* 1032 */
+*(.text.px4_ioctl) /* 104 */
+*(.text._ZN3px46logger16LogWriterMavlink13write_messageEPvj) /* 104 */
+*(.text._ZN15OutputPredictor12outputSampleaSERKS0_.isra.0) /* 46 */
+*(.text._ZN16PX4Accelerometer6updateERKyfff) /* 216 */
+*(.text._ZNK10EKFGSF_yaw17ahrsCalcAccelGainEv) /* 156 */
+*(.text._ZN16ControlAllocator32publish_control_allocator_statusEi) /* 364 */
+*(.text._ZN4EKF225UpdateRangingBeaconSampleER17ekf2_timestamps_s) /* 128 */
+*(.text._ZN6matrix10QuaternionIfEC2ERKNS_3DcmIfEE) /* 352 */
+*(.text._ZNK15OutputPredictor12getLatLonAltEv) /* 64 */
+*(.text._ZNK14ModeManagement20modeExecutorInChargeEv) /* 16 */
+*(.text._ZN31MulticopterHoverThrustEstimator13publishStatusERKy) /* 80 */
+*(.text.st_32) /* 16 */
+*(.text._ZN7Battery13sumDischargedEf) /* 96 */
+*(.text._ZN11RateControl20getRateControlStatusER18rate_ctrl_status_s) /* 16 */
+*(.text.z_impl_k_thread_stack_space_get) /* 16 */
+*(.text._ZNK7Mavlink20bulk_bandwidth_shareEv) /* 32 */
+*(.text._ZN6matrix6MatrixIfLj4ELj1EEC2Ev) /* 16 */
+*(.text._ZN32MavlinkStreamHILActuatorControls4sendEv) /* 242 */
+*(.text._ZN18DataValidatorGroup8get_bestEyPi) /* 404 */
+*(.text._ZN11AlphaFilterIN6matrix7Vector2IfEEE6updateERKS2_) /* 98 */
+*(.text._ZN3px46logger13LogWriterFile5writeENS0_7LogTypeEPvjy) /* 300 */
+*(.text._ZNK6matrix6SliceTIKNS_6MatrixIfLj3ELj1EEEfLj2ELj1ELj3ELj1EE4normEv) /* 34 */
+*(.text.cond_wait) /* 102 */
+*(.text._ZN29MavlinkStreamMountOrientation4sendEv) /* 172 */
+*(.text.zvfs_get_fd_obj_and_vtable) /* 52 */
+*(.text._Z15blink_msg_statev) /* 52 */
+*(.text._ZN11RateControl6updateERKN6matrix7Vector3IfEES4_S4_fb) /* 192 */
+*(.text._ZN21MavlinkStreamAttitude4sendEv) /* 140 */
+*(.text._ZN33MavlinkStreamOpenDroneIdArmStatus4sendEv) /* 88 */
+*(.text._ZN7sensors18VotedSensorsUpdate11sensorsPollER17sensor_combined_s) /* 248 */
+*(.text._ZN7sensors22VehicleAngularVelocity16SensorBiasUpdateEb) /* 124 */
+*(.text._ZN4math15LowPassFilter2pIN6matrix7Vector3IfEEE5applyERKS3_) /* 160 */
+*(.text._ZNK3Ekf36estimateInertialNavFallingLikelihoodEv) /* 340 */
+*(.text.z_impl_k_thread_name_copy) /* 18 */
+*(.text._ZN20MavlinkStreamWindCov8get_sizeEv) /* 18 */
+*(.text.led_gpio_set_brightness) /* 72 */
+*(.text._ZN7Battery12computeScaleEv) /* 72 */
+*(.text._ZN12FailsafeBase11updateDelayERKy) /* 36 */
+*(.text._ZNK13ModeExecutors5validEi) /* 18 */
+*(.text._ZN6matrix6MatrixIfLj4ELj1EEC2ERKS1_) /* 18 */
+*(.text._ZN12FailsafeBase25removeNonActivatedActionsEv) /* 36 */
+*(.text._ZN17VelocitySmoothing10updateTrajEff) /* 240 */
+*(.text._ZN24MavlinkStreamADSBVehicle4sendEv) /* 320 */
+*(.text._ZN7sensors18VotedSensorsUpdate21calcGyroInconsistencyEv) /* 284 */
+*(.text._ZN12MixingOutput21limitAndUpdateOutputsEPfb) /* 360 */
+*(.text.strncpy) /* 38 */
+*(.text.SDMMC_ConfigData) /* 38 */
+*(.text._ZN4math11NotchFilterIN6matrix7Vector2IfEEE13applyInternalERKS3_) /* 172 */
+*(.text._ZN28MavlinkStreamGpsGlobalOrigin4sendEv) /* 328 */
+*(.text._ZNK15AttitudeControl6updateERKN6matrix10QuaternionIfEE) /* 1440 */
+*(.text._ZN17VelocitySmoothing15updateDurationsEf) /* 80 */
+*(.text._ZN20MavlinkCommandSender13check_timeoutE17mavlink_channel_t) /* 380 */
+*(.text._Z22get_mag_strength_teslaff) /* 40 */
+*(.text.transport_evt_handler) /* 20 */
+*(.text._ZNK6matrix6MatrixIfLj3ELj1EE5emultERKS1_) /* 60 */
+*(.text._Z7led_offi) /* 20 */
+*(.text._ZN15PositionControl17updateHoverThrustEf) /* 120 */
+*(.text.get_led) /* 40 */
+*(.text.param_type) /* 20 */
+*(.text.disk_write) /* 20 */
+*(.text._ZN22MulticopterRateControl3RunEv.part.0) /* 1484 */
+*(.text._ZN14ImuDownSampler6updateERKN9estimator9imuSampleE) /* 952 */
+*(.text._ZNK6matrix6MatrixIfLj2ELj1EEmiERKS1_) /* 42 */
+*(.text._ZN16BatterySimulator3RunEv) /* 444 */
+*(.text._ZN3Ekf19controlHeightFusionERKN9estimator9imuSampleE) /* 64 */
+*(.text._ZNK9Commander14getPrearmStateEv) /* 64 */
+*(.text._ZN26MavlinkStreamCameraTrigger4sendEv) /* 324 */
+*(.text._ZN27MavlinkStreamOpticalFlowRad4sendEv) /* 152 */
+*(.text._ZN9Commander18safetyButtonUpdateEv) /* 66 */
+*(.text._ZN4EKF222PublishAidSourceStatusI24estimator_aid_source3d_sEEvRKyRKT_RyRN4uORB16PublicationMultiIS4_EE.isra.0) /* 88 */
+*(.text._ZN13NavigatorMode3runEb) /* 44 */
+*(.text.z_impl_zvfs_poll) /* 22 */
+*(.text.clst2sect) /* 22 */
+*(.text._ZN14ImuDownSampler5resetEv) /* 200 */
+*(.text._ZN7Battery20computeRemainingTimeEf) /* 312 */
+*(.text._ZN30ControlAllocationPseudoInverse19updatePseudoInverseEv) /* 68 */
+*(.text._ZN8Failsafe14fromGfActParamEi) /* 68 */
+*(.text._ZNK17VelocitySmoothing16computeDirectionEv) /* 68 */
+*(.text._ZNK9Navigator25geofence_avoidance_marginEv) /* 46 */
+*(.text.disk_access_write) /* 46 */
+*(.text._ZN17PositionSmoothing18_generateSetpointsERKN6matrix7Vector3IfEERA3_S3_bS4_fbRNS_26PositionSmoothingSetpointsE) /* 92 */
+*(.text._ZN4math12MedianFilterIfLi5EE3cmpEPKvS3_) /* 92 */
+*(.text.px4_board_led_set) /* 92 */
+*(.text._ZN4EKF218PublishInnovationsERKy) /* 300 */
+*(.text._ZN10EKFGSF_yaw15updateCompositeEv) /* 208 */
+*(.text._ZN9Commander27manualControlLossModeSwitchEv) /* 116 */
+*(.text._ZN9LatLonAltpLERKN6matrix7Vector3IfEE) /* 256 */
+*(.text._ZN16HeadingSmoothing6updateEff) /* 70 */
+*(.text._ZN4EKF215PublishBaroBiasERKy) /* 140 */
+*(.text._ZN14ModeManagement27updateActiveConfigOverridesEhR18config_overrides_s) /* 212 */
+*(.text._ZNK3Ekf38getVerticalPositionInnovationTestRatioEv) /* 212 */
+*(.text._ZN3px46logger13LogWriterFile13write_messageENS0_7LogTypeEPvjy) /* 308 */
+*(.text._ZN7sensors18VotedSensorsUpdate7imuPollER17sensor_combined_s) /* 1008 */
+*(.text._ZN3px46logger13LogWriterFile13LogFileBuffer10close_fileEv) /* 96 */
+*(.text._ZL19param_find_internalPKcb) /* 96 */
+*(.text.orb_copy) /* 24 */
+*(.text._ZNK6matrix7Vector2IfEplES1_) /* 48 */
+*(.text._ZN6Report15clearCanRunBitsE8NavModes) /* 24 */
+*(.text._ZN12FailsafeBase14modeFromActionERKNS_6ActionEh) /* 24 */
+*(.text._ZNK15PositionControl19getAttitudeSetpointER27vehicle_attitude_setpoint_s) /* 24 */
+*(.text._ZN7sensors10VehicleIMU10UpdateGyroEv) /* 1484 */
+*(.text._ZN3Ekf23constrainStateVariancesEv) /* 292 */
+*(.text._ZN16ControlAllocator23get_ice_shedding_outputEy) /* 124 */
+*(.text._ZN7Mavlink12handleStatusEv) /* 248 */
+*(.text.__rem_pio2f) /* 596 */
+*(.text._ZNK3Ekf21updateAidSourceStatusI24estimator_aid_source3d_sN6matrix7Vector3IfEES4_EEvRT_RKyRKT1_RKT0_SE_SE_f.isra.0) /* 608 */
+*(.text._ZN14FlightTaskAuto16updateInitializeEv) /* 102 */
+*(.text._ZN3Sih26generate_force_and_torquesEf) /* 1280 */
+*(.text._ZN12FailsafeBase24updateFailsafeDeferStateERKyb) /* 26 */
+*(.text._ZN3LED5ioctlEPN4cdev6file_tEim) /* 52 */
+*(.text._ZN17MavlinkLogHandler4sendEv) /* 26 */
+*(.text._ZN7Mavlink29handleAndGetCurrentCommandAckEv) /* 288 */
+*(.text._ZN4EKF219UpdateGnssYawSampleEv) /* 132 */
+*(.text._ZN4EKF222UpdateAccelCalibrationERKy) /* 160 */
+*(.text._ZN13MapProjection13initReferenceEddy) /* 80 */
+*(.text._ZN7sensors10VehicleIMU11UpdateAccelEv) /* 1592 */
+*(.text._ZNK3Ekf30clearInhibitedStateKalmanGainsERN6matrix6VectorIfLj24EEE) /* 108 */
+*(.text._ZN17MavlinkLogHandler10state_idleEv) /* 54 */
+*(.text._ZN15OutputPredictor37getAngularVelocityAndResetAccumulatorEv) /* 108 */
+*(.text._ZN6matrix9AxisAngleIfEC2ERKNS_10QuaternionIfEE) /* 164 */
+*(.text._ZN15PositionControl16setInputSetpointERK21trajectory_setpoint_s) /* 82 */
+*(.text._ZN22MavlinkStreamGPSRawInt4sendEv) /* 800 */
+*(.text._ZN6matrix6MatrixIfLj2ELj1EEC2ILj3ELj1EEERKNS_6SliceTINS0_IfXT_EXT0_EEEfLj2ELj1EXT_EXT0_EEE) /* 28 */
+*(.text._ZN12SensorMagSim12generate_wgnEv) /* 224 */
+*(.text._ZNK3Ekf38getVerticalVelocityInnovationTestRatioEv) /* 140 */
+*(.text._ZN7sensors22VehicleAngularVelocity21FilterAngularVelocityEiPfi) /* 1240 */
+*(.text._ZN17GainCompression3d6updateERKN6matrix7Vector3IfEEf) /* 428 */
+*(.text._ZN4EKF215PublishOdometryERKyRKN9estimator9imuSampleERKN6matrix7Vector3IfEE) /* 288 */
+*(.text._Z8set_tunei) /* 144 */
+*(.text._ZN7sensors19VehicleAcceleration16ParametersUpdateEb) /* 116 */
+*(.text._ZN15FailureDetector6updateERK16vehicle_status_sRK22vehicle_control_mode_s) /* 116 */
+*(.text._ZN18EstimatorInterface10setIMUDataERKN9estimator9imuSampleE) /* 524 */
+*(.text._ZNK3Ekf29getHeadingInnovationTestRatioEv) /* 176 */
+*(.text._ZN15OutputPredictor21calculateOutputStatesEyRKN6matrix7Vector3IfEEfS4_f) /* 884 */
+*(.text._ZN29MavlinkStreamLocalPositionNED4sendEv) /* 90 */
+*(.text._ZN22MavlinkStreamEfiStatus4sendEv) /* 180 */
+*(.text._ZN10BaroChecks14isBaroRequiredEi) /* 60 */
+*(.text.out_func) /* 60 */
+*(.text.k_poll_event_init) /* 30 */
+*(.text.zvfs_fdtable_call_ioctl) /* 30 */
+*(.text._ZN7Battery29updateAndPublishBatteryStatusERKy) /* 30 */
+*(.text._ZN24MavlinkParametersManager16take_send_budgetEv) /* 212 */
+*(.text._ZN6matrix10QuaternionIfEC2ERKNS_7Vector3IfEES5_f) /* 428 */
+*(.text._ZN3px46logger6Logger23handle_file_write_errorEv) /* 92 */
+*(.text._ZN10EKFGSF_yaw7predictERKN6matrix7Vector3IfEEfS4_fb) /* 340 */
+*(.text._ZN3px46logger13LogWriterFile3runEv) /* 1028 */
+*(.text.zvfs_poll_internal) /* 508 */
+*(.text._ZNK3px412AtomicBitsetILj1540EEixEj) /* 32 */
+*(.text.zvfs_write_vmeth) /* 32 */
+*(.text._ZNK9LatLonAltmiERKS_) /* 256 */
+*(.text._ZN9estimator6sensor17SensorRangeFinder16updateStuckCheckEv) /* 160 */
+*(.text._ZNK8Failsafe17checkModeFallbackERK16failsafe_flags_sh) /* 160 */
+*(.text._ZN4math11WelfordMeanIfE6updateERKf.isra.0) /* 256 */
+*(.text._ZN15PositionControl15setThrustLimitsEff) /* 32 */
+*(.text.memcmp) /* 32 */
+*(.text._ZN17MissionRouteCache6updateERK9mission_s) /* 32 */
+*(.text._ZN3Ekf4fuseERKN6matrix6VectorIfLj24EEEf) /* 1348 */
+*(.text._ZN15AttitudeControl19setAttitudeSetpointERKN6matrix10QuaternionIfEEff) /* 196 */
+*(.text._ZN15PositionControl16_positionControlEv) /* 196 */
+*(.text._ZN20MavlinkStreamWindCov4sendEv) /* 164 */
+*(.text._ZN7Sensors3RunEv) /* 492 */
+*(.text._ZNK3Ekf21get_ekf_lpos_accuracyEPfS0_) /* 164 */
+*(.text._ZN22MavlinkStreamGPSStatus4sendEv) /* 132 */
+*(.text._ZNK3Ekf39getHeightAboveGroundInnovationTestRatioEv) /* 132 */
+*(.text._ZN11WeatherVane6updateEv) /* 66 */
+*(.text._ZN12FailsafeBase16updateStartDelayERKyb) /* 100 */
+*(.text.k_thread_foreach_unlocked) /* 68 */
+*(.text._ZNK7Mavlink21radio_status_criticalEv) /* 34 */
+*(.text._ZN32MavlinkStreamNavControllerOutput4sendEv) /* 276 */
+*(.text._ZN7Battery21estimateStateOfChargeEv) /* 140 */
+*(.text._ZN4EKF218PublishGnssHgtBiasERKy) /* 140 */
+*(.text._ZN9Commander30handleModeIntentionAndFailsafeEv) /* 422 */
+*(.text._ZN27ActuatorGroupPreflightCheck11updateStateEy) /* 284 */
+*(.text._ZN4EKF217UpdateCalibrationERKyRNS_19InFlightCalibrationERKN6matrix7Vector3IfEES8_fbb) /* 392 */
+*(.text._ZN7Mavlink14handleCommandsEv) /* 500 */
+*(.text._ZN8Failsafe17isFailsafeIgnoredEhi) /* 72 */
+*(.text._ZN13land_detector12LandDetector19UpdateVehicleAtRestEv) /* 252 */
+*(.text.strncmp) /* 36 */
+*(.text._ZN7sensors19VehicleAcceleration21SensorSelectionUpdateEb) /* 288 */
+*(.text._ZN7Battery19updateBatteryStatusERKy) /* 252 */
+*(.text._ZZN26MulticopterPositionControl3RunEvENKUlRfffE_clES0_ff) /* 144 */
+*(.text._ZN4uORB10DeviceNode4readEPN4cdev6file_tEPcj) /* 36 */
+*(.text.z_impl_led_off.isra.0) /* 36 */
+*(.text._ZNK15OutputPredictor21getVelocityDerivativeEv) /* 72 */
+*(.text._ZN11GotoControl16checkForSetpointERKyb) /* 72 */
+*(.text._ZNK18EstimatorInterface23isNorthEastAidingActiveEv) /* 72 */
+*(.text._ZN4uORB10DeviceNode15poll_notify_oneEP19px4_pollfd_struct_ts) /* 36 */
+*(.text._ZN9Commander11updateTunesEv) /* 146 */
+*(.text._ZN20MavlinkStreamGPS2Raw4sendEv) /* 776 */
+*(.text._ZN4EKF220PublishFusionControlERKy.part.0) /* 372 */
+*(.text._ZN15OutputPredictor19correctOutputStatesEyRKN6matrix10QuaternionIfEERKNS0_7Vector3IfEERK9LatLonAltS8_S8_) /* 1080 */
+*(.text._ZN10FlightTask16updateInitializeEv) /* 112 */
+*(.text._ZNK9LatLonAltplERKN6matrix7Vector3IfEE) /* 264 */
+*(.text._ZN10BaroChecks13isBaroPrimaryEiRK16sensors_status_s) /* 38 */
+*(.text._ZN12FailsafeBase18clearDelayIfNeededERKNS_5StateERK16failsafe_flags_s) /* 38 */
+*(.text._ZN3Ekf7fuseMagERKN6matrix7Vector3IfEEfRNS0_6VectorIfLj24EEER24estimator_aid_source3d_sbb) /* 2608 */
+*(.text._ZNK18EstimatorInterface21globalToLocalPositionERK9LatLonAlt) /* 192 */
+*(.text._ZNK10EKFGSF_yaw10getLogDataEPfS0_S0_S0_S0_S0_) /* 78 */
+*(.text._ZNK17PositionSmoothing10_isTurningERKN6matrix7Vector3IfEE) /* 196 */
+*(.text._ZN26MulticopterAttitudeControl3RunEv.part.0) /* 2000 */
+*(.text._ZN31MulticopterHoverThrustEstimator3RunEv) /* 872 */
+*(.text._ZNK3Ekf20getHeadingInnovRatioEv) /* 120 */
+*(.text._ZN3Ekf23updateYawManualValidityEv) /* 120 */
+*(.text._ZNK17MissionRouteCache23missionLandMatchesCacheERK9mission_s) /* 40 */
+*(.text._ZN32MavlinkStreamCameraImageCaptured4sendEv) /* 244 */
+*(.text._ZN7sensors10VehicleIMU7PublishEv) /* 2892 */
+*(.text._ZN15PositionControl16_velocityControlEf) /* 708 */
+*(.text._ZN3px46logger6Logger21publish_logger_statusEv) /* 292 */
+*(.text._ZN4EKF227PublishInnovationTestRatiosERKy) /* 292 */
+*(.text._ZN17PositionSmoothing19_generateTrajectoryERKN6matrix7Vector3IfEES4_fRNS_26PositionSmoothingSetpointsE) /* 460 */
+*(.text.z_impl_k_poll) /* 168 */
+*(.text._ZN7Battery8updateDtERKy) /* 84 */
+*(.text._ZN3Ekf18updateGroundEffectEv) /* 168 */
+*(.text._ZN15CdcAcmAutostart12UpdateParamsEb) /* 42 */
+*(.text._ZN9Commander20offboardControlCheckEv) /* 42 */
+*(.text.SDMMC_CmdStopTransfer) /* 84 */
+*(.text._ZN7Mavlink19configure_sik_radioEv) /* 212 */
+*(.text._ZN11ControlMath9limitTiltERN6matrix7Vector3IfEERKS2_f) /* 212 */
+*(.text._ZN4EKF221UpdateGyroCalibrationERKy) /* 128 */
+*(.text._ZN17FlightModeManager10switchTaskE15FlightTaskIndex) /* 172 */
+*(.text.register_events) /* 258 */
+*(.text._ZN4EKF213PublishStatusERKy) /* 648 */
+*(.text._ZN16ControlAllocator24check_for_motor_failuresEv) /* 260 */
+*(.text._ZN3Ekf17predictCovarianceERKN9estimator9imuSampleE) /* 15548 */
+*(.text._ZN13BiasEstimator17constrainStateVarEv) /* 44 */
+*(.text._ZN15PositionControl8setStateERK21PositionControlStates) /* 44 */
+*(.text._ZN12FailsafeBase6updateERKyRKNS_5StateEbbRK16failsafe_flags_s) /* 440 */
+*(.text._ZN18MavlinkRateLimiter5checkERKy) /* 44 */
+*(.text._ZN12SensorGpsSim3RunEv) /* 44 */
+*(.text._ZN9estimator6sensor17SensorRangeFinder14updateValidityEy) /* 268 */
+*(.text._ZN23ZeroOrderHoverThrustEkf8fuseAccZEff) /* 492 */
+*(.text._ZN23MavlinkStreamRCChannels4sendEv) /* 448 */
+*(.text._ZN4EKF222PublishAidSourceStatusERKy) /* 584 */
+*(.text._ZN12ActuatorTest6updateEif) /* 728 */
+*(.text._ZN23MavlinkStreamHighresIMU4sendEv) /* 820 */
+*(.text._ZN4EKF216UpdateGnssSampleER17ekf2_timestamps_s) /* 412 */
+*(.text._ZN3Ekf20updateIMUBiasInhibitERKN9estimator9imuSampleE) /* 552 */
+*(.text.clear_event_registrations) /* 92 */
+*(.text._ZN4EKF220PublishLocalPositionERKyRKN6matrix7Vector3IfEE) /* 1392 */
+*(.text._ZN3Ekf12predictStateERKN9estimator9imuSampleE) /* 1488 */
+*(.text._ZN12FailsafeBase13checkFailsafeEibbRKNS_13ActionOptionsE) /* 328 */
+*(.text._ZN4EKF217UpdateRangeSampleER17ekf2_timestamps_s) /* 516 */
+*(.text._ZN11MissionBase11on_inactiveEv) /* 94 */
+*(.text._ZN4cdev4CDev4pollEPNS_6file_tEP19px4_pollfd_struct_tb) /* 332 */
+*(.text._ZN4EKF23RunEv) /* 3244 */
+*(.text._ZN4EKF221PublishGlobalPositionERKyRK9LatLonAlt.part.0) /* 336 */
+*(.text.disk_access_get_di) /* 96 */
+*(.text._ZN17VelocitySmoothing19timeSynchronizationEPS_i) /* 144 */
+*(.text.move_window) /* 48 */
+*(.text._ZN26MulticopterPositionControl18set_vehicle_statesERK24vehicle_local_position_sf) /* 632 */
+*(.text._ZZN26MulticopterPositionControl26adjustSetpointForEKFResetsERK24vehicle_local_position_sR21trajectory_setpoint_sS4_ENKUlS4_E_clES4_) /* 292 */
+*(.text._ZN24MavlinkParametersManager4sendEv) /* 300 */
+*(.text._ZN9Commander31handleCommandsFromModeExecutorsEv) /* 152 */
+*(.text._ZN14FlightTaskAuto24_evaluateGlobalReferenceEv) /* 204 */
+*(.text._ZN3Ekf31checkVerticalAccelerationHealthERKN9estimator9imuSampleE) /* 308 */
+*(.text.expf) /* 412 */
+*(.text._ZN8Failsafe17checkStateAndModeERKyRKN12FailsafeBase5StateERK16failsafe_flags_s) /* 1560 */
+*(.text._ZN15PositionControl11_inputValidEv) /* 364 */
+*(.text._ZN9Commander19control_status_ledsEbh) /* 520 */
+*(.text.px4_sem_timedwait) /* 104 */
+*(.text._ZNK3Ekf40getHorizontalPositionInnovationTestRatioEv) /* 260 */
+*(.text.set_led) /* 52 */
+*(.text._ZN8Failsafe21fromQuadchuteActParamEi) /* 52 */
+*(.text._ZN3Ekf29isConditionalRangeAidSuitableEv) /* 260 */
+*(.text._ZN16ConflictNotifier11must_notifyEhyyhh) /* 104 */
+*(.text._ZN6matrix8wrap_2piIfEET_S1_) /* 52 */
+*(.text._ZN4EKF220UpdateAirspeedSampleER17ekf2_timestamps_s) /* 576 */
+*(.text._ZN15AttitudeControl23propagateReferenceModelERKN6matrix10QuaternionIfEEff) /* 736 */
+*(.text._ZN26MulticopterPositionControl26adjustSetpointForEKFResetsERK24vehicle_local_position_sR21trajectory_setpoint_sS4_) /* 316 */
+*(.text._ZN3Ekf35updateHorizontalDeadReckoningstatusEv) /* 792 */
+*(.text._ZN3px46logger6Logger20handle_event_updatesERj) /* 320 */
+*(.text._ZN12MissionBlock21updateMaxHaglFailsafeEv) /* 160 */
+*(.text._ZN3Ekf33updateVerticalDeadReckoningStatusEv) /* 216 */
+*(.text._ZNK17PositionSmoothing17_getCrossingPointERKN6matrix7Vector3IfEERA3_S3_) /* 54 */
+*(.text._ZN6matrix6VectorIfLj3EE9normalizeEv) /* 54 */
+*(.text._ZN4math17WelfordMeanVectorIfLj3EE5resetEv) /* 54 */
+*(.text._ZNK17PositionSmoothing14_getMaxXYSpeedERA3_KN6matrix7Vector3IfEE) /* 108 */
+*(.text._ZN9Commander3runEv) /* 1252 */
+*(.text._ZN7Battery34calculateStateOfChargeVoltageBasedEff) /* 164 */
+*(.text._ZN10FlightTask25_evaluateDistanceToGroundEv) /* 56 */
+*(.text._ZN7sensors14VehicleAirData16ParametersUpdateEb) /* 112 */
+*(.text._ZN14DetectAndAvoid9on_activeEv) /* 56 */
+*(.text._ZN7Battery15determineFaultsEv) /* 112 */
+*(.text._ZN7sensors18VotedSensorsUpdate13checkFailoverERNS0_10SensorDataEPKcN6events3px45enums13sensor_type_tE) /* 396 */
+*(.text._ZN30MavlinkStreamGlobalPositionInt4sendEv) /* 340 */
+*(.text._ZN11ControlMath15bodyzToAttitudeEN6matrix7Vector3IfEEfR27vehicle_attitude_setpoint_s) /* 688 */
+*(.text._ZN14FlightTaskAuto22_updateTrajConstraintsEv) /* 344 */
+*(.text._ZN15TakeoffHandling18updateTakeoffStateEbbbfbRKy) /* 116 */
+*(.text._ZN8Failsafe20fromGnssLossActParamEi) /* 58 */
+*(.text._ZN8Failsafe21fromParachuteActParamEi) /* 58 */
+*(.text._ZN17FlightModeManager17start_flight_taskEv) /* 524 */
+*(.text._ZN13BiasEstimator7predictEf) /* 176 */
+*(.text._ZN24MavlinkParametersManager8send_oneEv) /* 176 */
+*(.text.acosf) /* 472 */
+*(.text._ZN10FlightTask29_evaluateVehicleLocalPositionEv) /* 296 */
+*(.text._ZNK14ExternalChecks23checkNonRegisteredModesERK7ContextR6Report) /* 180 */
+*(.text._ZN9Commander16vtolStatusUpdateEv) /* 120 */
+*(.text._ZN4uORB12Subscription9subscribeEv) /* 60 */
+*(.text._ZN9Commander16handleAutoDisarmEv) /* 368 */
+*(.text._ZN10FlightTask37_evaluateVehicleLocalPositionSetpointEv) /* 124 */
+*(.text._ZN8Failsafe17updateArmingStateERKybRK16failsafe_flags_s) /* 62 */
+*(.text._ZNK18DynamicSparseLayer3getEt) /* 62 */
+*(.text.pthread_getname_np) /* 64 */
+*(.text.HAL_SD_WriteBlocks_IT) /* 192 */
+*(.text._ZN7sensors19VehicleAcceleration16SensorBiasUpdateEb) /* 128 */
+*(.text._ZN3Ekf21updateTerrainValidityEv) /* 328 */
+*(.text._ZN16ControlAllocator37update_effectiveness_matrix_if_neededE25EffectivenessUpdateReason) /* 1184 */
+*(.text._ZN4EKF215UpdateMagSampleER17ekf2_timestamps_s) /* 264 */
+*(.text._ZN15PositionControl6updateEf) /* 132 */
+*(.text._ZN16RallyPointChecks14checkAndReportERK7ContextR6Report) /* 132 */
+*(.text._ZN6Report18armingCheckFailureE8NavModes20HealthComponentIndexN6events8LogLevelE) /* 66 */
+*(.text._ZN4EKF220UpdateMagCalibrationERKy) /* 336 */
+*(.text._ZN3Ekf6updateEv.part.0) /* 612 */
+*(.text._ZN3Ekf18controlFusionModesERKN9estimator9imuSampleE) /* 684 */
+*(.text._ZN10MavlinkFTP4sendEv) /* 488 */
+*(.text._ZN17FlightModeManager3RunEv) /* 280 */
+*(.text._ZN9Commander17systemPowerUpdateEv) /* 72 */
+*(.text._ZN7sensors14VehicleAirData20AirTemperatureUpdateEfRNS0_17TemperatureSourceEy) /* 144 */
+*(.text._ZN4EKF217PublishSensorBiasERKy) /* 796 */
+*(.text._ZN10FlightTask22_checkEkfResetCountersEv) /* 220 */
+*(.text._ZN4EKF219PublishWindEstimateERKy) /* 148 */
+*(.text._ZN12FailsafeBase10modeCanRunERK16failsafe_flags_sh) /* 148 */
+*(.text._ZNK12GnssSelector8isUsableEiy) /* 74 */
+*(.text._ZN18MagnetometerChecks13isMagRequiredEiRb) /* 74 */
+*(.text._ZNK12FailsafeBase17getSelectedActionERKNS_5StateERK16failsafe_flags_sbbRNS_19SelectedActionStateE) /* 596 */
+*(.text._ZNK3Ekf19get_ekf_ctrl_limitsEPfS0_S0_S0_S0_) /* 376 */
+*(.text._ZN4EKF225PublishYawEstimatorStatusERKy) /* 152 */
+*(.text._ZNK6matrix6VectorIfLj2EE12unit_or_zeroEf) /* 78 */
+*(.text.add_event) /* 78 */
+*(.text._ZN4EKF223UpdateSystemFlagsSampleER17ekf2_timestamps_s) /* 392 */
+*(.text._ZN27RangeFinderConsistencyCheck6updateEffffby) /* 392 */
+*(.text._ZN12HomePosition6updateEbb) /* 960 */
+*(.text._ZN3px46logger6Logger29handle_vehicle_command_updateEv) /* 160 */
+*(.text._ZN15FailureDetector26updateImbalancedPropStatusEv) /* 400 */
+*(.text._ZNK14FlightTaskAuto16isTargetModifiedEv) /* 160 */
+*(.text._ZN7sensors19VehicleMagnetometer16ParametersUpdateEb) /* 402 */
+*(.text._ZN13land_detector12LandDetector3RunEv) /* 724 */
+*(.text._ZN13land_detector23MulticopterLandDetector25_get_ground_contact_stateEv) /* 644 */
+*(.text._ZN7sensors10VehicleIMU16ParametersUpdateEb) /* 488 */
+*(.text._ZNK12GnssSelector15selectionReasonEv) /* 82 */
+*(.text._ZNK15PositionControl24getLocalPositionSetpointER33vehicle_local_position_setpoint_s) /* 82 */
+*(.text._ZN12GnssSelector18updateAvailabilityEy) /* 336 */
+*(.text._Z9rotate_3f8RotationRfS0_S0_) /* 760 */
+*(.text._ZN26MulticopterPositionControl3RunEv.part.0) /* 2124 */
+*(.text._ZN14ModeManagement6updateEhbbhRNS_13UpdateRequestE) /* 256 */
+*(.text._ZN4EKF216UpdateFlowSampleER17ekf2_timestamps_s) /* 616 */
+*(.text._ZNK3Ekf19get_ekf_soln_statusEv) /* 440 */
+*(.text._ZNK3Ekf12getRotVarNedEv) /* 88 */
+*(.text._ZN3px46logger6Logger18start_stop_loggingEv) /* 888 */
+*(.text._ZN27ActuatorGroupPreflightCheck13handleCommandEyb) /* 356 */
+*(.text._ZN15PositionControl20_accelerationControlEv) /* 268 */
+*(.text._ZN21HealthAndArmingChecks6updateEbb) /* 268 */
+*(.text.k_thread_runtime_stats_all_get) /* 90 */
+*(.text._ZN10FlightTask21getTrajectorySetpointEv) /* 90 */
+*(.text._ZN12SensorMagSim3RunEv.part.0) /* 824 */
+*(.text._ZNK12GnssSelector14lateIntervalUsEi) /* 92 */
+*(.text._ZN17FlightModeManager26generateTrajectorySetpointEfRK24vehicle_local_position_s) /* 280 */
+*(.text._ZNK3Ekf21updateAidSourceStatusER24estimator_aid_source1d_sRKyRKfS5_S5_S5_f) /* 564 */
+*(.text._ZN3Ekf16controlGpsFusionERKN9estimator9imuSampleE) /* 1320 */
+*(.text._ZN7sensors19VehicleMagnetometer3RunEv) /* 1236 */
+*(.text._ZN12SensorGpsSim21updateRtcmCorrectionsEv) /* 96 */
+*(.text._ZN15FailureDetector20updateAttitudeStatusERK16vehicle_status_s) /* 492 */
+*(.text.px4_read) /* 100 */
+*(.text.work_process) /* 204 */
+*(.text._ZN3Ekf20controlAirDataFusionERKN9estimator9imuSampleE) /* 1136 */
+*(.text._ZN12AdsbConflict23valid_wgs84_coordinatesEdd) /* 104 */
+*(.text._ZL14get_table_dataffPA37_Ks) /* 420 */
+*(.text.z_thread_prio_set) /* 212 */
+*(.text._ZNK3Ekf40getHorizontalVelocityInnovationTestRatioEv) /* 320 */
+*(.text.z_impl_k_sem_reset) /* 108 */
+*(.text._ZN18ZeroVelocityUpdate6updateER3EkfRKN9estimator9imuSampleE) /* 216 */
+*(.text._ZN14DetectAndAvoid25process_transponder_queueER11daa_input_s) /* 108 */
+*(.text._ZN3Ekf22controlRangeHaglFusionERKN9estimator9imuSampleE) /* 2840 */
+*(.text._ZN11calibration12Magnetometer23SensorCorrectionsUpdateEb) /* 110 */
+*(.text._ZN9Commander13dataLinkCheckEv) /* 1220 */
+*(.text._ZN12SensorGpsSim12generate_wgnEv) /* 224 */
+*(.text.powf) /* 1472 */
+*(.text._ZN22MulticopterThrowLaunch6updateEb) /* 228 */
+*(.text._ZN15FailureDetector20updateAltitudeStatusERK16vehicle_status_sRK22vehicle_control_mode_s) /* 344 */
+*(.text._ZN7sensors14VehicleAirData12UpdateStatusEv) /* 348 */
+*(.text._ZN4cdev4CDev11poll_notifyEs) /* 116 */
+*(.text._ZN4EKF216UpdateBaroSampleER17ekf2_timestamps_s) /* 232 */
+*(.text._ZNK3Ekf15getHeadingInnovEv) /* 116 */
+*(.text._ZN14FlightTaskAuto32_evaluatePositionSetpointTripletEv) /* 1048 */
+*(.text._ZN27MavlinkStreamAttitudeTarget4sendEv) /* 236 */
+*(.text._ZN24MavlinkParametersManager11send_uavcanEv) /* 236 */
+*(.text._ZN14FlightTaskAuto10_smoothYawEv) /* 236 */
+*(.text._ZN7sensors19VehicleMagnetometer12UpdateStatusEv) /* 476 */
+*(.text._ZNK3Ekf18getHeadingInnovVarEv) /* 120 */
+*(.text._ZN26open_drone_id_translations16odidVerAccForEpvEf) /* 120 */
+*(.text._ZN14ModeManagement33checkConfigControlSetpointUpdatesEhb) /* 244 */
+*(.text._ZN10EKFGSF_yaw9updateEKFEhRKN6matrix7Vector2IfEEf) /* 876 */
+*(.text._ZN13land_detector23MulticopterLandDetector14_update_topicsEv) /* 252 */
+*(.text._ZN7sensors22VehicleAngularVelocity16ParametersUpdateEb) /* 1780 */
+*(.text.ring_buf_put) /* 130 */
+*(.text.qsort) /* 654 */
+*(.text._ZN4math9Utilities17updateYawInRotMatIfEEN6matrix3DcmIT_EES4_RKS5_) /* 528 */
+*(.text._ZN15MavlinkReceiver15CheckHeartbeatsERKyb) /* 668 */
+*(.text._ZN9Commander21checkForMissionUpdateEv) /* 286 */
+*(.text._ZN14FlightTaskAuto6updateEv) /* 1016 */
+*(.text._ZN4EKF226PublishInnovationVariancesERKy) /* 292 */
+*(.text._ZN36MavlinkStreamPositionTargetGlobalInt4sendEv) /* 296 */
+*(.text._Z29get_distance_to_next_waypointdddd) /* 152 */
+*(.text._ZN6Report8finalizeEv) /* 152 */
+*(.text._ZN3Sih14send_dist_snsrERKy) /* 152 */
+*(.text._ZN17PositionSmoothing25_generateVelocitySetpointERKN6matrix7Vector3IfEERA3_S3_bS4_) /* 924 */
+*(.text._ZN9EscChecks19checkEscTemperatureER6ReportRK12esc_status_s) /* 308 */
+*(.text._ZN3Ekf23controlBaroHeightFusionERKN9estimator9imuSampleE) /* 1716 */
+*(.text._ZN9Commander20battery_status_checkEv) /* 156 */
+*(.text._ZN21MavlinkMissionManager20check_active_missionEv) /* 160 */
+*(.text._ZN13land_detector23MulticopterLandDetector23_get_maybe_landed_stateEv) /* 324 */
+*(.text._ZN9Commander18manualControlCheckEv) /* 168 */
+*(.text._ZN14FlightTaskAuto22_checkEmergencyBrakingEv) /* 516 */
+*(.text._ZN6Loiter18updateHeadingToRoiEv) /* 174 */
+*(.text._ZN9estimator6sensor17SensorRangeFinder14updateFogCheckEfy) /* 184 */
+*(.text.f_write) /* 382 */
+*(.text._ZN3Ekf20controlFakeHgtFusionEv) /* 384 */
+*(.text.HAL_SD_ReadBlocks_IT) /* 196 */
+*(.text._ZN15EstimatorChecks14checkAndReportERK7ContextR6Report) /* 396 */
+*(.text._ZN17VelocitySmoothing32updateDurationsMinimizeTotalTimeEv) /* 400 */
+*(.text._ZNK3Ekf20get_ekf_vel_accuracyEPfS0_) /* 404 */
+*(.text._ZN18EstimatorInterface12setRangeDataERKN9estimator6sensor11rangeSampleE.part.0) /* 404 */
+*(.text._ZN3Ekf20controlFakePosFusionEv) /* 620 */
+*(.text._ZN3Ekf27controlExternalVisionFusionERKN9estimator9imuSampleE) /* 1656 */
+*(.text._ZN4EKF221UpdateExtVisionSampleER17ekf2_timestamps_s) /* 1244 */
+*(.text._ZN3Ekf19controlAuxVelFusionERKN9estimator9imuSampleE) /* 416 */
+*(.text._ZN17OpenDroneIDChecks14checkAndReportERK7ContextR6Report) /* 208 */
+*(.text._ZN8load_mon7LoadMon7cpuloadEv) /* 208 */
+*(.text.px4_poll) /* 628 */
+*(.text._ZN10EKFGSF_yaw12fuseVelocityERKN6matrix7Vector2IfEEfb) /* 216 */
+*(.text._ZN14DetectAndAvoid15process_trafficEv) /* 216 */
+*(.text._ZN24MavlinkParametersManager18send_untransmittedEv) /* 222 */
+*(.text._ZN12MixingOutput19updateSubscriptionsEb) /* 676 */
+*(.text._ZN35MavlinkStreamPositionTargetLocalNed4sendEv) /* 464 */
+*(.text._Z15arm_auth_updateyb) /* 472 */
+*(.text._ZN30MavlinkStreamOpenDroneIdSystem4sendEv) /* 236 */
+*(.text._ZN20MavlinkStreamESCInfo4sendEv) /* 240 */
+*(.text._ZN3Ekf13updateGnssPosERKN9estimator10gnssSampleER24estimator_aid_source2d_s) /* 484 */
+*(.text._ZN11MissionBase20updateMavlinkMissionEv) /* 244 */
+*(.text._ZNK14DetectAndAvoid20gather_ownship_inputER11daa_input_s) /* 248 */
+*(.text._ZN13BiasEstimator8fuseBiasEff) /* 256 */
+*(.text._ZN14FlightTaskAuto22_set_heading_from_modeEv) /* 260 */
+*(.text._ZN3Ekf26controlRangingBeaconFusionERKN9estimator9imuSampleE) /* 524 */
+*(.text._ZN18EstimatorInterface10setGpsDataERKN9estimator10gnssSampleE.part.0) /* 524 */
+*(.text._ZN22MavlinkStreamSysStatus4sendEv) /* 792 */
+*(.text._ZN15MavlinkReceiver3runEv) /* 3192 */
+*(.text._ZN21MavlinkStreamOdometry4sendEv) /* 266 */
+*(.text._ZN4EKF216PublishEvPosBiasERKy) /* 288 */
+*(.text._ZN21MavlinkStreamAltitude4sendEv) /* 292 */
+*(.text._ZN3Ekf17controlDragFusionERKN9estimator9imuSampleE) /* 292 */
+*(.text._ZN7sensors19VehicleMagnetometer20UpdateMagCalibrationEv) /* 880 */
+*(.text._ZN21MavlinkMissionManager4sendEv) /* 588 */
+*(.text._ZN7sensors22VehicleAngularVelocity21SensorSelectionUpdateERKyb) /* 900 */
+*(.text._ZN4EKF218PublishStatusFlagsERKy) /* 904 */
+*(.text._ZN15EstimatorChecks23setModeRequirementFlagsERK7ContextbbRK24vehicle_local_position_sRK14vehicle_gnss_sR16failsafe_flags_sR6Report) /* 904 */
+*(.text._ZN12SensorGpsSim3RunEv.part.0) /* 912 */
+*(.text._ZN9EscChecks14checkAndReportERK7ContextR6Report) /* 304 */
+*(.text._ZN3Ekf26checkMagHeadingConsistencyERKN9estimator9magSampleE) /* 616 */
+*(.text._ZN7sensors14VehicleAirData3RunEv) /* 1236 */
+*(.text._ZN27MavlinkStreamServoOutputRawILi0EE4sendEv) /* 322 */
+*(.text._ZN10GnssChecks3runERK16gnssChecksSamplebbb) /* 340 */
+*(.text._ZN7sensors18VehicleGPSPosition13PublishStatusEv) /* 340 */
+*(.text._ZN3Ekf16controlMagFusionERKN9estimator9imuSampleE) /* 5276 */
+*(.text._ZN7sensors19VehicleMagnetometer13CheckFailoverERKy) /* 356 */
+*(.text._ZN13SensorBaroSim3RunEv) /* 360 */
+*(.text._ZN4EKF221PublishOpticalFlowVelERKy) /* 364 */
+*(.text._ZN4math10trajectory32computeStartXYSpeedFromWaypointsERKN6matrix7Vector3IfEES5_S5_fRKNS0_20VehicleDynamicLimitsE) /* 392 */
+*(.text._ZN7sensors19VehicleMagnetometer21UpdateMagBiasEstimateEv) /* 396 */
+*(.text._ZN20GnssRedundancyChecks14checkAndReportERK7ContextR6Report) /* 796 */
+*(.text._ZN31MavlinkStreamHILStateQuaternion4sendEv) /* 400 */
+*(.text._ZN19RcAndDataLinkChecks14checkAndReportERK7ContextR6Report) /* 400 */
+*(.text._ZN8Geofence3runEv) /* 404 */
+*(.text._ZN16ConflictNotifier12report_cycleERKN3px45ArrayI25conflict_tracker_change_sLj37EEERK15ConflictTrackerRKNS_15cycle_context_sE) /* 404 */
+*(.text._ZN4EKF217PublishEventFlagsERKy) /* 420 */
+*(.text._ZN12SystemChecks14checkAndReportERK7ContextR6Report) /* 860 */
+*(.text._ZN27MavlinkStreamDistanceSensor4sendEv) /* 440 */
+*(.text._ZN21FailureDetectorChecks14checkAndReportERK7ContextR6Report) /* 460 */
+*(.text._ZN14ExternalChecks14checkAndReportERK7ContextR6Report) /* 464 */
+*(.text._ZN17MissionRouteCache20updateSafePointCacheERK9mission_s) /* 468 */
+*(.text._ZN3Sih19send_ranging_beaconERKy) /* 472 */
+*(.text._ZN14ExternalChecks6updateEv) /* 476 */
+*(.text._ZN19RcCalibrationChecks14checkAndReportERK7ContextR6Report) /* 484 */
+*(.text._ZN3Ekf13checkMagFieldERKN6matrix7Vector3IfEE) /* 604 */
+*(.text._ZN3Ekf23controlGnssHeightFusionERKN9estimator10gnssSampleE) /* 1880 */
+*(.text._ZN7sensors18VehicleGPSPosition16ParametersUpdateEb) /* 636 */
+*(.text._ZN18MagnetometerChecks14checkAndReportERK7ContextR6Report) /* 784 */
+*(.text._ZN3Ekf20controlGnssYawFusionERKN9estimator9imuSampleE) /* 800 */
+*(.text._ZN11PowerChecks14checkAndReportERK7ContextR6Report) /* 828 */
+*(.text._ZN26MulticopterPositionControl17parameters_updateEb) /* 3508 */
+*(.text._ZN9Navigator3runEv) /* 4844 */
+*(.text._ZN3Ekf24controlOpticalFlowFusionERKN9estimator9imuSampleE) /* 2064 */
+*(.text.vfprintf) /* 2396 */
