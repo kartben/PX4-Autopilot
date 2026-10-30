@@ -125,6 +125,7 @@ static int fake_pio_channel_release(const struct device *dev, struct pulse_io_ch
 
 	ch->reserved = false;
 	ch->configured = false;
+	ch->low_since_ms = 0;
 
 	return 0;
 }
@@ -146,6 +147,14 @@ static int fake_pio_channel_configure(const struct device *dev, struct pulse_io_
 
 	ch->cfg = *pio_cfg;
 	ch->configured = true;
+
+	if (!pio_cfg->idle_high) {
+		ch->low_since_ms = (ch->low_since_ms != 0) ? ch->low_since_ms : k_uptime_get();
+
+	} else {
+		ch->low_before_high_ms = (ch->low_since_ms != 0) ? k_uptime_get() - ch->low_since_ms : 0;
+		ch->low_since_ms = 0;
+	}
 
 	return 0;
 }

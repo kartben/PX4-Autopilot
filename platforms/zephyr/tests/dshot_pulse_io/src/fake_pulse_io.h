@@ -52,6 +52,9 @@ struct fake_pio_channel {
 	bool reserved;
 	bool configured;
 	struct pulse_io_config cfg;
+	/* uptime since which the line rests low, 0 while it doesn't, and how long it rested low before it last idled high */
+	int64_t low_since_ms;
+	int64_t low_before_high_ms;
 	/* the last transmit: cells or symbols, as configured */
 	size_t count;
 	struct pulse_cell cells[FAKE_PIO_MAX_ENTRIES];

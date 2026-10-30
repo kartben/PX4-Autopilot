@@ -82,6 +82,12 @@
 /* the edges of a reply and the line levels around them */
 #define DSHOT_REPLY_SYMBOLS 32U
 
+/*
+ * An AM32 ESC that resets while its line rests high without frames, as a bidirectional line does before its first
+ * frame, waits in its bootloader for a configurator until the line stays low for 20 ms.
+ */
+#define DSHOT_ESC_BOOTLOADER_EXIT_MS 50
+
 /* a frame takes 29 us at 600 kbit/s and 114 us at 150 kbit/s, which the timeout leaves room for */
 #define DSHOT_SEND_TIMEOUT K_MSEC(2)
 
@@ -229,7 +235,18 @@ static int dshot_pio_configure(const struct device *dev, uint32_t channels, uint
 		data->bit_rate = bit_rate;
 	}
 
-	for (uint8_t i = 0; i < cfg->num_channels; i++) {
+	/* the bidirectional lines rest low before they idle high, which takes the ESCs out of their bootloader */
+	for (uint8_t i = 0; (i < cfg->num_channels) && (ret == 0); i++) {
+		if ((bidirectional_channels & BIT(i)) != 0) {
+			ret = configure_channel(&cfg->channels[i], &data->channels[i], bit_rate, false);
+		}
+	}
+
+	if ((ret == 0) && (bidirectional_channels != 0)) {
+		k_msleep(DSHOT_ESC_BOOTLOADER_EXIT_MS);
+	}
+
+	for (uint8_t i = 0; (i < cfg->num_channels) && (ret == 0); i++) {
 		if ((channels & BIT(i)) == 0) {
 			release_channel(&cfg->channels[i], &data->channels[i]);
 			continue;
@@ -237,10 +254,6 @@ static int dshot_pio_configure(const struct device *dev, uint32_t channels, uint
 
 		ret = configure_channel(&cfg->channels[i], &data->channels[i], bit_rate,
 					(bidirectional_channels & BIT(i)) != 0);
-
-		if (ret < 0) {
-			break;
-		}
 	}
 
 	if (ret < 0) {

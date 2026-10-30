@@ -287,6 +287,9 @@ ZTEST(dshot_pulse_io, test_bidirectional_configure)
 	zassert_equal(CH2->cfg.dir, PULSE_IO_DIR_TX);
 	zassert_false(CH2->cfg.idle_high);
 
+	/* the line rests low for the 20 ms that take an AM32 ESC out of its bootloader before it idles high */
+	zassert_true(CH0->low_before_high_ms >= 20, "low for %lld ms", CH0->low_before_high_ms);
+
 	/* a controller that doesn't receive, and a bidirectional channel that isn't configured */
 	zassert_equal(px4_dshot_configure(dshot, BIT(1), BIT(1), 600000), -EINVAL);
 	zassert_equal(px4_dshot_configure(dshot, BIT(0), BIT(2), 600000), -EINVAL);
