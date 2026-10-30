@@ -9,7 +9,7 @@ manifest:
     - name: zephyr
       # control-n1-board-support: the 3DR Control N1 board and its carriers
       remote: kartben
-      revision: 08851a826a63fa94835790ef9c760ffd3a96bcfd
+      revision: 2dd4e496afde3680fb9c63092f1e0135a213124f
       import:
         name-allowlist:
           - cmsis
