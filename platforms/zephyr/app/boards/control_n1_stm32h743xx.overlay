@@ -39,6 +39,12 @@
 			sensor = <&baro>;
 			type = "baro";
 		};
+
+		/* the battery voltage divider of the FPV carrier, which measures no current */
+		power0 {
+			sensor = <&fpv_vbatt>;
+			type = "power";
+		};
 	};
 
 	/* the paths of the NuttX build; SG3 (UART7) is the Zephyr console */
@@ -145,11 +151,11 @@
 		blue = <&white_led>;
 	};
 
-	/* the ADC channels of boards/3dr/ctrl-n1/src/board_config.h */
+	/* the 5 V rail of boards/3dr/ctrl-n1/src/board_config.h; the battery is the power0 sensor */
 	px4-adc {
 		compatible = "px4,adc";
-		io-channels = <&adc1 8>, <&adc1 18>, <&adc1 10>;
-		io-channel-names = "scaled-v5", "battery-voltage", "battery-current";
+		io-channels = <&adc1 8>;
+		io-channel-names = "scaled-v5";
 	};
 
 	fstab {

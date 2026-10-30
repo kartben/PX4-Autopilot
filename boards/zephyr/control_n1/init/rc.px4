@@ -30,7 +30,6 @@ dataman start -r
 load_mon start
 tone_alarm start
 board_adc start
-battery_status start
 zephyr_sensors start
 sensors start
 commander start
