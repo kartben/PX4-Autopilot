@@ -43,7 +43,7 @@
  * A bidirectional channel is a half duplex pulse_io channel (PULSE_IO_DIR_TX_RX) whose line idles high: its
  * frame is inverted, the line low for 3/4 of a 1 and 3/8 of a 0, and a receive chained to the transmit through
  * RTIO captures the reply of the ESC, at 5/4 of the bit rate, without waiting for it. Its 20 bits after the start
- * bit are the line levels at the middle of each bit.
+ * bit are the line levels, counted in bit periods between the edges.
  */
 
 #define DT_DRV_COMPAT px4_dshot_pulse_io
@@ -437,44 +437,40 @@ unlock:
 	return ret;
 }
 
-/* the line level at a time of the reply, after its last edge the level that follows it */
-static bool level_at(const struct pulse_symbol *symbols, size_t num, uint32_t time)
-{
-	uint32_t end = 0;
-
-	for (size_t i = 0; i < num; i++) {
-		end += symbols[i].duration;
-
-		if (time < end) {
-			return symbols[i].level;
-		}
-	}
-
-	return symbols[num - 1].level;
-}
-
+/*
+ * The levels of the start bit and the 20 bits that follow, from the number of bits in each level: the bit period
+ * of the ESC can differ from the nominal one by a few percent, which sampling at fixed times accumulates over the
+ * reply, while a level lasts at most 3 bits. The level after the last edge fills the remaining bits.
+ */
 static int decode_reply(const struct pulse_symbol *symbols, size_t num, uint32_t *reply)
 {
-	uint32_t start = 0;
+	uint32_t value = 0;
+	unsigned bits = 0;
 	size_t i = 0;
 
 	/* the start bit is the first low level */
 	while ((i < num) && (symbols[i].level != 0)) {
-		start += symbols[i].duration;
 		i++;
 	}
 
-	if (i == num) {
+	for (; (i < num) && (bits < DSHOT_REPLY_BITS + 1); i++) {
+		const unsigned run = MIN((symbols[i].duration + DSHOT_REPLY_BIT_TICKS / 2) / DSHOT_REPLY_BIT_TICKS,
+					 DSHOT_REPLY_BITS + 1 - bits);
+
+		/* a level shorter than half a bit is not part of a reply */
+		if (run == 0) {
+			return -ENODATA;
+		}
+
+		value = (value << run) | (symbols[i].level ? BIT_MASK(run) : 0);
+		bits += run;
+	}
+
+	if (bits < DSHOT_REPLY_BITS + 1) {
 		return -ENODATA;
 	}
 
-	*reply = 0;
-
-	for (unsigned bit = 1; bit <= DSHOT_REPLY_BITS; bit++) {
-		const uint32_t middle = start + bit * DSHOT_REPLY_BIT_TICKS + DSHOT_REPLY_BIT_TICKS / 2;
-
-		*reply = (*reply << 1) | (level_at(symbols, num, middle) ? 1 : 0);
-	}
+	*reply = value & BIT_MASK(DSHOT_REPLY_BITS);
 
 	return 0;
 }

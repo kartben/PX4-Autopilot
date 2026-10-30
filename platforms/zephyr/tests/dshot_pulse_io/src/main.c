@@ -246,22 +246,25 @@ ZTEST(dshot_pulse_io, test_no_reply)
 /* ticks of a bit of the reply, at 5/4 of the bit rate */
 #define REPLY_BIT_TICKS 32
 
-/* the symbols of a reply 30 us after the frame: the start bit, then 20 bits as line levels, the first in bit 19 */
-static size_t make_reply(struct pulse_symbol *symbols, uint32_t bits)
+/*
+ * the symbols of a reply 30 us after the frame, with bits of bit_ticks: the start bit, then 20 bits as line levels,
+ * the first in bit 19
+ */
+static size_t make_reply_at(struct pulse_symbol *symbols, uint32_t bits, uint16_t bit_ticks)
 {
 	size_t n = 0;
 
 	symbols[n++] = (struct pulse_symbol) {.duration = 720, .level = 1};
-	symbols[n++] = (struct pulse_symbol) {.duration = REPLY_BIT_TICKS, .level = 0};
+	symbols[n++] = (struct pulse_symbol) {.duration = bit_ticks, .level = 0};
 
 	for (int i = 19; i >= 0; i--) {
 		const uint32_t level = (bits >> i) & 1;
 
 		if (symbols[n - 1].level == level) {
-			symbols[n - 1].duration += REPLY_BIT_TICKS;
+			symbols[n - 1].duration += bit_ticks;
 
 		} else {
-			symbols[n++] = (struct pulse_symbol) {.duration = REPLY_BIT_TICKS, .level = level};
+			symbols[n++] = (struct pulse_symbol) {.duration = bit_ticks, .level = level};
 		}
 	}
 
@@ -274,6 +277,11 @@ static size_t make_reply(struct pulse_symbol *symbols, uint32_t bits)
 	}
 
 	return n;
+}
+
+static size_t make_reply(struct pulse_symbol *symbols, uint32_t bits)
+{
+	return make_reply_at(symbols, bits, REPLY_BIT_TICKS);
 }
 
 ZTEST(dshot_pulse_io, test_bidirectional_configure)
@@ -344,5 +352,27 @@ ZTEST(dshot_pulse_io, test_bidirectional_reply)
 
 		/* returned once */
 		zassert_equal(px4_dshot_get_reply(dshot, 0, &reply), -ENODATA);
+	}
+}
+
+ZTEST(dshot_pulse_io, test_bidirectional_reply_bit_period)
+{
+	/* the bit period of an ESC differs from the nominal one: 12.5 % shorter and longer */
+	const uint16_t bit_ticks[] = {REPLY_BIT_TICKS - 4, REPLY_BIT_TICKS + 4};
+	/* the replies of the payloads 0xfff, 0x123, 0x9ab and 0x5a5, which keep a level for at most 3 bits */
+	const uint32_t bits[] = {0x52951, 0x973b5, 0x731a5, 0xcccd9};
+	uint32_t reply;
+
+	zassert_ok(px4_dshot_configure(dshot, BIT(0), BIT(0), 600000));
+
+	for (size_t t = 0; t < ARRAY_SIZE(bit_ticks); t++) {
+		for (size_t i = 0; i < ARRAY_SIZE(bits); i++) {
+			CH0->reply_count = make_reply_at(CH0->reply, bits[i], bit_ticks[t]);
+
+			zassert_ok(px4_dshot_send(dshot, BIT(0), (const uint16_t[1]) {0}));
+			zassert_ok(px4_dshot_get_reply(dshot, 0, &reply));
+			zassert_equal(reply, bits[i], "reply 0x%05x instead of 0x%05x, %u ticks a bit", reply, bits[i],
+				      bit_ticks[t]);
+		}
 	}
 }
