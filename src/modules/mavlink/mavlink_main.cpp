@@ -40,6 +40,7 @@
  * @author Anton Babushkin <anton.babushkin@me.com>
  */
 
+#include <sys/ioctl.h>
 #include <termios.h>
 
 #ifdef CONFIG_NET
@@ -880,7 +881,7 @@ Mavlink::get_free_tx_buf()
 #endif // MAVLINK_UDP
 	{
 
-#if defined(__PX4_NUTTX)
+#if defined(__PX4_NUTTX) || defined(__PX4_ZEPHYR)
 		(void) ioctl(_uart_fd, FIONSPACE, (unsigned long)&buf_free);
 #else
 		// No FIONSPACE on Linux todo:use SIOCOUTQ  and queue size to emulate FIONSPACE
@@ -2421,7 +2422,7 @@ Mavlink::task_main(int argc, char *argv[])
 	bool err_flag = false;
 	int myoptind = 1;
 	const char *myoptarg = nullptr;
-#if defined(CONFIG_NET) || defined(__PX4_POSIX)
+#if defined(MAVLINK_UDP)
 	int temp_int_arg;
 #endif
 
