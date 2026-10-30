@@ -397,7 +397,8 @@ void SensorBus::publish(Sensor &sensor, const zephyr_sensor_sample &sample)
 	if (sensor.battery) {
 		sensor.battery->setConnected(true);
 		sensor.battery->updateVoltage(sample.voltage);
-		sensor.battery->updateCurrent(sample.current);
+		/* -1 for a current that isn't measured */
+		sensor.battery->updateCurrent(PX4_ISFINITE(sample.current) ? sample.current : -1.f);
 		sensor.battery->updateAndPublishBatteryStatus(sample.timestamp_us);
 	}
 

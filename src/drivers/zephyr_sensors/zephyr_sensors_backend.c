@@ -489,8 +489,10 @@ int zephyr_sensors_read(size_t index, struct zephyr_sensor_sample *sample)
 	case ZEPHYR_SENSOR_TYPE_POWER:
 		ret = decode_q31(decoder, sensor->buffer, SENSOR_CHAN_VOLTAGE, &sample->voltage, &timestamp_ns);
 
-		if (ret == 0) {
-			ret = decode_q31(decoder, sensor->buffer, SENSOR_CHAN_CURRENT, &sample->current, &timestamp_ns);
+		/* a voltage divider measures no current */
+		if ((ret == 0) &&
+		    (decode_q31(decoder, sensor->buffer, SENSOR_CHAN_CURRENT, &sample->current, &timestamp_ns) != 0)) {
+			sample->current = NAN;
 		}
 
 		break;
