@@ -300,7 +300,7 @@ static struct pulse_io_tx_req encode_frame(struct dshot_pio_channel *ch, uint16_
 
 /* the transmit and the receive of the reply of a bidirectional channel, chained */
 static int submit_bidirectional(const struct dshot_pio_config *cfg, unsigned i, struct dshot_pio_channel *ch,
-				uint16_t frame)
+				uint16_t frame, struct rtio_sqe **last)
 {
 	if (rtio_sqe_acquirable(cfg->rtio) < 2) {
 		return -ENOMEM;
@@ -317,6 +317,12 @@ static int submit_bidirectional(const struct dshot_pio_config *cfg, unsigned i, 
 	rtio_sqe_prep_read(rx, cfg->channels[i].iodev, RTIO_PRIO_HIGH, (uint8_t *)ch->reply_symbols,
 			   sizeof(ch->reply_symbols), (void *)(uintptr_t)i);
 	ch->reply = DSHOT_PIO_REPLY_PENDING;
+
+	/* one chain for all the channels, so that each receive directly follows its transmit */
+	if (*last != NULL) {
+		(*last)->flags |= RTIO_SQE_CHAINED;
+	}
+	*last = rx;
 
 	return 0;
 }
@@ -356,7 +362,7 @@ static int dshot_pio_send(const struct device *dev, uint32_t channels, const uin
 	process_completions(cfg, data);
 
 	uint32_t remaining = channels;
-	bool submit = false;
+	struct rtio_sqe *last = NULL;
 
 	while (remaining != 0) {
 		/* the first channel left, and the other channels of its controller if they start together */
@@ -374,13 +380,10 @@ static int dshot_pio_send(const struct device *dev, uint32_t channels, const uin
 				continue;
 			}
 
-			const int err = submit_bidirectional(cfg, first, &data->channels[first], frames[first]);
+			const int err = submit_bidirectional(cfg, first, &data->channels[first], frames[first], &last);
 
 			if (err < 0) {
 				ret = (ret == 0) ? err : ret;
-
-			} else {
-				submit = true;
 			}
 
 			continue;
@@ -407,7 +410,7 @@ static int dshot_pio_send(const struct device *dev, uint32_t channels, const uin
 	}
 
 	/* the bidirectional channels send without waiting for the replies */
-	if (submit) {
+	if (last != NULL) {
 		const int err = rtio_submit(cfg->rtio, 0);
 
 		if ((err < 0) && (ret == 0)) {
