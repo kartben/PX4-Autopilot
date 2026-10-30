@@ -1,0 +1,55 @@
+/* Sensor orientation as in boards/px4/fmu-v6xrt/init/rc.board_sensors */
+
+#include <dt-bindings/px4/rotation.h>
+
+/ {
+	px4-sensors {
+		compatible = "px4,sensors";
+
+		imu0 {
+			sensor = <&icm42686_0>;
+			type = "imu";
+			rotation = <PX4_ROTATION_PITCH_180>;
+		};
+
+		imu1 {
+			sensor = <&icm42688_0>;
+			type = "imu";
+			rotation = <PX4_ROTATION_YAW_270>;
+		};
+
+		accel2 {
+			sensor = <&bmi08x_accel>;
+			type = "accel";
+			rotation = <PX4_ROTATION_YAW_180>;
+		};
+
+		gyro2 {
+			sensor = <&bmi08x_gyro>;
+			type = "gyro";
+			rotation = <PX4_ROTATION_YAW_180>;
+		};
+
+		mag0 {
+			sensor = <&ist8310>;
+			type = "mag";
+			rotation = <PX4_ROTATION_ROLL_180_YAW_90>;
+			external;
+		};
+
+		mag1 {
+			sensor = <&bmm150>;
+			type = "mag";
+		};
+
+		baro0 {
+			sensor = <&bmp388_0>;
+			type = "baro";
+		};
+
+		baro1 {
+			sensor = <&bmp388_1>;
+			type = "baro";
+		};
+	};
+};
