@@ -32,6 +32,7 @@
  ****************************************************************************/
 
 #include <px4_zephyr.h>
+#include <px4_safety_button.h>
 
 #include <drivers/drv_board_led.h>
 #include <parameters/param.h>
@@ -66,6 +67,14 @@ int px4_zephyr_init(void)
 #if defined(CONFIG_PX4_LEDS)
 	// the board LEDs, at /dev/led0 as on NuttX
 	drv_led_start();
+#endif
+
+#if defined(CONFIG_PX4_SAFETY_BUTTON)
+
+	if (px4_safety_button_init() != 0) {
+		PX4_ERR("safety button not ready");
+	}
+
 #endif
 
 	struct statfs storage;

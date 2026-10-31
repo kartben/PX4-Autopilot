@@ -1,0 +1,47 @@
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+
+/ {
+	/* with the edge interrupts of the gpio-keys input driver */
+	test_gpio: gpio-emul {
+		compatible = "zephyr,gpio-emul";
+		gpio-controller;
+		#gpio-cells = <2>;
+		rising-edge;
+		falling-edge;
+	};
+
+	/* the safety switch of a GPS module, as on the VMU RT1170: the button, active high */
+	test-keys {
+		compatible = "gpio-keys";
+
+		test_safety_button: safety-button {
+			gpios = <&test_gpio 0 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
+			zephyr,code = <INPUT_KEY_0>;
+		};
+	};
+
+	/* and its LED, active low */
+	test-leds {
+		compatible = "gpio-leds";
+
+		test_safety_led: safety-led {
+			gpios = <&test_gpio 1 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	px4-safety-button {
+		compatible = "px4,safety-button";
+		button = <&test_safety_button>;
+	};
+
+	px4-leds {
+		compatible = "px4,leds";
+		safety = <&test_safety_led>;
+	};
+};
+
+/* the buttons of the board, which the gpio-keys driver can't read on the QEMU board, as they have no interrupts */
+&{/gpio_keys} {
+	status = "disabled";
+};

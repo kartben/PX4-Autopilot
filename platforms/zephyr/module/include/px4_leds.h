@@ -37,8 +37,9 @@
  *
  * LEDs of the px4,leds devicetree node.
  *
- * The board LEDs are the LEDs of PX4 (LED_BLUE, LED_RED and LED_GREEN of
- * drivers/drv_board_led.h) that the node names, which PX4 turns on and off.
+ * The board LEDs are the LEDs of PX4 (LED_BLUE, LED_RED, LED_SAFETY and
+ * LED_GREEN of drivers/drv_board_led.h) that the node names, which PX4 turns
+ * on and off.
  */
 
 #pragma once
@@ -69,13 +70,13 @@ int px4_board_leds_init(void);
 
 /**
  * Turn a board LED on or off. A LED that the board doesn't have is ignored.
- * @param led LED_BLUE, LED_RED or LED_GREEN
+ * @param led LED_BLUE, LED_RED, LED_SAFETY or LED_GREEN
  */
 void px4_board_led_set(int led, bool on);
 
 /**
  * Turn a board LED on if it is off, and off if it is on.
- * @param led LED_BLUE, LED_RED or LED_GREEN
+ * @param led LED_BLUE, LED_RED, LED_SAFETY or LED_GREEN
  */
 void px4_board_led_toggle(int led);
 
