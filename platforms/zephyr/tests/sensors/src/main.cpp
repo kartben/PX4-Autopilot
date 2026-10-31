@@ -33,6 +33,7 @@
 
 #include "sensor_values.h"
 
+#include <drivers/drv_hrt.h>
 #include <drivers/drv_sensor.h>
 #include <lib/drivers/device/Device.hpp>
 #include <px4_zephyr.h>
@@ -60,12 +61,12 @@ static constexpr float TEMPERATURE_TOLERANCE{0.01f};
 static constexpr int SAMPLE_TIMEOUT_MS{100};
 
 template<typename T>
-static bool wait_for_sample(const orb_metadata *meta, T &sample)
+static bool wait_for_sample(const orb_metadata *meta, T &sample, hrt_abstime after = 0)
 {
 	uORB::Subscription subscription{meta};
 
 	for (int i = 0; i < SAMPLE_TIMEOUT_MS; i++) {
-		if (subscription.update(&sample)) {
+		if (subscription.update(&sample) && sample.timestamp >= after) {
 			return true;
 		}
 
@@ -107,11 +108,15 @@ static void *setup(void)
 {
 	zassert_ok(px4_zephyr_init());
 
+	// the magnetometers are initialized, and reset, when zephyr_sensors starts
+	zassert_ok(run("zephyr_sensors start"));
+
 	zassert_ok(sensor_values_set_imu(ACCEL, GYRO));
 	zassert_ok(sensor_values_set_mag(MAG));
 	sensor_values_set_baro(PRESSURE_KPA, TEMPERATURE);
 
-	zassert_ok(run("zephyr_sensors start"));
+	// wait for the sensors to be read with these values
+	k_sleep(K_MSEC(SAMPLE_TIMEOUT_MS));
 
 	return nullptr;
 }
@@ -144,16 +149,42 @@ ZTEST(px4_sensors, test_imu)
 	zassert_equal(gyro.device_id, accel.device_id);
 }
 
-ZTEST(px4_sensors, test_mag)
+static void check_mag(hrt_abstime after = 0)
 {
 	sensor_mag_s mag{};
-	zassert_true(wait_for_sample(ORB_ID(sensor_mag), mag));
+	zassert_true(wait_for_sample(ORB_ID(sensor_mag), mag, after));
 
 	zassert_within(mag.x, MAG[0], MAG_TOLERANCE, "x %f", (double)mag.x);
 	zassert_within(mag.y, MAG[1], MAG_TOLERANCE, "y %f", (double)mag.y);
 	zassert_within(mag.z, MAG[2], MAG_TOLERANCE, "z %f", (double)mag.z);
 	zassert_equal(mag.device_id, device_id(device::Device::DeviceBusType_I2C, 1, 0xc, DRV_MAG_DEVTYPE_AK09918));
 	zassert_true(mag.is_external);
+}
+
+ZTEST(px4_sensors, test_mag)
+{
+	check_mag();
+}
+
+ZTEST(px4_sensors, test_absent_sensor)
+{
+	zassert_false(device_is_ready(DEVICE_DT_GET(DT_NODELABEL(ist8310))));
+
+	k_sleep(K_MSEC(SAMPLE_TIMEOUT_MS));
+	zassert_false(uORB::Subscription(ORB_ID(sensor_mag), 1).advertised());
+}
+
+ZTEST(px4_sensors, test_restart)
+{
+	// the optional sensors are found again, without a second initialization
+	zassert_ok(run("zephyr_sensors stop"));
+
+	const hrt_abstime restart = hrt_absolute_time();
+	zassert_ok(run("zephyr_sensors start"));
+
+	// the emulator has a new sample when it is set
+	zassert_ok(sensor_values_set_mag(MAG));
+	check_mag(restart);
 }
 
 ZTEST(px4_sensors, test_baro)
