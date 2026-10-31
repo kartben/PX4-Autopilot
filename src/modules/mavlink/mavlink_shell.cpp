@@ -59,6 +59,69 @@
 #include <asm/socket.h>
 #endif
 
+#if defined(__PX4_ZEPHYR)
+#if defined(CONFIG_PX4_MAVLINK_SHELL)
+#include <px4_mavlink_shell.h>
+
+// the shell is a Zephyr shell instance, see platforms/zephyr/src/px4/common/px4_mavlink_shell.c
+
+MavlinkShell::~MavlinkShell()
+{
+	if (_open) {
+		px4_mavlink_shell_close();
+	}
+}
+
+int MavlinkShell::start()
+{
+	const int ret = px4_mavlink_shell_open();
+	_open = (ret == 0);
+	return ret;
+}
+
+size_t MavlinkShell::write(uint8_t *buffer, size_t len)
+{
+	// the shell echoes the characters
+	return px4_mavlink_shell_write(buffer, len);
+}
+
+size_t MavlinkShell::read(uint8_t *buffer, size_t len)
+{
+	return px4_mavlink_shell_read(buffer, len);
+}
+
+size_t MavlinkShell::available()
+{
+	return px4_mavlink_shell_available();
+}
+
+#else
+
+MavlinkShell::~MavlinkShell() = default;
+
+int MavlinkShell::start()
+{
+	return -ENOTSUP;
+}
+
+size_t MavlinkShell::write(uint8_t *buffer, size_t len)
+{
+	return 0;
+}
+
+size_t MavlinkShell::read(uint8_t *buffer, size_t len)
+{
+	return 0;
+}
+
+size_t MavlinkShell::available()
+{
+	return 0;
+}
+
+#endif // CONFIG_PX4_MAVLINK_SHELL
+#else
+
 MavlinkShell::~MavlinkShell()
 {
 	//closing the pipes will stop the thread as well
@@ -239,3 +302,5 @@ size_t MavlinkShell::available()
 
 	return 0;
 }
+
+#endif // __PX4_ZEPHYR

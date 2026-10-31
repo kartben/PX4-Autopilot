@@ -92,6 +92,10 @@ private:
 	int _shell_fds[2] = { -1, -1}; /** stdin & out used by the shell */
 	px4_task_t _task;
 
+#if defined(__PX4_ZEPHYR)
+	bool _open{false}; /** the shell was opened */
+#endif
+
 	static int shell_start_thread(int argc, char *argv[]);
 
 	/* do not allow copying this class */

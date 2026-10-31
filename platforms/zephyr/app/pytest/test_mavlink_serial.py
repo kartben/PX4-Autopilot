@@ -278,3 +278,104 @@ def test_log_events(shell: Shell, ftp):
         chunk = ftp.read(f'/SD:/log/{session}/{log}', 16384, len(data))
         assert chunk, 'no events metadata in the log'
         data += chunk
+
+
+class MavlinkShell:
+    """The MAVLink shell, as the MAVLink console of QGroundControl."""
+
+    def __init__(self, mav):
+        self.mav = mav
+        self.sentinel = 0
+
+    def write(self, text: str):
+        data = text.encode()
+
+        for offset in range(0, len(data), 70):
+            chunk = list(data[offset:offset + 70])
+            self.mav.mav.serial_control_send(
+                mavutil.mavlink.SERIAL_CONTROL_DEV_SHELL,
+                mavutil.mavlink.SERIAL_CONTROL_FLAG_EXCLUSIVE | mavutil.mavlink.SERIAL_CONTROL_FLAG_RESPOND,
+                0, 0, len(chunk), chunk + [0] * (70 - len(chunk)))
+
+    def run(self, command: str, timeout: float = 30) -> list[str]:
+        # the output ends with the output of an echo
+        self.sentinel += 1
+        sentinel = f'DONE{self.sentinel}'
+        self.write(f'{command}\necho {sentinel}\n')
+
+        output = ''
+        end = time.time() + timeout
+
+        while time.time() < end:
+            message = self.mav.recv_match(type='SERIAL_CONTROL', blocking=True, timeout=1)
+
+            if message is not None and message.count > 0:
+                output += bytes(message.data[:message.count]).decode(errors='replace')
+                lines = [line.strip() for line in output.splitlines()]
+
+                if sentinel in lines:
+                    # without the prompts and the echo of the commands
+                    return [line.removeprefix('px4>').strip() for line in lines[:lines.index(sentinel)]
+                            if line.removeprefix('px4>').strip() not in ('', command, f'echo {sentinel}')]
+
+        raise AssertionError(f'no output of {command}: {output!r}')
+
+    def close(self):
+        self.mav.mav.serial_control_send(mavutil.mavlink.SERIAL_CONTROL_DEV_SHELL, 0, 0, 0, 0, [0] * 70)
+
+
+@pytest.fixture
+def mavlink_shell(mav):
+    mavlink_shell = MavlinkShell(mav)
+    yield mavlink_shell
+    mavlink_shell.close()
+    time.sleep(1)
+
+
+def test_mavlink_shell_px4_command(mavlink_shell):
+    # the standard output of the PX4 command, which runs in a task of its own
+    output = mavlink_shell.run('ver all')
+
+    assert 'HW arch: ZEPHYR_GENERIC' in output
+    assert 'OS: Zephyr' in output
+
+
+def test_mavlink_shell_zephyr_command(mavlink_shell):
+    assert any(line.startswith('Uptime:') for line in mavlink_shell.run('kernel uptime'))
+
+
+def test_mavlink_shell_nsh_commands(mavlink_shell):
+    assert mavlink_shell.run('echo a  b') == ['a b']
+
+    header, umem = mavlink_shell.run('free')[:2]
+    assert header.split() == ['total', 'used', 'free', 'maxused']
+    assert umem.startswith('Umem:')
+
+
+def test_mavlink_shell_reopen(shell: Shell, mav):
+    # the shell of a ground station that closed it and opens it again
+    for _ in range(2):
+        mavlink_shell = MavlinkShell(mav)
+        assert 'OS: Zephyr' in mavlink_shell.run('ver all')
+        mavlink_shell.close()
+        time.sleep(1)
+
+    # the PX4 commands of the console still print to the console
+    assert any('OS: Zephyr' in line for line in px4(shell, 'ver all'))
+
+
+def test_mavlink_shell_instance_stopped(shell: Shell, mav):
+    # the MAVLink instance stops with the shell open, as cdcacm_autostart stops the instance of a USB port whose
+    # ground station disconnected: the shell is free for the next instance
+    mavlink_shell = MavlinkShell(mav)
+    assert 'OS: Zephyr' in mavlink_shell.run('ver all')
+
+    px4(shell, 'mavlink stop -d /dev/ttyS1')
+    time.sleep(2)
+    px4(shell, 'mavlink start -d /dev/ttyS1 -b 115200 -x')
+    assert mav.wait_heartbeat(timeout=30), 'no heartbeat'
+
+    mavlink_shell = MavlinkShell(mav)
+    assert 'OS: Zephyr' in mavlink_shell.run('ver all')
+    mavlink_shell.close()
+    time.sleep(1)

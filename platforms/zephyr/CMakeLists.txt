@@ -43,6 +43,8 @@ foreach(module ${module_libraries})
 	if(MAIN)
 		string(APPEND builtin_apps_string "\t{\"${MAIN}\", ${MAIN}_main, ${STACK_MAIN}, ${PRIORITY}},\n")
 		string(APPEND builtin_apps_decl_string "int ${MAIN}_main(int argc, char *argv[]);\n")
+		# commands of the Zephyr shell, see platforms/zephyr/module/CMakeLists.txt
+		set_property(GLOBAL APPEND PROPERTY PX4_ZEPHYR_BUILTINS ${MAIN})
 	endif()
 endforeach()
 
