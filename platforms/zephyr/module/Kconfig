@@ -107,6 +107,16 @@ config PX4_CAN_TX_SLOTS
 	range 1 255
 	depends on PX4_CAN
 
+config PX4_PWM_OUTPUTS
+	bool "PWM outputs for PX4"
+	default y
+	depends on DT_HAS_PX4_PWM_OUTPUTS_ENABLED
+	select PWM
+	help
+	  Enable the Zephyr PWM API for the outputs of the px4,pwm-outputs
+	  devicetree node, which the PX4 zephyr_pwm_out driver drives as the
+	  main outputs.
+
 config PX4_STACK_OVERHEAD
 	int "Stack overhead"
 	default 1024
