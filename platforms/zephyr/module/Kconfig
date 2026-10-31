@@ -237,6 +237,10 @@ configdefault SHELL_STATS
 configdefault SHELL_STACK_SIZE
 	default 4096 if PX4_SHELL
 
+# the board identity is the device ID of the hwinfo driver
+configdefault HWINFO
+	default y
+
 # the sensors of each bus are read at the same time, and most sensor drivers read on the RTIO work
 # queue
 configdefault RTIO_WORKQ_THREADS_POOL
