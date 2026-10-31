@@ -54,6 +54,13 @@ int ZephyrPWMOut::init()
 	_output_count = zephyr_pwm_out_count();
 
 	for (size_t i = 0; i < _output_count; i++) {
+		// left to the dshot driver, as pwm_out leaves the DShot timers on NuttX
+		if (dshot_selected(i)) {
+			_dshot_outputs |= 1u << i;
+			_mixing_output.disableFunction(i);
+			continue;
+		}
+
 		int ret = zephyr_pwm_out_get_period(i, &_period_us[i]);
 
 		// no pulses until the output is set, which also checks that the PWM can make the period
@@ -66,10 +73,11 @@ int ZephyrPWMOut::init()
 			return PX4_ERROR;
 		}
 
-		_shortest_period_us = (i == 0) ? _period_us[i] : math::min(_shortest_period_us, _period_us[i]);
+		_shortest_period_us = (_shortest_period_us == 0) ? _period_us[i] : math::min(_shortest_period_us, _period_us[i]);
 
 		for (size_t j = 0; j < i; j++) {
-			if ((_period_us[j] != _period_us[i]) && zephyr_pwm_out_same_device(i, j)) {
+			if (((_dshot_outputs & (1u << j)) == 0) && (_period_us[j] != _period_us[i])
+			    && zephyr_pwm_out_same_device(i, j)) {
 				PX4_WARN("outputs %u and %u: different periods on the same PWM device", static_cast<unsigned>(j + 1),
 					 static_cast<unsigned>(i + 1));
 			}
@@ -83,6 +91,19 @@ int ZephyrPWMOut::init()
 
 	ScheduleNow();
 	return PX4_OK;
+}
+
+bool ZephyrPWMOut::dshot_selected(size_t index) const
+{
+	char param_name[17];
+	snprintf(param_name, sizeof(param_name), "%s_TIM%u", _mixing_output.paramPrefix(), static_cast<unsigned>(index));
+
+	// the parameter only exists with the dshot driver
+	const param_t handle = param_find(param_name);
+	int32_t protocol = 0;
+
+	return (handle != PARAM_INVALID) && (param_get(handle, &protocol) == PX4_OK)
+	       && (protocol >= DSHOT_PROTOCOL_MIN) && (protocol <= DSHOT_PROTOCOL_MAX);
 }
 
 void ZephyrPWMOut::set_pulse(size_t index, uint32_t pulse_us)
@@ -106,6 +127,10 @@ bool ZephyrPWMOut::updateOutputs(float outputs[MAX_ACTUATORS], unsigned num_outp
 	const hrt_abstime now = hrt_absolute_time();
 
 	for (size_t i = 0; i < num_outputs; i++) {
+		if (_dshot_outputs & (1u << i)) {
+			continue;
+		}
+
 		// no pulses on the outputs without a function, as with pwm_out
 		const uint32_t pulse_us = _mixing_output.isFunctionSet(i) ? static_cast<uint32_t>(lroundf(outputs[i])) : 0;
 
@@ -126,7 +151,9 @@ void ZephyrPWMOut::Run()
 
 		// the outputs are left disarmed
 		for (size_t i = 0; i < _output_count; i++) {
-			set_pulse(i, _mixing_output.isFunctionSet(i) ? _mixing_output.disarmedValue(i) : 0);
+			if ((_dshot_outputs & (1u << i)) == 0) {
+				set_pulse(i, _mixing_output.isFunctionSet(i) ? _mixing_output.disarmedValue(i) : 0);
+			}
 		}
 
 		exit_and_cleanup(desc);
@@ -157,8 +184,13 @@ int ZephyrPWMOut::print_status()
 	_mixing_output.printStatus();
 
 	for (size_t i = 0; i < _output_count; i++) {
-		PX4_INFO_RAW("Output %u: %u Hz, pulse %u us\n", static_cast<unsigned>(i + 1),
-			     static_cast<unsigned>(1_s / _period_us[i]), static_cast<unsigned>(_pulse_us[i]));
+		if (_dshot_outputs & (1u << i)) {
+			PX4_INFO_RAW("Output %u: DShot\n", static_cast<unsigned>(i + 1));
+
+		} else {
+			PX4_INFO_RAW("Output %u: %u Hz, pulse %u us\n", static_cast<unsigned>(i + 1),
+				     static_cast<unsigned>(1_s / _period_us[i]), static_cast<unsigned>(_pulse_us[i]));
+		}
 	}
 
 	return 0;
@@ -214,6 +246,10 @@ Each output has the period of its pwms devicetree property, at least 2200 us.
 The outputs are updated at the rate of the fastest one at most, and the slower
 ones at most once per period. The outputs without a function have no pulses,
 and the outputs are left at their disarmed value when the driver stops.
+
+With the dshot driver, PWM_MAIN_TIM0 to PWM_MAIN_TIM7 select the protocol of
+each output: the outputs set to DShot are left to the dshot driver, without
+pulses, also when the driver stops.
 
 )DESCR_STR");
 

@@ -1,0 +1,58 @@
+#include <zephyr/dt-bindings/pwm/pwm.h>
+
+/ {
+	/* a timer whose cycles are microseconds */
+	fake_pwm: fake-pwm {
+		compatible = "zephyr,fake-pwm";
+		#pwm-cells = <2>;
+		frequency = <1000000>;
+	};
+
+	fake_dshot1: fake-dshot-1 {
+		compatible = "vnd,dshot";
+		#dshot-cells = <1>;
+	};
+
+	fake_dshot2: fake-dshot-2 {
+		compatible = "vnd,dshot";
+		#dshot-cells = <1>;
+	};
+
+	/* MAIN1-4 and MAIN6 can be DShot outputs, on channels in another order than the outputs */
+	px4-pwm-outputs {
+		compatible = "px4,pwm-outputs";
+
+		main1 {
+			pwms = <&fake_pwm 0 PWM_HZ(400)>;
+			dshot = <&fake_dshot1 3>;
+		};
+
+		main2 {
+			pwms = <&fake_pwm 1 PWM_HZ(400)>;
+			dshot = <&fake_dshot1 1>;
+		};
+
+		main3 {
+			pwms = <&fake_pwm 2 PWM_HZ(400)>;
+			dshot = <&fake_dshot2 0>;
+		};
+
+		main4 {
+			pwms = <&fake_pwm 3 PWM_HZ(400)>;
+			dshot = <&fake_dshot1 0>;
+		};
+
+		main5 {
+			pwms = <&fake_pwm 4 PWM_HZ(400)>;
+		};
+
+		main6 {
+			pwms = <&fake_pwm 5 PWM_HZ(400)>;
+			dshot = <&fake_dshot1 2>;
+		};
+
+		main7 {
+			pwms = <&fake_pwm 6 PWM_HZ(400)>;
+		};
+	};
+};

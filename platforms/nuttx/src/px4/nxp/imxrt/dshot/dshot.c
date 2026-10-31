@@ -41,6 +41,7 @@
 #include <px4_arch/io_timer.h>
 #include <drivers/drv_dshot.h>
 #include <drivers/drv_hrt.h>
+#include <lib/dshot/dshot_protocol.h>
 #include <nuttx/irq.h>
 #include <string.h>
 
@@ -48,21 +49,10 @@
 
 #define FLEXIO_BASE			IMXRT_FLEXIO1_BASE
 #define DSHOT_TIMERS			FLEXIO_SHIFTBUFNIS_COUNT
-#define DSHOT_THROTTLE_POSITION		5u
-#define DSHOT_TELEMETRY_POSITION	4u
-#define NIBBLES_SIZE 			4u
-#define DSHOT_NUMBER_OF_NIBBLES		3u
 
 #if defined(IOMUX_PULL_UP_47K)
 #define IOMUX_PULL_UP IOMUX_PULL_UP_47K
 #endif
-
-static const uint32_t gcr_decode[32] = {
-	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-	0x0, 0x9, 0xA, 0xB, 0x0, 0xD, 0xE, 0xF,
-	0x0, 0x0, 0x2, 0x3, 0x0, 0x5, 0x6, 0x7,
-	0x0, 0x0, 0x8, 0x1, 0x0, 0x4, 0xC, 0x0
-};
 
 typedef enum {
 	DSHOT_START = 0,
@@ -360,64 +350,6 @@ static int flexio_irq_handler(int irq, void *context, void *arg)
 	return OK;
 }
 
-static inline bool decode_gcr_payload(uint32_t value, uint16_t *payload)
-{
-	uint32_t data;
-	uint32_t csum_data;
-
-	/* if lowest significant bit isn't 1 we've got a framing error */
-	if ((value & 0x1) == 0) {
-		return false;
-	}
-
-	/* Decode RLL */
-	value = value ^ (value >> 1);
-
-	/* Decode GCR */
-	data = gcr_decode[value & 0x1fU];
-	data |= gcr_decode[(value >> 5U) & 0x1fU] << 4U;
-	data |= gcr_decode[(value >> 10U) & 0x1fU] << 8U;
-	data |= gcr_decode[(value >> 15U) & 0x1fU] << 12U;
-
-	/* Calculate checksum */
-	csum_data = data;
-	csum_data = csum_data ^ (csum_data >> 8U);
-	csum_data = csum_data ^ (csum_data >> NIBBLES_SIZE);
-
-	if ((csum_data & 0xFU) != 0xFU) {
-		return false;
-	}
-
-	*payload = (data >> 4) & 0xFFF;
-	return true;
-}
-
-static void decode_dshot_telemetry(uint32_t payload, struct BDShotTelemetry *packet)
-{
-	// MSB of the 9-bit mantissa clear means extended telemetry, not eRPM
-	uint32_t mantissa = payload & 0x01FF;
-	bool is_telemetry = !(mantissa & 0x0100);
-
-	if (_edt_enabled && is_telemetry) {
-		packet->type = (payload & 0x0F00) >> 8;
-		packet->value = payload & 0x00FF;
-
-	} else {
-		uint8_t exponent = ((payload >> 9) & 0x7); /* 3 bit: exponent */
-		uint16_t period = (payload & 0x1FF); /* 9 bit: period base */
-		period = period << exponent; /* Period in usec */
-
-		packet->type = DSHOT_EDT_ERPM;
-
-		if (period == 65408 || period == 0) {
-			packet->value = 0;
-
-		} else {
-			packet->value = (1000000U * 60U / 100U + period / 2U) / period;
-		}
-	}
-}
-
 static void bdshot_note_success(volatile dshot_channel_t *ch)
 {
 	ch->consecutive_failures = 0;
@@ -472,12 +404,13 @@ static void bdshot_note_failure(volatile dshot_channel_t *ch, uint32_t channel, 
 static void bdshot_train(volatile dshot_channel_t *ch, uint32_t channel, uint32_t value)
 {
 	uint16_t payload;
+	enum dshot_reply_status status = dshot_decode_reply(value, &payload);
 
-	if (decode_gcr_payload(value, &payload)) {
+	if (status == DSHOT_REPLY_OK) {
 		// Count successful responses
 		ch->bdshot_training_success++;
 
-	} else if ((value & 0x1) == 0) {
+	} else if (status == DSHOT_REPLY_FRAME_ERROR) {
 		// Invalidate frame error immediately
 		ch->bdshot_training_count = BDSHOT_TRAINING_TRIES - 1;
 	}
@@ -542,9 +475,10 @@ static void bdshot_process_response(uint32_t channel)
 	}
 
 	uint16_t payload = 0;
+	enum dshot_reply_status status = dshot_decode_reply(value, &payload);
 
-	if (!decode_gcr_payload(value, &payload)) {
-		if ((value & 0x1) == 0) {
+	if (status != DSHOT_REPLY_OK) {
+		if (status == DSHOT_REPLY_FRAME_ERROR) {
 			ch->frame_error_cnt++;
 
 		} else {
@@ -557,7 +491,7 @@ static void bdshot_process_response(uint32_t channel)
 
 	struct BDShotTelemetry packet = {};
 
-	decode_dshot_telemetry(payload, &packet);
+	dshot_decode_telemetry(payload, _edt_enabled, &packet);
 
 	switch (packet.type) {
 	case DSHOT_EDT_ERPM:
@@ -853,36 +787,13 @@ static uint64_t dshot_expand_data(uint16_t packet)
 	return expanded;
 }
 
-/**
-* bits 	1-11	- throttle value (0-47 are reserved, 48-2047 give 2000 steps of throttle resolution)
-* bit 	12		- dshot telemetry enable/disable
-* bits 	13-16	- XOR checksum
-**/
 void dshot_motor_data_set(uint8_t channel, uint16_t throttle, bool telemetry)
 {
 	if (channel >= DSHOT_TIMERS || !dshot_inst[channel].init) {
 		return;
 	}
 
-	uint16_t packet = 0;
-	uint16_t checksum = 0;
-
-	packet |= throttle << DSHOT_THROTTLE_POSITION;
-	packet |= ((uint16_t)telemetry & 0x01) << DSHOT_TELEMETRY_POSITION;
-
-	uint16_t csum_data = dshot_inst[channel].bdshot ? ~packet : packet;
-
-	/* XOR checksum calculation */
-	csum_data >>= NIBBLES_SIZE;
-
-	for (unsigned i = 0; i < DSHOT_NUMBER_OF_NIBBLES; i++) {
-		checksum ^= (csum_data & 0x0F); // XOR data by nibbles
-		csum_data >>= NIBBLES_SIZE;
-	}
-
-	packet |= (checksum & 0x0F);
-
-	uint64_t dshot_expanded = dshot_expand_data(packet);
+	uint64_t dshot_expanded = dshot_expand_data(dshot_frame(throttle, telemetry, dshot_inst[channel].bdshot));
 
 	dshot_inst[channel].data_seg1 = (uint32_t)(dshot_expanded & 0xFFFFFF);
 	dshot_inst[channel].irq_data = (uint32_t)(dshot_expanded >> 24);

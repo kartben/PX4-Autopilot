@@ -1,0 +1,32 @@
+module_name: PWM MAIN
+actuator_output:
+  output_groups:
+    - generator: pwm
+      param_prefix: PWM_MAIN
+      channel_labels: ['PWM Main', 'PWM Capture']
+      channel_label_module_name_prefix: false
+      num_channels: 8
+      standard_params:
+        disarmed: { min: 800, max: 2200, default: 1000 }
+        min: { min: 800, max: 1400, default: 1000 }
+        center: { min: 800, max: 2200}
+        max: { min: 1600, max: 2200, default: 2000 }
+        failsafe: { min: 800, max: 2200 }
+      pwm_timer_param:
+        description:
+            short: Output Protocol Configuration for ${label}
+            long: |
+                Select the output protocol for ${label}: PWM, at the rate of the pwms devicetree
+                property of the output, or DShot, which the dshot driver sends on the DShot device
+                of the dshot devicetree property of the output.
+        type: enum
+        default: 0
+        values:
+            -8: BDShot150
+            -7: BDShot300
+            -6: BDShot600
+            -5: DShot150
+            -4: DShot300
+            -3: DShot600
+            0: PWM
+        reboot_required: true
