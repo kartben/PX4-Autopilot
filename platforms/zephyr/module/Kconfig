@@ -104,6 +104,11 @@ choice PICOLIBC_IO_LEVEL
 	default PICOLIBC_IO_FLOAT if PX4
 endchoice
 
+# a FatFs volume can only be locked with the long file name buffer out of .bss
+choice FS_FATFS_LFN_MODE
+	default FS_FATFS_LFN_MODE_HEAP if PX4_STORAGE
+endchoice
+
 if PX4
 
 # the PX4 priorities, mapped in order: the top 64 one to one, the others below them
@@ -135,6 +140,11 @@ configdefault MAX_PTHREAD_MUTEX_COUNT
 
 configdefault FS_FATFS_NUM_FILES
 	default 8 if PX4_STORAGE
+
+# the logger, its file writer, the parameters and dataman use the file system from their own
+# threads, and the Zephyr file system API leaves the locking to FatFs
+configdefault FS_FATFS_REENTRANT
+	default y if PX4_STORAGE
 
 configdefault MAX_PTHREAD_COND_COUNT
 	default 64
