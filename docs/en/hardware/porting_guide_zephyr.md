@@ -186,7 +186,7 @@ _QGroundControl_ doesn't recognise its USB IDs: add a serial link to its port (`
 - DroneCAN runs on the CAN3 connector, CAN1 of PX4: start it with `px4 uavcan start`.
 - The rate controller and the simulator run at 400 Hz instead of 800 Hz.
 
-An ExpressLRS or TBS Crossfire receiver connects to the UART of the Arduino header (LPUART2, `/dev/ttyS1`), which `crsf_rc` reads:
+An ExpressLRS or TBS Crossfire receiver connects to the UART of the Arduino header (LPUART2), which the Zephyr CRSF driver (`tbs,crsf`) reads for `zephyr_rc_input`:
 
 | Receiver | MIMXRT1170-EVK |
 | -------- | -------------- |
@@ -197,7 +197,7 @@ An ExpressLRS or TBS Crossfire receiver connects to the UART of the Arduino head
 
 The M.2 slot must be empty, as its Bluetooth module shares the UART.
 The SIH configuration disables the sticks: set [COM_RC_IN_MODE](../advanced_config/parameter_reference.md#COM_RC_IN_MODE) to 0 to fly with the transmitter, after the radio calibration of _QGroundControl_.
-At 420000 baud, the 4-byte receive FIFO of the UART overruns when its interrupt is late, which loses 0.06–0.12% of the frames.
+The driver receives with DMA, and sends the telemetry of `crsf_rc`.
 
 The EVK runs the firmware from its quad SPI flash, which stalls the CPU for hundreds of cycles when an instruction isn't in the cache.
 With the 32 KiB instruction cache of the Cortex-M7, the flight stack spends most of its time waiting for the flash.
@@ -587,7 +587,7 @@ With NuttX, FMU-v6XRT drives these outputs as its AUX outputs, `PWM_AUX_FUNC1` t
 
 ### RC Input
 
-The `zephyr_rc_input` driver publishes the RC input of a Zephyr [input device](https://docs.zephyrproject.org/latest/services/input/index.html), such as an SBUS receiver read by the Zephyr SBUS driver (`futaba,sbus`), to [InputRc](../msg_docs/InputRc.md).
+The `zephyr_rc_input` driver publishes the RC input of a Zephyr [input device](https://docs.zephyrproject.org/latest/services/input/index.html), such as an SBUS receiver read by the Zephyr SBUS driver (`futaba,sbus`) or a CRSF receiver read by the Zephyr CRSF driver (`tbs,crsf`), to [InputRc](../msg_docs/InputRc.md).
 The `px4,rc-input` devicetree node selects the input device, and lists the input event of each RC channel, as its type and code, in the order of the RC channels:
 
 ```dts
@@ -618,7 +618,11 @@ The value of an `INPUT_EV_ABS` or `INPUT_EV_MSC` event is scaled from `input-min
 A key (`INPUT_EV_KEY`) gives 2000 us while it is pressed, and 1000 us while it is released, which it is until its first event.
 The Zephyr SBUS driver only reports a key when its channel goes above `CONFIG_INPUT_SBUS_CHANNEL_VALUE_ONE` (1800) or below `CONFIG_INPUT_SBUS_CHANNEL_VALUE_ZERO` (1200): map the switches of an SBUS receiver as `INPUT_EV_MSC` events instead, with the SBUS channel as code for example, to keep the middle position of 3-position switches and the channel values of NuttX.
 The channels are published after each frame of the input device, once each of them has been reported, and RC is lost when no frame is received for 200 ms, as with PX4IO.
-`CONFIG_PX4_RC_INPUT` has the input events handled in the thread of the input driver (`CONFIG_INPUT_MODE_SYNCHRONOUS`), instead of the input thread of Zephyr, which has the lowest priority, and enables the interrupt-driven UART API that the SBUS driver needs.
+`CONFIG_PX4_RC_INPUT` has the input events handled in the thread of the input driver (`CONFIG_INPUT_MODE_SYNCHRONOUS`), instead of the input thread of Zephyr, which has the lowest priority, and enables the interrupt-driven UART API that the SBUS driver needs, or the asynchronous one of the CRSF driver.
+The thread of the CRSF driver runs at the priority of the serial RC drivers of PX4 (the `wq:ttyS1` work queue), instead of the top priority.
+
+A CRSF receiver also gives its link statistics, the RSSI, link quality, SNR and RF mode of `crsf_rc`, and is sent its telemetry: the battery, the GNSS receiver, the attitude, the flight mode and the altitude, one frame every 100 ms.
+The Zephyr CRSF driver gives the channels in microseconds: set `input-min` to 1000 and `input-max` to 2000.
 
 ::: warning
 The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, so PX4 doesn't detect the failsafe of a receiver that keeps sending frames, as in its hold or custom failsafe modes.
@@ -628,6 +632,7 @@ Before flying with an SBUS receiver, as on the NXP VMU RT1170, set it to stop se
 The generic board configuration starts `zephyr_rc_input`.
 The NXP VMU RT1170 has the SBUS receiver of its Zephyr board on its RC input, a single-wire inverted UART.
 Its overlay maps the 16 proportional SBUS channels, with the values of NuttX: the sticks of the board devicetree on channels 1 to 4, and channels 5 to 16 as `INPUT_EV_MSC` events, instead of the kill switch key of the board on channel 5.
+The MIMXRT1170-EVK maps the 16 channels of its CRSF receiver as `INPUT_EV_MSC` events, with the CRSF channel as code.
 
 ### Buzzer
 
@@ -840,7 +845,8 @@ Only the operating system rows compare the two systems, as the builds differ in 
 
 - PX4 has only flown in simulation: the PWM outputs, the RC input, the GPS driver, the buzzer and the safety button are only tested in QEMU.
 - PWM outputs have the period of the devicetree, without OneShot or DShot.
-- RC input is read from Zephyr input devices, such as SBUS receivers, and from CRSF receivers with `crsf_rc` on a serial port, as on the MIMXRT1170-EVK: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
+- RC input is read from Zephyr input devices, such as SBUS and CRSF receivers, and from CRSF receivers with `crsf_rc` on a serial port: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
+  The Zephyr CRSF driver doesn't bind the receiver, as `crsf_rc` does on a command of the ground station.
   The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, nor the digital channels 17 and 18.
 - The LEDs are only tested in QEMU, and an RGB LED needs a Zephyr LED driver: the NCP5623C, LP5562 and IS31FL319x have one, but not the TCA62724, IS31FL3195 and AW2023 of the NuttX RGB LED drivers.
 - Storage is on FAT file systems only.
