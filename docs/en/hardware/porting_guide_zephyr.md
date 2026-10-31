@@ -4,7 +4,7 @@
 
 ::: warning
 The Zephyr port is experimental.
-PX4 only flies in simulation on Zephyr, as there is no RC input yet (see [Limitations](#limitations)).
+PX4 has only flown in simulation on Zephyr (see [Limitations](#limitations)).
 :::
 
 PX4 can run on the [Zephyr RTOS](https://zephyrproject.org/), using the Zephyr drivers for the board and its sensors.
@@ -38,6 +38,7 @@ The PX4 options of the Zephyr configuration are:
 | `CONFIG_PX4_SENSORS`        | Enable the Zephyr sensor API for the sensors in the devicetree (enabled by the `px4,sensors` node). |
 | `CONFIG_PX4_SERIAL`         | Open the UARTs of the devicetree as device files (enabled by the `px4,serial-ports` node).          |
 | `CONFIG_PX4_PWM_OUTPUTS`    | Enable the Zephyr PWM API for the actuator outputs (enabled by the `px4,pwm-outputs` node).         |
+| `CONFIG_PX4_RC_INPUT`       | Enable the input subsystem for the RC input (enabled by the `px4,rc-input` node).                   |
 | `CONFIG_PX4_STACK_OVERHEAD` | Bytes added to the stack of each PX4 task and work queue.                                           |
 | `CONFIG_PX4_ITCM`           | Run the most used code from the ITCM instead of the flash (enabled on the MIMXRT1170-EVK).          |
 
@@ -221,6 +222,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/storage](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/storage) tests the parameter file and the file functions of PX4 on a RAM disk.
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
 - [tests/pwm](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/pwm) tests the PWM outputs on the Zephyr fake PWM driver: the disarmed, armed, failsafe and ESC calibration values, a pulse longer than the period, the outputs left without pulses when their functions are removed and disarmed when the driver stops, and the update rate of outputs with different periods.
+- [tests/rc_input](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/rc_input) tests the RC input with the Zephyr SBUS driver, which receives SBUS frames on an emulated UART: the channel values, keys, the failsafe, the loss of RC, and the events of another input device.
 - The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
 
 The tests also run on the MIMXRT1170-EVK, which twister flashes and reads on the serial port of its debug USB port:
@@ -455,6 +457,50 @@ The NXP VMU RT1170 has the outputs `FMU_CH1` to `FMU_CH8` of FMU-v6XRT, at 400 H
 The prescaler of its PWM limits the period to 17 ms: a 50 Hz output needs a larger `nxp,prescaler` on its FlexPWM submodule.
 With NuttX, FMU-v6XRT drives these outputs as its AUX outputs, `PWM_AUX_FUNC1` to `PWM_AUX_FUNC8`, as its firmware also supports an I/O processor for the main outputs: the `PWM_AUX_*` parameters of its parameter files are the `PWM_MAIN_*` parameters on Zephyr.
 
+### RC Input
+
+The `zephyr_rc_input` driver publishes the RC input of a Zephyr [input device](https://docs.zephyrproject.org/latest/services/input/index.html), such as an SBUS receiver read by the Zephyr SBUS driver (`futaba,sbus`), to [InputRc](../msg_docs/InputRc.md).
+The `px4,rc-input` devicetree node selects the input device, and lists the input event of each RC channel, as its type and code, in the order of the RC channels:
+
+```dts
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+
+/ {
+	px4-rc-input {
+		compatible = "px4,rc-input";
+		input = <&sbus>;
+		channels = <INPUT_EV_ABS INPUT_ABS_RX>,
+			   <INPUT_EV_ABS INPUT_ABS_RY>,
+			   <INPUT_EV_ABS INPUT_ABS_Y>,
+			   <INPUT_EV_ABS INPUT_ABS_X>,
+			   <INPUT_EV_MSC 5>;
+	};
+};
+```
+
+| Property    | Description                                                                             |
+| ----------- | --------------------------------------------------------------------------------------- |
+| `input`     | The input device, which sends a sync event after each frame.                            |
+| `channels`  | Type and code of the input event of each RC channel, up to 18 channels.                 |
+| `input-min` | Raw value of a channel at 1000 us. Default: 200, the SBUS value at -100%.               |
+| `input-max` | Raw value of a channel at 2000 us. Default: 1800, the SBUS value at +100%.              |
+| `failsafe`  | Type and code of an input event whose value is not 0 while the receiver is in failsafe. |
+
+The value of an `INPUT_EV_ABS` or `INPUT_EV_MSC` event is scaled from `input-min`..`input-max` to 1000..2000 us, as PX4 scales the SBUS channels with NuttX, so that an SBUS receiver gives the same channel values with both.
+A key (`INPUT_EV_KEY`) gives 2000 us while it is pressed, and 1000 us while it is released, which it is until its first event.
+The Zephyr SBUS driver only reports a key when its channel goes above `CONFIG_INPUT_SBUS_CHANNEL_VALUE_ONE` (1800) or below `CONFIG_INPUT_SBUS_CHANNEL_VALUE_ZERO` (1200): map the switches of an SBUS receiver as `INPUT_EV_MSC` events instead, with the SBUS channel as code for example, to keep the middle position of 3-position switches and the channel values of NuttX.
+The channels are published after each frame of the input device, once each of them has been reported, and RC is lost when no frame is received for 200 ms, as with PX4IO.
+`CONFIG_PX4_RC_INPUT` has the input events handled in the thread of the input driver (`CONFIG_INPUT_MODE_SYNCHRONOUS`), instead of the input thread of Zephyr, which has the lowest priority, and enables the interrupt-driven UART API that the SBUS driver needs.
+
+::: warning
+The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, so PX4 doesn't detect the failsafe of a receiver that keeps sending frames, as in its hold or custom failsafe modes.
+Before flying with an SBUS receiver, as on the NXP VMU RT1170, set it to stop sending frames in failsafe (no pulses), so that RC is lost, or set [RC_FAILS_THR](../advanced_config/parameter_reference.md#RC_FAILS_THR), as described in [RC Loss Detection](../config/radio.md#rc-loss-detection).
+:::
+
+The generic board configuration starts `zephyr_rc_input`.
+The NXP VMU RT1170 has the SBUS receiver of its Zephyr board on its RC input, a single-wire inverted UART.
+Its overlay maps the 16 proportional SBUS channels, with the values of NuttX: the sticks of the board devicetree on channels 1 to 4, and channels 5 to 16 as `INPUT_EV_MSC` events, instead of the kill switch key of the board on channel 5.
+
 ## Footprint
 
 [Tools/footprint.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/footprint.py) breaks down the flash and static RAM of PX4 firmware by component, for NuttX and Zephyr builds alike.
@@ -505,9 +551,11 @@ Only the operating system rows compare the two systems, as the builds differ in 
 
 ## Limitations
 
-- PX4 only flies in simulation: there is no RC input.
+- PX4 has only flown in simulation: the PWM outputs and the RC input are only tested in QEMU.
 - PWM outputs have the period of the devicetree, without OneShot or DShot.
 - There is no component metadata, which NuttX boards have in `/etc/extras` of their ROMFS: _QGroundControl_ has no Actuators setup.
+- RC input is read from Zephyr input devices, such as SBUS receivers, and from CRSF receivers with `crsf_rc` on a serial port, as on the MIMXRT1170-EVK: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
+  The Zephyr SBUS driver doesn't report the failsafe flag of the receiver, nor the digital channels 17 and 18.
 - Storage is on FAT file systems only, and the logs have no CPU load of the tasks.
 - Sensors are polled: the IMU FIFOs are not used.
 - Serial ports use the interrupt-driven UART API, without DMA, and have no single-wire, inverted or swapped modes.
@@ -520,6 +568,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 ## Roadmap
 
 - Read the IMU FIFOs with the Zephyr sensor streaming API.
+- RC input over a serial port, with the other protocols of the PX4 RC drivers (DSM, GHST).
 - Device files and termios for UARTs in Zephyr itself, instead of the PX4 platform layer.
 - Parameters in flash, with ZMS, on boards without an SD card.
 - Dynamic modules as Zephyr loadable extensions (below).

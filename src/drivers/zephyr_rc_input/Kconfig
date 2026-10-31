@@ -1,0 +1,6 @@
+menuconfig DRIVERS_ZEPHYR_RC_INPUT
+	bool "zephyr_rc_input"
+	default n
+	depends on PLATFORM_ZEPHYR
+	---help---
+		Publish the RC input of the Zephyr input device of the px4,rc-input devicetree node
