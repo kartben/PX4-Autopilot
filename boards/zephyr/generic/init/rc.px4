@@ -1,4 +1,5 @@
 ver all
+load_mon start
 zephyr_sensors start
 zephyr_rc_input start
 sensors start
