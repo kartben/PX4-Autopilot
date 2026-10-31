@@ -40,6 +40,9 @@
 #include <zephyr/drivers/emul_fuel_gauge.h>
 #include <zephyr/drivers/emul_sensor.h>
 
+void icm42688_emul_set(const struct emul *target, const float accel[3], const float gyro[3],
+		       float temperature);
+void icm42688_emul_set_interrupt(const struct emul *target, bool enabled);
 void fake_baro_set(const struct device *dev, float pressure_kpa, float temperature);
 void fake_power_monitor_set(const struct device *dev, float voltage, float current);
 void fake_power_monitor_set_lost(const struct device *dev, bool lost);
@@ -75,16 +78,18 @@ static int set_three_axis(const struct emul *emul, enum sensor_channel x, const 
 	return ret;
 }
 
-int sensor_values_set_imu(const float accel[3], const float gyro[3])
+void sensor_values_set_imu(const float accel[3], const float gyro[3], float temperature)
 {
-	const struct emul *emul = EMUL_DT_GET(DT_NODELABEL(icm42688));
-	int ret = set_three_axis(emul, SENSOR_CHAN_ACCEL_X, accel);
+	icm42688_emul_set(EMUL_DT_GET(DT_NODELABEL(icm42688)), accel, gyro, temperature);
+	icm42688_emul_set(EMUL_DT_GET(DT_NODELABEL(icm42688_polled)), accel, gyro, temperature);
+}
 
-	if (ret == 0) {
-		ret = set_three_axis(emul, SENSOR_CHAN_GYRO_X, gyro);
-	}
+void sensor_values_set_imu_interrupt(int imu, bool connected)
+{
+	const struct emul *emul = (imu == 0) ? EMUL_DT_GET(DT_NODELABEL(icm42688)) :
+				  EMUL_DT_GET(DT_NODELABEL(icm42688_polled));
 
-	return ret;
+	icm42688_emul_set_interrupt(emul, connected);
 }
 
 int sensor_values_set_mag(const float mag[3])
