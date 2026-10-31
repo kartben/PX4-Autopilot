@@ -31,6 +31,8 @@
 #
 ############################################################################
 
+add_subdirectory(tone_alarm)
+
 add_library(px4_layer
 	${PX4_SOURCE_DIR}/platforms/common/module_base.cpp
 	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/lib_crc32.c
