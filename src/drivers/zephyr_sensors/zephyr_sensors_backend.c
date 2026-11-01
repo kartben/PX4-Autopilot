@@ -116,6 +116,7 @@ BUILD_ASSERT(sizeof(struct sensor_q31_data) +
 struct fifo_channel {
 	float full_scale;		/* reported by the driver, 0 if unknown */
 	float scale;			/* per count */
+	float to_counts;		/* counts per Q31 unit of shift */
 	int8_t shift;
 	uint64_t last_timestamp_ns;
 	float dt_us;
@@ -125,6 +126,7 @@ struct sensor_fifo {
 	struct k_spinlock lock;
 	zephyr_sensor_fifo_callback_t callback;
 	void *arg;
+	const struct sensor_decoder_api *decoder;
 	bool running;
 	struct fifo_channel accel;
 	struct fifo_channel gyro;
@@ -613,7 +615,13 @@ int zephyr_sensors_fifo_start(size_t index, uint32_t rate_hz, zephyr_sensor_fifo
 	fifo_drain(sensor);
 
 	if (!fifo->running) {
-		int ret = set_batch_duration(sensor, rate_hz);
+		int ret = sensor_get_decoder(sensor->dev, &fifo->decoder);
+
+		if (ret != 0) {
+			return ret;
+		}
+
+		ret = set_batch_duration(sensor, rate_hz);
 
 		if (ret != 0) {
 			return ret;
@@ -682,9 +690,24 @@ static uint64_t time_reference_to_hrt(const struct time_reference *reference, ui
 	return (reference->hrt_us > age_us) ? (reference->hrt_us - age_us) : reference->hrt_us;
 }
 
-static int16_t to_count(float value)
+/*
+ * lroundf() of the counts, clamped to int16_t, without its library call: the conversion to int32_t
+ * truncates, and the fraction that is left is exact.
+ */
+static inline int16_t to_count(q31_t value, float to_counts)
 {
-	return (int16_t)CLAMP(lroundf(value), INT16_MIN, INT16_MAX);
+	const float counts = (float)value * to_counts;
+	int32_t count = (int32_t)counts;
+	const float fraction = counts - (float)count;
+
+	if (fraction >= 0.5f) {
+		count++;
+
+	} else if (fraction <= -0.5f) {
+		count--;
+	}
+
+	return (int16_t)CLAMP(count, INT16_MIN, INT16_MAX);
 }
 
 static void decode_fifo_samples(struct sensor_fifo *fifo, const struct sensor_decoder_api *decoder,
@@ -728,15 +751,16 @@ static void decode_fifo_samples(struct sensor_fifo *fifo, const struct sensor_de
 		}
 
 		channel->scale = range / 32768.f;
+		channel->to_counts = ldexpf(1.f, data->shift - 31) / channel->scale;
 		channel->shift = data->shift;
 	}
 
-	const float to_counts = ldexpf(1.f, data->shift - 31) / channel->scale;
+	const float to_counts = channel->to_counts;
 
 	for (int i = 0; i < count; i++) {
-		samples->x[i] = to_count(data->readings[i].x * to_counts);
-		samples->y[i] = to_count(data->readings[i].y * to_counts);
-		samples->z[i] = to_count(data->readings[i].z * to_counts);
+		samples->x[i] = to_count(data->readings[i].x, to_counts);
+		samples->y[i] = to_count(data->readings[i].y, to_counts);
+		samples->z[i] = to_count(data->readings[i].z, to_counts);
 	}
 
 	const uint64_t first_ns = data->header.base_timestamp_ns + data->readings[0].timestamp_delta;
@@ -759,31 +783,21 @@ static void decode_fifo_samples(struct sensor_fifo *fifo, const struct sensor_de
 	samples->count = (channel->dt_us > 0.f) ? count : 0;
 }
 
+/* the temperature of the first frame, as the die temperature changes slowly */
 static float decode_fifo_temperature(struct sensor_fifo *fifo, const struct sensor_decoder_api *decoder,
 				     const uint8_t *buffer)
 {
 	const struct sensor_chan_spec spec = {SENSOR_CHAN_DIE_TEMP, 0};
 	struct sensor_q31_data *data = &fifo->decoded.q31;
-	uint16_t frames = ZEPHYR_SENSOR_FIFO_MAX_SAMPLES;
+	uint16_t frames = 0;
 	uint32_t fit = 0;
 
-	if (decoder->get_frame_count(buffer, spec, &frames) != 0) {
+	if ((decoder->get_frame_count(buffer, spec, &frames) != 0) || (frames == 0) ||
+	    (decoder->decode(buffer, spec, &fit, 1, data) <= 0)) {
 		return NAN;
 	}
 
-	const int count = decoder->decode(buffer, spec, &fit, MIN(frames, ZEPHYR_SENSOR_FIFO_MAX_SAMPLES), data);
-
-	if (count <= 0) {
-		return NAN;
-	}
-
-	float sum = 0.f;
-
-	for (int i = 0; i < count; i++) {
-		sum += q31_to_float(data->readings[i].temperature, data->shift);
-	}
-
-	return sum / (float)count;
+	return q31_to_float(data->readings[0].temperature, data->shift);
 }
 
 int zephyr_sensors_fifo_read(size_t index, struct zephyr_sensor_fifo *samples)
@@ -816,7 +830,7 @@ int zephyr_sensors_fifo_read(size_t index, struct zephyr_sensor_fifo *samples)
 		return result;
 	}
 
-	const struct sensor_decoder_api *decoder;
+	const struct sensor_decoder_api *decoder = fifo->decoder;
 	struct time_reference reference;
 
 	time_reference_get(&reference);
@@ -826,7 +840,7 @@ int zephyr_sensors_fifo_read(size_t index, struct zephyr_sensor_fifo *samples)
 	samples->temperature = NAN;
 	samples->overflow = false;
 
-	if ((buffer != NULL) && (sensor_get_decoder(sensor->dev, &decoder) == 0)) {
+	if (buffer != NULL) {
 		if ((decoder->has_trigger != NULL) && decoder->has_trigger(buffer, SENSOR_TRIG_FIFO_FULL)) {
 			samples->overflow = true;
 		}
