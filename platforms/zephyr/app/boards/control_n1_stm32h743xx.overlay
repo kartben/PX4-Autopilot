@@ -212,3 +212,14 @@
 		compatible = "zephyr,cdc-acm-uart";
 	};
 };
+
+/* the 8 kHz output data rate of the NuttX driver, read from the FIFO at 400 Hz */
+&imu1 {
+	accel-odr = <IIM42653_DT_ACCEL_ODR_8000>;
+	gyro-odr = <IIM42653_DT_GYRO_ODR_8000>;
+};
+
+&imu2 {
+	accel-odr = <IIM42653_DT_ACCEL_ODR_8000>;
+	gyro-odr = <IIM42653_DT_GYRO_ODR_8000>;
+};
