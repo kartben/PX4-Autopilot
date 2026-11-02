@@ -1,0 +1,13 @@
+module_name: PWM MAIN
+actuator_output:
+  output_groups:
+    - param_prefix: PWM_MAIN
+      channel_label: 'PWM Main'
+      channel_label_module_name_prefix: false
+      standard_params:
+        disarmed: { min: 800, max: 2200, default: 1000 }
+        min: { min: 800, max: 1400, default: 1000 }
+        center: { min: 800, max: 2200}
+        max: { min: 1600, max: 2200, default: 2000 }
+        failsafe: { min: 800, max: 2200 }
+      num_channels: 8
