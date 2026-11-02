@@ -33,4 +33,6 @@
 
 add_library(drivers_board
 	board_shutdown.cpp
+	i2c.cpp
+	spi.cpp
 )

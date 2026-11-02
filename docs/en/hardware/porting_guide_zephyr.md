@@ -4,10 +4,11 @@
 
 ::: warning
 The Zephyr port is experimental.
-PX4 only flies in simulation on Zephyr, as there are no sensor drivers, actuator outputs or RC input yet (see [Limitations](#limitations)).
+PX4 only flies in simulation on Zephyr, as there are no actuator outputs or RC input yet (see [Limitations](#limitations)).
 :::
 
-PX4 can run on the [Zephyr RTOS](https://zephyrproject.org/), on top of its POSIX API.
+PX4 can run on the [Zephyr RTOS](https://zephyrproject.org/), using the Zephyr drivers for the board and its sensors.
+A board that Zephyr supports needs no PX4 drivers: its sensors are described in the devicetree, and PX4 publishes them to uORB.
 
 PX4 is built with Zephyr's tools: [west](https://docs.zephyrproject.org/latest/develop/west/index.html) builds the firmware and [twister](https://docs.zephyrproject.org/latest/develop/test/twister.html) runs the tests.
 
@@ -34,6 +35,7 @@ The PX4 options of the Zephyr configuration are:
 | `CONFIG_PX4`                | Build PX4 into the application.                                                                     |
 | `CONFIG_PX4_BOARD_CONFIG`   | PX4 board configuration to build instead of the default one, for example `zephyr_generic_sih`.      |
 | `CONFIG_PX4_SHELL`          | Add the `px4` shell command (enabled with the shell).                                               |
+| `CONFIG_PX4_SENSORS`        | Enable the Zephyr sensor API for the sensors in the devicetree (enabled by the `px4,sensors` node). |
 | `CONFIG_PX4_STACK_OVERHEAD` | Bytes added to the stack of each PX4 task and work queue.                                           |
 
 ## Setting Up a Workspace
@@ -72,8 +74,14 @@ make zephyr_qemu
 PX4 starts and the Zephyr shell runs PX4 commands:
 
 ```sh
-uart:~$ px4 uorb status
 uart:~$ px4 work_queue status
+
+Work Queue: 3  threads                          RATE        INTERVAL
+|__ 1) wq:rate_ctrl
+|   \__ 1) vehicle_angular_velocity          97.4 Hz        10263 us
+|__ 2) wq:nav_and_controllers
+|   |__ 1) sensors                           94.1 Hz        10624 us
+...
 ```
 
 Exit QEMU with **Ctrl+A**, **X**.
@@ -106,7 +114,7 @@ or with _QGroundControl_ on the host, which connects automatically: MAVLink is s
 To build the application for another Zephyr board:
 
 ```sh
-make zephyr ZEPHYR_BOARD=<board>
+make zephyr ZEPHYR_BOARD=vmu_rt1170/mimxrt1176/cm7
 ```
 
 ## Running the Tests
@@ -117,30 +125,82 @@ The tests run in QEMU with twister:
 west twister -T PX4-Autopilot/platforms/zephyr -p mps2/an386
 ```
 
-or `make zephyr_tests`.
+or `make zephyr_tests`, which also builds the application for the boards that are only build-tested.
 
 - [tests/platform](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/platform) tests the platform layer: time, callouts from interrupts, tasks, work queues, uORB and parameters.
+- [tests/sensors](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/sensors) tests the sensor driver with Zephyr's sensor emulators, on emulated SPI and I2C buses.
 - The application tests check that PX4 starts, and fly the SIH quadcopter: take off, hover and land.
 
 ## Adding a Board
 
 A board supported by Zephyr runs PX4 without any PX4 board files.
+Porting it means describing its sensors in a devicetree overlay, for example in `platforms/zephyr/app/boards/<board>.overlay`.
+See the overlay for the [NXP VMU RT1170](https://github.com/PX4/PX4-Autopilot/blob/main/platforms/zephyr/app/boards/vmu_rt1170_mimxrt1176_cm7.overlay).
 
 A board that needs its own PX4 modules or startup commands gets a PX4 board configuration in `boards/zephyr/<board>/`, named after the Zephyr board without its qualifiers (for example `vmu_rt1170`).
 Copy [boards/zephyr/generic](https://github.com/PX4/PX4-Autopilot/tree/main/boards/zephyr/generic) as a starting point.
 
+### Sensors
+
+The `zephyr_sensors` driver publishes the sensors listed in the `px4,sensors` devicetree node to uORB:
+
+```dts
+#include <dt-bindings/px4/rotation.h>
+
+/ {
+	px4-sensors {
+		compatible = "px4,sensors";
+
+		imu0 {
+			sensor = <&icm42688>;
+			type = "imu";
+			rotation = <PX4_ROTATION_ROLL_180>;
+		};
+
+		mag0 {
+			sensor = <&ist8310>;
+			type = "mag";
+			external;
+		};
+
+		baro0 {
+			sensor = <&bmp388>;
+			type = "baro";
+		};
+	};
+};
+```
+
+| Property   | Description                                                                                                      |
+| ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| `sensor`   | The Zephyr sensor device.                                                                                        |
+| `type`     | `imu` (publishes [SensorAccel] and [SensorGyro]), `accel`, `gyro`, `mag` ([SensorMag]) or `baro` ([SensorBaro]). |
+| `rotation` | Rotation from the sensor frame to the board frame, one of the `PX4_ROTATION_*` values. Default: none.            |
+| `external` | The sensor is not on the flight controller board.                                                                |
+
+[SensorAccel]: ../msg_docs/SensorAccel.md
+[SensorGyro]: ../msg_docs/SensorGyro.md
+[SensorMag]: ../msg_docs/SensorMag.md
+[SensorBaro]: ../msg_docs/SensorBaro.md
+
+The driver reads the sensors with the Zephyr sensor API, which works with any Zephyr sensor driver, at 1 kHz for IMUs, 100 Hz for magnetometers and 50 Hz for barometers.
+The device IDs are made from the bus, the address and the sensor model, as for the PX4 drivers.
+
+The generic board configuration starts `zephyr_sensors` and the [sensors](../modules/modules_system.md#sensors) module.
+
 ## Limitations
 
-- PX4 only flies in simulation: there are no sensor drivers, actuator outputs, RC input or logging.
+- PX4 only flies in simulation: there are no actuator outputs, RC input or logging.
 - MAVLink is only sent over UDP, not over serial ports.
 - Parameters are kept in RAM only.
+- Sensors are polled: the IMU FIFOs are not used.
 - Dynamic modules (`DYNAMIC` in `px4_add_module()`) are not supported.
 - `native_sim` is not supported, as its POSIX API uses the host C library.
-- Only the QEMU board is tested.
+- Only the QEMU board is tested at runtime. The NXP VMU RT1170 is only built.
 
 ## Roadmap
 
-- Sensors with the Zephyr sensor API.
+- Read the IMU FIFOs with the Zephyr sensor streaming API.
 - Actuator outputs with the Zephyr PWM API.
 - MAVLink over serial ports.
 - Parameter and log storage on the Zephyr file systems or ZMS.
