@@ -11,5 +11,6 @@ manifest:
         name-allowlist:
           - cmsis
           - cmsis_6
+          - fatfs
           - hal_nxp
           - picolibc

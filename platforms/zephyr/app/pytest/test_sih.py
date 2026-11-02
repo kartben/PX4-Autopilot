@@ -32,21 +32,41 @@
 ############################################################################
 
 """
-Fly the SIH quadcopter from the Zephyr shell: take off, hover and land.
+Fly the SIH quadcopter from the Zephyr shell: take off, hover and land. Then
+check the flight log, and that a parameter is kept across a reboot.
 """
 
 import re
 import time
 
-from twister_harness import Shell
+from twister_harness import DeviceAdapter, Shell
 
 
-def px4(shell: Shell, command: str) -> list[str]:
+PARAM = 'MPC_Z_VEL_MAX_UP'
+
+
+def run(shell: Shell, command: str) -> list[str]:
     try:
-        return shell.exec_command(f'px4 {command}')
+        return shell.exec_command(command)
     except AssertionError:
         # a PX4 message was printed over the echo of the command
         return []
+
+
+def px4(shell: Shell, command: str) -> list[str]:
+    return run(shell, f'px4 {command}')
+
+
+def list_dir(shell: Shell, path: str) -> dict[str, int]:
+    entries = {}
+
+    for line in run(shell, f'fs ls {path}'):
+        match = re.match(r'\s*(\d+) (\S+)$', line)
+
+        if match:
+            entries[match.group(2)] = int(match.group(1))
+
+    return entries
 
 
 def listener_value(shell: Shell, topic: str, field: str) -> float | None:
@@ -76,6 +96,16 @@ def commander_output(shell: Shell, command: str) -> str:
     return '\n'.join(px4(shell, f'commander {command}'))
 
 
+def param_value(shell: Shell, name: str) -> float | None:
+    for line in px4(shell, f'param show {name}'):
+        match = re.search(rf'{name} \[\d+,\d+\] : (\S+)', line)
+
+        if match:
+            return float(match.group(1))
+
+    return None
+
+
 def test_takeoff_and_land(shell: Shell):
     wait_until(lambda: 'Preflight check: OK' in commander_output(shell, 'check'), 300, 'the preflight checks')
 
@@ -89,3 +119,27 @@ def test_takeoff_and_land(shell: Shell):
 
     commander_output(shell, 'land')
     wait_until(lambda: 'INFO  [commander] Disarmed' in commander_output(shell, 'status'), 120, 'the landing')
+
+
+def test_log(shell: Shell):
+    def logs() -> dict[str, int]:
+        dirs = [name for name in list_dir(shell, '/SD:/log') if name.endswith('/')]
+
+        if not dirs:
+            return {}
+
+        return {name: size for name, size in list_dir(shell, f'/SD:/log/{dirs[-1]}').items()
+                if name.endswith('.ulg')}
+
+    wait_until(lambda: any(size > 0 for size in logs().values()), 30, 'the flight log')
+
+
+def test_parameter_kept_after_reboot(dut: DeviceAdapter, shell: Shell):
+    px4(shell, f'param set {PARAM} 2.5')
+
+    # the parameters are saved in the background
+    time.sleep(5)
+
+    dut.write(b'px4 reboot\n')
+    dut.readlines_until(regex='Booting Zephyr', timeout=60)
+    wait_until(lambda: param_value(shell, PARAM) == 2.5, 120, f'{PARAM} after the reboot')

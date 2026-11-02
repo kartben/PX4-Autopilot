@@ -33,10 +33,10 @@ OS_RULES = [
      r"libs/libc/|libs/libm/|/libc\.a|/libm\.a|/libgcc\.a|/libc_nano\.a|zephyr/lib/libc/"
      r"|libzephyr\.a\((cbprintf|printk)"),
     ("Networking", r"nuttx/net/|zephyr/subsys/net/|zephyr/lib/net_buf/"),
-    ("File systems", r"nuttx/fs/|zephyr/subsys/fs/"),
+    ("File systems", r"nuttx/fs/|zephyr/subsys/fs/|^modules/fatfs/"),
     ("Shell and logging", r"NuttX/apps/|zephyr/subsys/(shell|logging)/|libzephyr\.a\((log_|shell)"),
     ("Drivers and HAL",
-     r"nuttx/drivers/|libarch\.a\((?!arm_)|zephyr/drivers/|zephyr/subsys/usb/|zephyr/soc/|zephyr/boards/|^modules/hal"),
+     r"nuttx/drivers/|libarch\.a\((?!arm_)|zephyr/drivers/|zephyr/subsys/(usb|sd)/|zephyr/soc/|zephyr/boards/|^modules/hal"),
     ("Kernel and POSIX API", r"NuttX/nuttx/|^zephyr/"),
 ]
 

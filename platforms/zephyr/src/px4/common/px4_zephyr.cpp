@@ -34,6 +34,7 @@
 #include <px4_zephyr.h>
 
 #include <parameters/param.h>
+#include <px4_platform_common/defines.h>
 #include <px4_platform_common/init.h>
 #include <px4_platform_common/log.h>
 #include <px4_platform_common/posix.h>
@@ -42,6 +43,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <sys/statfs.h>
 
 static constexpr int MAX_ARGS = 16;
 static constexpr size_t MAX_LINE_LENGTH = 128;
@@ -60,8 +62,16 @@ int px4_zephyr_init(void)
 
 	const int ret = px4_platform_init();
 
-	// parameters are not persistent yet
-	param_control_autosave(false);
+	struct statfs storage;
+
+	if (statfs(PX4_STORAGEDIR, &storage) == 0) {
+		param_set_default_file(PX4_STORAGEDIR "/parameters.bson");
+		param_load_default();
+
+	} else {
+		PX4_WARN("no storage at %s: the parameters are not saved", PX4_STORAGEDIR);
+		param_control_autosave(false);
+	}
 
 	return ret;
 }

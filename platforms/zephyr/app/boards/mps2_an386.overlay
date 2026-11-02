@@ -1,0 +1,27 @@
+/* A RAM disk in the PSRAM of QEMU, which keeps the PX4 files across a reboot of the board */
+
+/ {
+	psram: memory@21000000 {
+		compatible = "mmio-sram";
+		reg = <0x21000000 0x1000000>;
+	};
+
+	ramdisk {
+		compatible = "zephyr,ram-disk";
+		disk-name = "SD";
+		ram-region = <&psram>;
+		sector-size = <512>;
+		sector-count = <32768>;
+	};
+
+	fstab {
+		compatible = "zephyr,fstab";
+
+		sd {
+			compatible = "zephyr,fstab,fatfs";
+			mount-point = "/SD:";
+			automount;
+			disk-access;
+		};
+	};
+};

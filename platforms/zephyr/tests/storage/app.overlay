@@ -1,0 +1,19 @@
+/ {
+	ramdisk {
+		compatible = "zephyr,ram-disk";
+		disk-name = "SD";
+		sector-size = <512>;
+		sector-count = <512>;
+	};
+
+	fstab {
+		compatible = "zephyr,fstab";
+
+		sd: sd {
+			compatible = "zephyr,fstab,fatfs";
+			mount-point = "/SD:";
+			automount;
+			disk-access;
+		};
+	};
+};
