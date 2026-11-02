@@ -51,7 +51,9 @@
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
+#include <uORB/PublicationMulti.hpp>
 #include <uORB/SubscriptionInterval.hpp>
+#include <uORB/topics/battery_status.h>
 #include <uORB/topics/parameter_update.h>
 
 using namespace time_literals;
@@ -82,7 +84,7 @@ private:
 	static constexpr hrt_abstime BARO_INTERVAL{20_ms};
 	static constexpr hrt_abstime BATTERY_INTERVAL{100_ms};
 
-	// a battery is disconnected when its power monitor can't be read for this long
+	// a battery is disconnected when its power monitor or fuel gauge can't be read for this long
 	static constexpr hrt_abstime BATTERY_TIMEOUT{2_s};
 
 	struct Sensor {
@@ -98,18 +100,28 @@ private:
 		PX4Magnetometer *mag{nullptr};
 		PX4Barometer *baro{nullptr};
 		Battery *battery{nullptr};
+
+		uORB::PublicationMulti<battery_status_s> *fuel_gauge{nullptr};
+		float initial_remaining_capacity{NAN};
 	};
 
 	void Run() override;
 
 	bool add_sensor(size_t index);
 	void publish(Sensor &sensor, const zephyr_sensor_sample &sample);
+	void publish_fuel_gauge(Sensor &sensor, const zephyr_sensor_sample *sample, hrt_abstime timestamp);
 
 	Sensor _sensors[MAX_SENSORS] {};
 	size_t _sensor_count{0};
 	hrt_abstime _interval{0};
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+
+	DEFINE_PARAMETERS(
+		(ParamFloat<px4::params::BAT_LOW_THR>) _param_bat_low_thr,
+		(ParamFloat<px4::params::BAT_CRIT_THR>) _param_bat_crit_thr,
+		(ParamFloat<px4::params::BAT_EMERGEN_THR>) _param_bat_emergen_thr
+	)
 
 	perf_counter_t _cycle_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
 	perf_counter_t _read_error_perf{perf_alloc(PC_COUNT, MODULE_NAME": read error")};

@@ -43,11 +43,16 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/rtio/rtio.h>
 
+#ifdef CONFIG_FUEL_GAUGE
+#include <zephyr/drivers/fuel_gauge.h>
+#endif
+
 #if DT_HAS_COMPAT_STATUS_OKAY(px4_sensors)
 
 #define SENSORS_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(px4_sensors)
 #define SENSOR_DEVICE_NODE(node) DT_PHANDLE(node, sensor)
 #define SENSOR_IODEV(node) UTIL_CAT(px4_sensor_iodev_, DT_DEP_ORD(node))
+#define IS_FUEL_GAUGE(node) DT_ENUM_HAS_VALUE(node, type, fuel_gauge)
 
 #define IMU_CHANNELS {SENSOR_CHAN_ACCEL_XYZ, 0}, {SENSOR_CHAN_GYRO_XYZ, 0}, {SENSOR_CHAN_DIE_TEMP, 0}
 #define ACCEL_CHANNELS {SENSOR_CHAN_ACCEL_XYZ, 0}
@@ -56,11 +61,19 @@
 #define BARO_CHANNELS {SENSOR_CHAN_PRESS, 0}, {SENSOR_CHAN_AMBIENT_TEMP, 0}
 #define POWER_CHANNELS {SENSOR_CHAN_VOLTAGE, 0}, {SENSOR_CHAN_CURRENT, 0}
 
+/* fuel gauges are read with the fuel gauge API instead */
 #define SENSOR_IODEV_DEFINE(node)                                                                  \
-	SENSOR_DT_READ_IODEV(SENSOR_IODEV(node), SENSOR_DEVICE_NODE(node),                         \
-			     UTIL_CAT(DT_STRING_UPPER_TOKEN(node, type), _CHANNELS));
+	COND_CODE_1(IS_FUEL_GAUGE(node), (),                                                       \
+		    (SENSOR_DT_READ_IODEV(SENSOR_IODEV(node), SENSOR_DEVICE_NODE(node),            \
+					  UTIL_CAT(DT_STRING_UPPER_TOKEN(node, type), _CHANNELS));))
 
 DT_FOREACH_CHILD_STATUS_OKAY(SENSORS_NODE, SENSOR_IODEV_DEFINE)
+
+#define FUEL_GAUGE_CHECK(node)                                                                     \
+	BUILD_ASSERT(!IS_FUEL_GAUGE(node) || IS_ENABLED(CONFIG_FUEL_GAUGE),                         \
+		     DT_NODE_FULL_NAME(node) " is a fuel gauge, which needs CONFIG_FUEL_GAUGE");
+
+DT_FOREACH_CHILD_STATUS_OKAY(SENSORS_NODE, FUEL_GAUGE_CHECK)
 
 #define HAS_COMPAT(node, compat) DT_NODE_HAS_COMPAT(SENSOR_DEVICE_NODE(node), compat)
 
@@ -108,7 +121,7 @@ struct sensor_entry {
 		.name = DT_NODE_FULL_NAME(node),                                                   \
 			.dev = DEVICE_DT_GET(SENSOR_DEVICE_NODE(node)),                                    \
 			       .bus_ord = DT_DEP_ORD(DT_PARENT(SENSOR_DEVICE_NODE(node))),                        \
-					  .iodev = &SENSOR_IODEV(node),                                                      \
+					  .iodev = COND_CODE_1(IS_FUEL_GAUGE(node), (NULL), (&SENSOR_IODEV(node))),         \
 						   .type = (enum zephyr_sensor_type)DT_ENUM_IDX(node, type),                          \
 								   .bus_type = SENSOR_BUS_TYPE(node),                                                 \
 										   .address = SENSOR_ADDRESS(node),                                                   \
@@ -164,6 +177,83 @@ static uint8_t bus_number(size_t index)
 	return bus;
 }
 
+#ifdef CONFIG_FUEL_GAUGE
+static float fuel_gauge_value(const struct device *dev, fuel_gauge_prop_t prop, float scale)
+{
+	union fuel_gauge_prop_val val;
+
+	if (fuel_gauge_get_prop(dev, prop, &val) != 0) {
+		return NAN;
+	}
+
+	switch (prop) {
+	case FUEL_GAUGE_CURRENT_UA:
+		return val.current_ua * scale;
+
+	case FUEL_GAUGE_AVG_CURRENT_UA:
+		return val.avg_current_ua * scale;
+
+	case FUEL_GAUGE_RELATIVE_STATE_OF_CHARGE_PCT:
+		return val.relative_state_of_charge_pct * scale;
+
+	case FUEL_GAUGE_REMAINING_CAPACITY_UAH:
+		return val.remaining_capacity_uah * scale;
+
+	case FUEL_GAUGE_FULL_CHARGE_CAPACITY_UAH:
+		return val.full_charge_capacity_uah * scale;
+
+	case FUEL_GAUGE_RUNTIME_TO_EMPTY_MINS:
+		/* the largest value means that the battery isn't discharging */
+		return (val.runtime_to_empty_mins < UINT16_MAX) ? val.runtime_to_empty_mins * scale : NAN;
+
+	case FUEL_GAUGE_TEMPERATURE_DK:
+		return val.temperature_dk * scale - 273.15f;
+
+	case FUEL_GAUGE_CYCLE_COUNT:
+		return val.cycle_count * scale;
+
+	case FUEL_GAUGE_STATE_OF_HEALTH:
+		return val.state_of_health * scale;
+
+	default:
+		return NAN;
+	}
+}
+
+/* the properties that a fuel gauge doesn't support are not measured, except the voltage */
+static int read_fuel_gauge(const struct device *dev, struct zephyr_sensor_sample *sample)
+{
+	union fuel_gauge_prop_val voltage;
+	const int ret = fuel_gauge_get_prop(dev, FUEL_GAUGE_VOLTAGE_UV, &voltage);
+
+	if (ret != 0) {
+		return ret;
+	}
+
+	const float cycle_count = fuel_gauge_value(dev, FUEL_GAUGE_CYCLE_COUNT, 1.f);
+	const float state_of_health = fuel_gauge_value(dev, FUEL_GAUGE_STATE_OF_HEALTH, 1.f);
+
+	/* the fuel gauge current is positive while charging */
+	sample->voltage = voltage.voltage_uv * 1e-6f;
+	sample->current = fuel_gauge_value(dev, FUEL_GAUGE_CURRENT_UA, -1e-6f);
+	sample->average_current = fuel_gauge_value(dev, FUEL_GAUGE_AVG_CURRENT_UA, -1e-6f);
+	sample->remaining = fuel_gauge_value(dev, FUEL_GAUGE_RELATIVE_STATE_OF_CHARGE_PCT, 0.01f);
+	sample->remaining_capacity = fuel_gauge_value(dev, FUEL_GAUGE_REMAINING_CAPACITY_UAH, 1e-3f);
+	sample->full_capacity = fuel_gauge_value(dev, FUEL_GAUGE_FULL_CHARGE_CAPACITY_UAH, 1e-3f);
+	sample->time_remaining = fuel_gauge_value(dev, FUEL_GAUGE_RUNTIME_TO_EMPTY_MINS, 60.f);
+	sample->temperature = fuel_gauge_value(dev, FUEL_GAUGE_TEMPERATURE_DK, 0.1f);
+	sample->cycle_count = isfinite(cycle_count) ? (uint16_t)cycle_count : 0;
+	sample->state_of_health = isfinite(state_of_health) ? (uint8_t)state_of_health : 0;
+
+	return 0;
+}
+#else
+static int read_fuel_gauge(const struct device *dev, struct zephyr_sensor_sample *sample)
+{
+	return -ENOTSUP;
+}
+#endif
+
 int zephyr_sensors_get_info(size_t index, struct zephyr_sensor_info *info)
 {
 	if (index >= ARRAY_SIZE(sensors)) {
@@ -188,7 +278,18 @@ int zephyr_sensors_get_info(size_t index, struct zephyr_sensor_info *info)
 		(void)device_init(sensor->dev);
 	}
 
-	return device_is_ready(sensor->dev) ? 0 : -ENODEV;
+	if (!device_is_ready(sensor->dev)) {
+		return -ENODEV;
+	}
+
+	/* fuel gauge drivers don't check that the gauge responds when they are initialized */
+	if (sensor->deferred && (sensor->type == ZEPHYR_SENSOR_TYPE_FUEL_GAUGE)) {
+		struct zephyr_sensor_sample sample;
+
+		return (read_fuel_gauge(sensor->dev, &sample) == 0) ? 0 : -ENODEV;
+	}
+
+	return 0;
 }
 
 static float q31_to_float(q31_t value, int8_t shift)
@@ -240,6 +341,11 @@ int zephyr_sensors_read(size_t index, struct zephyr_sensor_sample *sample)
 	}
 
 	const struct sensor_entry *sensor = &sensors[index];
+
+	if (sensor->type == ZEPHYR_SENSOR_TYPE_FUEL_GAUGE) {
+		return read_fuel_gauge(sensor->dev, sample);
+	}
+
 	const struct sensor_decoder_api *decoder;
 
 	int ret = sensor_get_decoder(sensor->dev, &decoder);
@@ -303,6 +409,11 @@ int zephyr_sensors_read(size_t index, struct zephyr_sensor_sample *sample)
 			ret = decode_q31(decoder, SENSOR_CHAN_CURRENT, &sample->current, &timestamp_ns);
 		}
 
+		break;
+
+	case ZEPHYR_SENSOR_TYPE_FUEL_GAUGE:
+		/* read with the fuel gauge API */
+		ret = -EINVAL;
 		break;
 	}
 

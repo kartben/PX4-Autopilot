@@ -39,6 +39,7 @@
 #include <parameters/param.h>
 #include <px4_zephyr.h>
 #include <uORB/Subscription.hpp>
+#include <uORB/SubscriptionMultiArray.hpp>
 #include <uORB/topics/battery_status.h>
 #include <uORB/topics/sensor_accel.h>
 #include <uORB/topics/sensor_baro.h>
@@ -54,6 +55,8 @@ static constexpr float PRESSURE_KPA{101.325f};
 static constexpr float TEMPERATURE{21.5f};
 static constexpr float VOLTAGE{16.f};
 static constexpr float CURRENT{12.5f};
+static constexpr float FUEL_GAUGE_VOLTAGE{22.2f};
+static constexpr float FUEL_GAUGE_CURRENT{30.f};
 
 // sensor resolutions: ICM42688 at +-16 g and +-2000 dps, AK09918 0.15 uT
 static constexpr float ACCEL_TOLERANCE{0.01f};
@@ -74,6 +77,25 @@ static bool wait_for_sample(const orb_metadata *meta, T &sample, hrt_abstime aft
 	for (int i = 0; i < SAMPLE_TIMEOUT_MS; i++) {
 		if (subscription.update(&sample) && sample.timestamp >= after) {
 			return true;
+		}
+
+		k_sleep(K_MSEC(1));
+	}
+
+	return false;
+}
+
+// a battery_status sample of a battery, from any instance of the topic
+template<typename Condition>
+static bool wait_for_battery(uint8_t id, battery_status_s &battery, int timeout_ms, Condition condition)
+{
+	uORB::SubscriptionMultiArray<battery_status_s> subscriptions{ORB_ID::battery_status};
+
+	for (int i = 0; i < timeout_ms; i++) {
+		for (auto &subscription : subscriptions) {
+			if (subscription.update(&battery) && (battery.id == id) && condition(battery)) {
+				return true;
+			}
 		}
 
 		k_sleep(K_MSEC(1));
@@ -211,8 +233,11 @@ ZTEST(px4_sensors, test_baro)
 
 ZTEST(px4_sensors, test_power_monitor)
 {
+	const hrt_abstime after = hrt_absolute_time();
 	battery_status_s battery{};
-	zassert_true(wait_for_sample(ORB_ID(battery_status), battery, hrt_absolute_time()));
+	zassert_true(wait_for_battery(2, battery, SAMPLE_TIMEOUT_MS, [after](const battery_status_s & status) {
+		return status.timestamp >= after;
+	}));
 
 	zassert_true(battery.connected);
 	zassert_within(battery.voltage_v, VOLTAGE, POWER_TOLERANCE, "voltage %f", (double)battery.voltage_v);
@@ -226,20 +251,40 @@ ZTEST(px4_sensors, test_power_monitor_lost)
 	sensor_values_set_power_lost(true);
 
 	// the battery is disconnected when its power monitor can't be read for 2 s
-	uORB::Subscription subscription{ORB_ID(battery_status)};
 	battery_status_s battery{};
-	bool disconnected = false;
-
-	for (int i = 0; i < 3000 && !disconnected; i++) {
-		disconnected = subscription.update(&battery) && !battery.connected;
-		k_sleep(K_MSEC(1));
-	}
+	const bool disconnected = wait_for_battery(2, battery, 3000, [](const battery_status_s & status) {
+		return !status.connected;
+	});
 
 	sensor_values_set_power_lost(false);
 
 	zassert_true(disconnected);
 	zassert_equal(battery.voltage_v, 0.f);
 	zassert_equal(battery.current_a, -1.f);
+}
+
+ZTEST(px4_sensors, test_fuel_gauge)
+{
+	// the emulated fuel gauge is reset after each test
+	zassert_ok(sensor_values_set_fuel_gauge(FUEL_GAUGE_VOLTAGE, -FUEL_GAUGE_CURRENT));
+
+	const hrt_abstime after = hrt_absolute_time();
+	battery_status_s battery{};
+	zassert_true(wait_for_battery(1, battery, SAMPLE_TIMEOUT_MS, [after](const battery_status_s & status) {
+		return status.timestamp >= after;
+	}));
+
+	zassert_true(battery.connected);
+	zassert_within(battery.voltage_v, FUEL_GAUGE_VOLTAGE, POWER_TOLERANCE, "voltage %f", (double)battery.voltage_v);
+	zassert_within(battery.current_a, FUEL_GAUGE_CURRENT, POWER_TOLERANCE, "current %f", (double)battery.current_a);
+
+	// the other registers of the emulated fuel gauge read 1
+	zassert_within(battery.remaining, 0.01f, 1e-6f, "remaining %f", (double)battery.remaining);
+	zassert_equal(battery.warning, battery_status_s::WARNING_EMERGENCY);
+	zassert_equal(battery.capacity, 1);
+	zassert_equal(battery.cycle_count, 1);
+	zassert_within(battery.time_remaining_s, 60.f, 1e-3f, "time remaining %f", (double)battery.time_remaining_s);
+	zassert_within(battery.discharged_mah, 0.f, 1e-6f, "discharged %f", (double)battery.discharged_mah);
 }
 
 ZTEST_SUITE(px4_sensors, NULL, setup, NULL, NULL, teardown);

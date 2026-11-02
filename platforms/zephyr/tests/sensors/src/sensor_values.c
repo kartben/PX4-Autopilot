@@ -37,6 +37,7 @@
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/emul.h>
+#include <zephyr/drivers/emul_fuel_gauge.h>
 #include <zephyr/drivers/emul_sensor.h>
 
 void fake_baro_set(const struct device *dev, float pressure_kpa, float temperature);
@@ -104,4 +105,11 @@ void sensor_values_set_power(float voltage, float current)
 void sensor_values_set_power_lost(bool lost)
 {
 	fake_power_monitor_set_lost(DEVICE_DT_GET(DT_NODELABEL(power_monitor)), lost);
+}
+
+int sensor_values_set_fuel_gauge(float voltage, float current)
+{
+	return emul_fuel_gauge_set_battery_charging(EMUL_DT_GET(DT_NODELABEL(sbs_gauge)),
+			(uint32_t)lroundf(voltage * 1e6f),
+			(int)lroundf(current * 1e6f));
 }
