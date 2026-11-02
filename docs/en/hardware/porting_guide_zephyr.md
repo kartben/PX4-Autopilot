@@ -39,6 +39,7 @@ The PX4 options of the Zephyr configuration are:
 | `CONFIG_PX4_SERIAL`         | Open the UARTs of the devicetree as device files (enabled by the `px4,serial-ports` node).          |
 | `CONFIG_PX4_PWM_OUTPUTS`    | Enable the Zephyr PWM API for the actuator outputs (enabled by the `px4,pwm-outputs` node).         |
 | `CONFIG_PX4_RC_INPUT`       | Enable the input subsystem for the RC input (enabled by the `px4,rc-input` node).                   |
+| `CONFIG_PX4_BUZZER`         | Enable the buzzer driver for the tone alarm (enabled by the `buzzer0` devicetree alias).            |
 | `CONFIG_PX4_STACK_OVERHEAD` | Bytes added to the stack of each PX4 task and work queue.                                           |
 | `CONFIG_PX4_ITCM`           | Run the most used code from the ITCM instead of the flash (enabled on the MIMXRT1170-EVK).          |
 
@@ -224,6 +225,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
 - [tests/pwm](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/pwm) tests the PWM outputs on the Zephyr fake PWM driver: the disarmed, armed, failsafe and ESC calibration values, a pulse longer than the period, the outputs left without pulses when their functions are removed and disarmed when the driver stops, and the update rate of outputs with different periods.
 - [tests/rc_input](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/rc_input) tests the RC input with the Zephyr SBUS driver, which receives SBUS frames on an emulated UART: the channel values, keys, the failsafe, the loss of RC, and the events of another input device.
+- [tests/buzzer](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/buzzer) tests the tone alarm on a PWM buzzer of the Zephyr fake PWM driver: the frequency and duration of the notes of a tone and of tunes, a tone that overrides a tune, a stop in the middle of a note, and `CBRK_BUZZER`.
 - [tests/gps](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/gps) tests the GPS driver with an NMEA receiver on an emulated UART: the position, accuracy, dilutions of precision and velocity of the fix, and the baud rate.
 - [tests/identity](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/identity) tests the board identity, from the device ID of a hwinfo driver and from `BOARD_OVERRIDE_UUID`.
 - The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log, `top` and the CPU load, and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
@@ -567,6 +569,40 @@ The generic board configuration starts `zephyr_rc_input`.
 The NXP VMU RT1170 has the SBUS receiver of its Zephyr board on its RC input, a single-wire inverted UART.
 Its overlay maps the 16 proportional SBUS channels, with the values of NuttX: the sticks of the board devicetree on channels 1 to 4, and channels 5 to 16 as `INPUT_EV_MSC` events, instead of the kill switch key of the board on channel 5.
 
+### Buzzer
+
+The [tone_alarm](../modules/modules_driver.md#tone-alarm) driver plays the tunes of PX4, such as the startup tune and the arming warning, on the buzzer of the `buzzer0` devicetree alias, with the Zephyr [buzzer API](https://docs.zephyrproject.org/latest/hardware/peripherals/buzzer.html).
+The Zephyr boards with a buzzer have this alias, here for a passive buzzer on a PWM output:
+
+```dts
+#include <zephyr/dt-bindings/pwm/pwm.h>
+
+/ {
+	aliases {
+		buzzer0 = &buzzer;
+	};
+
+	buzzer: buzzer {
+		compatible = "pwm-buzzer";
+		pwms = <&qtmr1 0 PWM_HZ(2700) PWM_POLARITY_NORMAL>;
+	};
+};
+```
+
+`CONFIG_PX4_BUZZER` enables the buzzer driver when the devicetree has the alias.
+Add `CONFIG_DRIVERS_TONE_ALARM` to the PX4 board configuration, and start the driver in the startup script with `tone_alarm start`: the build fails if the devicetree has no buzzer.
+`tune_control play -t 1` plays the startup tune, with `CONFIG_SYSTEMCMDS_TUNE_CONTROL`.
+A PX4 board configuration without `tone_alarm`, such as the SIH configuration, sets `CONFIG_PX4_BUZZER=n` in the Zephyr configuration, so that the buzzer driver isn't built.
+
+The tone alarm times the notes with the PX4 high-resolution timer, as with NuttX, and plays them at the loudest volume of the buzzer, a square wave on a PWM buzzer.
+The timer ends the notes in an interrupt, and the buzzer is then silenced from the Zephyr system work queue, as the buzzer API isn't available in interrupts.
+An active buzzer (`gpio-buzzer`) plays its own tone whatever the note.
+Set [CBRK_BUZZER](../advanced_config/parameter_reference.md#CBRK_BUZZER) to 782097 to disable the tone alarm, as on NuttX.
+782090, which only skips the startup tune on NuttX, has no effect, as Zephyr startup scripts can't check it: remove `tune_control play -t 1` from the startup script instead.
+
+The NXP VMU RT1170 has the buzzer of FMU-v6XRT in its Zephyr board devicetree, on a channel of QTMR1.
+Its board configuration starts `tone_alarm`, and plays the startup tune at the end of its startup script.
+
 ## Footprint
 
 [Tools/footprint.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/footprint.py) breaks down the flash and static RAM of PX4 firmware by component, for NuttX and Zephyr builds alike.
@@ -618,7 +654,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 
 ## Limitations
 
-- PX4 has only flown in simulation: the PWM outputs, the RC input and the GPS driver are only tested in QEMU.
+- PX4 has only flown in simulation: the PWM outputs, the RC input, the GPS driver and the buzzer are only tested in QEMU.
 - PWM outputs have the period of the devicetree, without OneShot or DShot.
 - There is no component metadata, which NuttX boards have in `/etc/extras` of their ROMFS: _QGroundControl_ has no Actuators setup.
 - RC input is read from Zephyr input devices, such as SBUS receivers, and from CRSF receivers with `crsf_rc` on a serial port, as on the MIMXRT1170-EVK: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
