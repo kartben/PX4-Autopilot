@@ -223,6 +223,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
 - [tests/pwm](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/pwm) tests the PWM outputs on the Zephyr fake PWM driver: the disarmed, armed, failsafe and ESC calibration values, a pulse longer than the period, the outputs left without pulses when their functions are removed and disarmed when the driver stops, and the update rate of outputs with different periods.
 - [tests/rc_input](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/rc_input) tests the RC input with the Zephyr SBUS driver, which receives SBUS frames on an emulated UART: the channel values, keys, the failsafe, the loss of RC, and the events of another input device.
+- [tests/gps](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/gps) tests the GPS driver with an NMEA receiver on an emulated UART: the position, accuracy, dilutions of precision and velocity of the fix, and the baud rate.
 - [tests/identity](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/identity) tests the board identity, from the device ID of a hwinfo driver and from `BOARD_OVERRIDE_UUID`.
 - The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log, `top` and the CPU load, and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
 
@@ -405,7 +406,7 @@ A USB CDC ACM UART (`zephyr,cdc-acm-uart`) is a USB serial port.
 Data written to it is dropped while no host has opened it, and MAVLink detects a USB port from its `/dev/ttyACM` path.
 
 The NXP VMU RT1170 has the serial ports of FMU-v6XRT and a USB port.
-Its PX4 board configuration ([boards/zephyr/vmu_rt1170](https://github.com/PX4/PX4-Autopilot/tree/main/boards/zephyr/vmu_rt1170)) starts MAVLink on `/dev/ttyS2` (TELEM1) and USB.
+Its PX4 board configuration ([boards/zephyr/vmu_rt1170](https://github.com/PX4/PX4-Autopilot/tree/main/boards/zephyr/vmu_rt1170)) starts the GPS driver on `/dev/ttyS1` (GPS1), and MAVLink on `/dev/ttyS2` (TELEM1) and USB.
 MAVLink only runs over UDP if the Zephyr configuration has the network stack (`CONFIG_NET_SOCKETS`).
 
 ### Storage
@@ -600,7 +601,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 
 ## Limitations
 
-- PX4 has only flown in simulation: the PWM outputs and the RC input are only tested in QEMU.
+- PX4 has only flown in simulation: the PWM outputs, the RC input and the GPS driver are only tested in QEMU.
 - PWM outputs have the period of the devicetree, without OneShot or DShot.
 - There is no component metadata, which NuttX boards have in `/etc/extras` of their ROMFS: _QGroundControl_ has no Actuators setup.
 - RC input is read from Zephyr input devices, such as SBUS receivers, and from CRSF receivers with `crsf_rc` on a serial port, as on the MIMXRT1170-EVK: the other RC protocols that PX4 decodes on a serial port with NuttX, such as DSM and GHST, aren't supported.
@@ -609,7 +610,6 @@ Only the operating system rows compare the two systems, as the builds differ in 
 - Sensors are polled: the IMU FIFOs are not used.
 - Serial ports use the interrupt-driven UART API, without DMA, and have no single-wire, inverted or swapped modes.
 - DroneCAN isn't started at boot, and a frame that a CAN controller has started to send is sent even once its deadline has passed. Cyphal uses classic CAN frames only.
-- The GPS driver does not build, as its protocol parsers define `MIN` and `MAX`, which Zephyr defines too.
 - Dynamic modules (`DYNAMIC` in `px4_add_module()`) are not supported.
 - `native_sim` is not supported, as its POSIX API uses the host C library.
 - The tests run in QEMU and on the MIMXRT1170-EVK. The NXP VMU RT1170 is only built.
