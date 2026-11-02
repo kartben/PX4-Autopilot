@@ -26,6 +26,7 @@ param set-default COM_RC_IN_MODE 4
 param set-default SDLOG_MAX_SIZE 4
 ver all
 dataman start -r
+load_mon start
 battery_simulator start
 rc_update start
 manual_control start

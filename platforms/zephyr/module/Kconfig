@@ -249,4 +249,15 @@ configdefault RTIO_WORKQ_THREADS_POOL
 configdefault RTIO_WORKQ_POOL_ITEMS
 	default 8 if PX4_SENSORS
 
+# CPU load and stack usage of the threads, for top, load_mon and the logger
+configdefault THREAD_RUNTIME_STATS
+	default y
+
+configdefault INIT_STACKS
+	default y
+
+# RAM usage of load_mon
+configdefault SYS_HEAP_RUNTIME_STATS
+	default y
+
 endif # PX4

@@ -42,6 +42,12 @@ static constexpr unsigned STACK_LOW_WARNING_THRESHOLD = 300;
 #endif
 
 static constexpr unsigned FDS_LOW_WARNING_THRESHOLD = 2; ///< if free file descriptors fall below this, print a warning
+#elif defined(__PX4_ZEPHYR)
+// if free stack space falls below this, print a warning
+static constexpr unsigned STACK_LOW_WARNING_THRESHOLD = 300;
+
+// kernel heap, of the thread stacks
+extern "C" struct k_heap _system_heap;
 #endif
 
 using namespace time_literals;
@@ -103,7 +109,7 @@ void LoadMon::Run()
 
 	cpuload();
 
-#if defined(__PX4_NUTTX)
+#if defined(__PX4_NUTTX) || defined(__PX4_ZEPHYR)
 
 	if (_param_sys_stck_en.get()) {
 		stack_usage();
@@ -122,6 +128,40 @@ void LoadMon::Run()
 		return;
 	}
 }
+
+#if defined(__PX4_ZEPHYR)
+// cycles of the idle thread and of all the threads
+static bool runtime_cycles(uint64_t *idle_cycles, uint64_t *execution_cycles)
+{
+#if defined(CONFIG_SCHED_THREAD_USAGE_ALL)
+	k_thread_runtime_stats_t stats;
+	k_thread_runtime_stats_all_get(&stats);
+	*idle_cycles = stats.idle_cycles;
+	*execution_cycles = stats.execution_cycles;
+	return true;
+#else
+	return false;
+#endif
+}
+
+// usage of the C library heap, of the PX4 objects, and of the kernel heap, of the thread stacks
+static float ram_usage()
+{
+#if defined(CONFIG_SYS_HEAP_RUNTIME_STATS) && (K_HEAP_MEM_POOL_SIZE > 0)
+	sys_memory_stats malloc_stats;
+	sys_memory_stats kernel_stats;
+
+	if ((malloc_runtime_stats_get(&malloc_stats) == 0)
+	    && (sys_heap_runtime_stats_get(&_system_heap.heap, &kernel_stats) == 0)) {
+		const size_t used = malloc_stats.allocated_bytes + kernel_stats.allocated_bytes;
+		const size_t size = used + malloc_stats.free_bytes + kernel_stats.free_bytes;
+		return (float)used / size;
+	}
+
+#endif
+	return -1.f;
+}
+#endif
 
 void LoadMon::cpuload()
 {
@@ -163,6 +203,28 @@ void LoadMon::cpuload()
 	// compute system load
 	const float interval = now - _last_idle_time_sample;
 	const float interval_idletime = total_runtime - _last_idle_time;
+#elif defined(__PX4_ZEPHYR)
+	uint64_t idle_cycles = 0;
+	uint64_t execution_cycles = 0;
+
+	if (!runtime_cycles(&idle_cycles, &execution_cycles)) {
+		return;
+	}
+
+	if (_last_execution_cycles == 0) {
+		// Just get the time in the first iteration
+		_last_idle_cycles = idle_cycles;
+		_last_execution_cycles = execution_cycles;
+		return;
+	}
+
+	if (execution_cycles == _last_execution_cycles) {
+		return;
+	}
+
+	// compute system load
+	const float interval = execution_cycles - _last_execution_cycles;
+	const float interval_idletime = idle_cycles - _last_idle_cycles;
 #endif
 
 	cpuload_s cpuload{};
@@ -232,6 +294,9 @@ void LoadMon::cpuload()
 	struct mallinfo mem = mallinfo();
 	cpuload.ram_usage = (float)mem.uordblks / mem.arena;
 	cpuload.load = 1.f - interval_idletime / interval;
+#elif defined(__PX4_ZEPHYR)
+	cpuload.ram_usage = ram_usage();
+	cpuload.load = 1.f - interval_idletime / interval;
 #elif defined(__PX4_QURT)
 	cpuload.ram_usage = 0.0f;
 	cpuload.load = px4muorb_get_cpu_load() / 100.0f;
@@ -247,6 +312,9 @@ void LoadMon::cpuload()
 #elif defined(__PX4_NUTTX)
 	_last_idle_time = total_runtime;
 	_last_idle_time_sample = now;
+#elif defined(__PX4_ZEPHYR)
+	_last_idle_cycles = idle_cycles;
+	_last_execution_cycles = execution_cycles;
 #endif
 }
 
@@ -305,6 +373,72 @@ void LoadMon::stack_usage()
 	// Continue after last checked task next cycle
 	_stack_task_index = (_stack_task_index + 1) % CONFIG_FS_PROCFS_MAX_TASKS;
 }
+#elif defined(__PX4_ZEPHYR)
+struct stack_check_s {
+	int index;
+	int count;
+	const struct k_thread *thread;
+};
+
+static void find_thread(const struct k_thread *thread, void *user_data)
+{
+	stack_check_s *check = (stack_check_s *)user_data;
+
+	if (check->count == check->index) {
+		check->thread = thread;
+	}
+
+	check->count++;
+}
+
+void LoadMon::stack_usage()
+{
+	unsigned stack_free = 0;
+
+	bool checked_task = false;
+
+	task_stack_info_s task_stack_info{};
+
+	stack_check_s check{_stack_task_index, 0, nullptr};
+
+	// no thread exits while the scheduler is locked
+	k_sched_lock();
+
+	k_thread_foreach_unlocked(find_thread, &check);
+
+#if defined(CONFIG_INIT_STACKS)
+	size_t unused = 0;
+
+	if ((check.thread != nullptr) && (k_thread_priority_get((k_tid_t)check.thread) != K_IDLE_PRIO)
+	    && (k_thread_stack_space_get(check.thread, &unused) == 0)) {
+
+		stack_free = unused;
+
+		strncpy((char *)task_stack_info.task_name, k_thread_name_get((k_tid_t)check.thread),
+			sizeof(task_stack_info.task_name) - 1);
+
+		checked_task = true;
+	}
+
+#endif
+
+	k_sched_unlock();
+
+	if (checked_task) {
+		task_stack_info.stack_free = stack_free;
+		task_stack_info.timestamp = hrt_absolute_time();
+
+		_task_stack_info_pub.publish(task_stack_info);
+
+		// Found task low on stack, report and exit. Continue here in next cycle.
+		if (stack_free < STACK_LOW_WARNING_THRESHOLD) {
+			PX4_WARN("%s low on stack! (%i bytes left)", task_stack_info.task_name, stack_free);
+		}
+	}
+
+	// Continue with the next thread next cycle, and with the first one after the last thread
+	_stack_task_index = (check.thread != nullptr) ? (_stack_task_index + 1) : 0;
+}
 #endif
 
 int LoadMon::print_usage(const char *reason)
@@ -319,7 +453,7 @@ int LoadMon::print_usage(const char *reason)
 Background process running periodically on the low priority work queue to calculate the CPU load and RAM
 usage and publish the `cpuload` topic.
 
-On NuttX it also checks the stack usage of each process and if it falls below 300 bytes, a warning is output,
+On NuttX and Zephyr it also checks the stack usage of each process and if it falls below 300 bytes, a warning is output,
 which will also appear in the log file.
 )DESCR_STR");
 

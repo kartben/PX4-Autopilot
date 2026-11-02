@@ -42,6 +42,12 @@
 #define R_OK 4
 #endif
 
+#ifndef STDIN_FILENO
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
