@@ -45,10 +45,11 @@ child-binding:
         - "gyro"
         - "mag"
         - "baro"
+        - "power"
       description: |
         Measurements published: imu publishes sensor_accel and sensor_gyro,
-        accel sensor_accel, gyro sensor_gyro, mag sensor_mag and baro
-        sensor_baro.
+        accel sensor_accel, gyro sensor_gyro, mag sensor_mag, baro
+        sensor_baro, and power the battery_status of a power monitor.
     rotation:
       type: int
       default: 0
@@ -58,3 +59,9 @@ child-binding:
     external:
       type: boolean
       description: The sensor is not on the flight controller board.
+    battery:
+      type: int
+      default: 1
+      description: |
+        Battery measured by a power monitor, from 1, which selects its BATn_*
+        parameters.

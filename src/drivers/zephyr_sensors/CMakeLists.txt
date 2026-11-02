@@ -40,6 +40,7 @@ px4_add_module(
 		ZephyrSensors.cpp
 		ZephyrSensors.hpp
 	DEPENDS
+		battery
 		drivers_accelerometer
 		drivers_barometer
 		drivers_gyroscope

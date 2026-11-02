@@ -1,0 +1,3 @@
+description: Power monitor whose readings are set by the test
+
+compatible: "vnd,power-monitor"

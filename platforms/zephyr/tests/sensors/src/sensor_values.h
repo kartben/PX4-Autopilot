@@ -33,6 +33,8 @@
 
 #pragma once
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -41,6 +43,10 @@ extern "C" {
 int sensor_values_set_imu(const float accel[3], const float gyro[3]);
 int sensor_values_set_mag(const float mag[3]);
 void sensor_values_set_baro(float pressure_kpa, float temperature);
+void sensor_values_set_power(float voltage, float current);
+
+/* the power monitor fails to read while it is lost */
+void sensor_values_set_power_lost(bool lost);
 
 #ifdef __cplusplus
 }

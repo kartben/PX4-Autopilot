@@ -54,6 +54,7 @@ enum zephyr_sensor_type {
 	ZEPHYR_SENSOR_TYPE_GYRO,
 	ZEPHYR_SENSOR_TYPE_MAG,
 	ZEPHYR_SENSOR_TYPE_BARO,
+	ZEPHYR_SENSOR_TYPE_POWER,
 };
 
 enum zephyr_sensor_bus_type {
@@ -70,6 +71,7 @@ struct zephyr_sensor_info {
 	uint8_t address;
 	uint8_t devtype;
 	uint8_t rotation;
+	uint8_t battery;
 	bool external;
 	bool optional;
 };
@@ -80,6 +82,8 @@ struct zephyr_sensor_sample {
 	float gyro[3];		/* rad/s */
 	float mag[3];		/* Gauss */
 	float pressure;		/* Pa */
+	float voltage;		/* V */
+	float current;		/* A */
 	float temperature;	/* degrees Celsius, NAN if not measured */
 };
 

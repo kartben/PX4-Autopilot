@@ -36,8 +36,10 @@
 #include <drivers/drv_hrt.h>
 #include <drivers/drv_sensor.h>
 #include <lib/drivers/device/Device.hpp>
+#include <parameters/param.h>
 #include <px4_zephyr.h>
 #include <uORB/Subscription.hpp>
+#include <uORB/topics/battery_status.h>
 #include <uORB/topics/sensor_accel.h>
 #include <uORB/topics/sensor_baro.h>
 #include <uORB/topics/sensor_gyro.h>
@@ -50,6 +52,8 @@ static constexpr float GYRO[3] {0.5f, -0.25f, 1.f};
 static constexpr float MAG[3] {0.2f, -0.1f, -0.4f};
 static constexpr float PRESSURE_KPA{101.325f};
 static constexpr float TEMPERATURE{21.5f};
+static constexpr float VOLTAGE{16.f};
+static constexpr float CURRENT{12.5f};
 
 // sensor resolutions: ICM42688 at +-16 g and +-2000 dps, AK09918 0.15 uT
 static constexpr float ACCEL_TOLERANCE{0.01f};
@@ -57,8 +61,10 @@ static constexpr float GYRO_TOLERANCE{0.002f};
 static constexpr float MAG_TOLERANCE{0.003f};
 static constexpr float PRESSURE_TOLERANCE{1.f};
 static constexpr float TEMPERATURE_TOLERANCE{0.01f};
+static constexpr float POWER_TOLERANCE{0.001f};
 
-static constexpr int SAMPLE_TIMEOUT_MS{100};
+// longer than the 100 ms between the readings of a power monitor
+static constexpr int SAMPLE_TIMEOUT_MS{200};
 
 template<typename T>
 static bool wait_for_sample(const orb_metadata *meta, T &sample, hrt_abstime after = 0)
@@ -108,12 +114,17 @@ static void *setup(void)
 {
 	zassert_ok(px4_zephyr_init());
 
+	// the power monitor measures battery 2, which is published if its source is a power module
+	const int32_t power_module = 0;
+	zassert_ok(param_set(param_find("BAT2_SOURCE"), &power_module));
+
 	// the magnetometers are initialized, and reset, when zephyr_sensors starts
 	zassert_ok(run("zephyr_sensors start"));
 
 	zassert_ok(sensor_values_set_imu(ACCEL, GYRO));
 	zassert_ok(sensor_values_set_mag(MAG));
 	sensor_values_set_baro(PRESSURE_KPA, TEMPERATURE);
+	sensor_values_set_power(VOLTAGE, CURRENT);
 
 	// wait for the sensors to be read with these values
 	k_sleep(K_MSEC(SAMPLE_TIMEOUT_MS));
@@ -196,6 +207,39 @@ ZTEST(px4_sensors, test_baro)
 	zassert_within(baro.temperature, TEMPERATURE, TEMPERATURE_TOLERANCE, "temperature %f", (double)baro.temperature);
 	zassert_equal(baro.device_id, device_id(device::Device::DeviceBusType_UNKNOWN, 0, 0, DRV_DEVTYPE_UNUSED),
 		      "device id 0x%" PRIx32, baro.device_id);
+}
+
+ZTEST(px4_sensors, test_power_monitor)
+{
+	battery_status_s battery{};
+	zassert_true(wait_for_sample(ORB_ID(battery_status), battery, hrt_absolute_time()));
+
+	zassert_true(battery.connected);
+	zassert_within(battery.voltage_v, VOLTAGE, POWER_TOLERANCE, "voltage %f", (double)battery.voltage_v);
+	zassert_within(battery.current_a, CURRENT, POWER_TOLERANCE, "current %f", (double)battery.current_a);
+	zassert_equal(battery.id, 2);
+	zassert_equal(battery.source, battery_status_s::SOURCE_POWER_MODULE);
+}
+
+ZTEST(px4_sensors, test_power_monitor_lost)
+{
+	sensor_values_set_power_lost(true);
+
+	// the battery is disconnected when its power monitor can't be read for 2 s
+	uORB::Subscription subscription{ORB_ID(battery_status)};
+	battery_status_s battery{};
+	bool disconnected = false;
+
+	for (int i = 0; i < 3000 && !disconnected; i++) {
+		disconnected = subscription.update(&battery) && !battery.connected;
+		k_sleep(K_MSEC(1));
+	}
+
+	sensor_values_set_power_lost(false);
+
+	zassert_true(disconnected);
+	zassert_equal(battery.voltage_v, 0.f);
+	zassert_equal(battery.current_a, -1.f);
 }
 
 ZTEST_SUITE(px4_sensors, NULL, setup, NULL, NULL, teardown);

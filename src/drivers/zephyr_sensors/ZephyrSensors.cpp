@@ -43,6 +43,7 @@ static_assert(PX4_ROTATION_ROLL_90_PITCH_315 == ROTATION_MAX - 1, "dt-bindings/p
 ModuleBase::Descriptor ZephyrSensors::desc{task_spawn, custom_command, print_usage};
 
 ZephyrSensors::ZephyrSensors() :
+	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default)
 {
 }
@@ -54,6 +55,7 @@ ZephyrSensors::~ZephyrSensors()
 		delete _sensors[i].gyro;
 		delete _sensors[i].mag;
 		delete _sensors[i].baro;
+		delete _sensors[i].battery;
 	}
 
 	perf_free(_cycle_perf);
@@ -133,6 +135,11 @@ bool ZephyrSensors::add_sensor(size_t index)
 		sensor.baro = new PX4Barometer(id, external);
 		sensor.interval = BARO_INTERVAL;
 		break;
+
+	case ZEPHYR_SENSOR_TYPE_POWER:
+		sensor.battery = new Battery(sensor.info.battery, this, BATTERY_INTERVAL, battery_status_s::SOURCE_POWER_MODULE);
+		sensor.interval = BATTERY_INTERVAL;
+		break;
 	}
 
 	sensor.index = index;
@@ -179,6 +186,12 @@ void ZephyrSensors::Run()
 		return;
 	}
 
+	if (_parameter_update_sub.updated()) {
+		parameter_update_s parameter_update;
+		_parameter_update_sub.copy(&parameter_update);
+		updateParams();
+	}
+
 	perf_begin(_cycle_perf);
 
 	for (size_t i = 0; i < _sensor_count; i++) {
@@ -198,11 +211,19 @@ void ZephyrSensors::Run()
 		if (zephyr_sensors_read(sensor.index, &sample) == 0) {
 			// the sample was taken during the read
 			sample.timestamp_us = math::constrain(sample.timestamp_us, start, hrt_absolute_time());
+			sensor.last_sample = sample.timestamp_us;
 			publish(sensor, sample);
 
 		} else {
 			sensor.error_count++;
 			perf_count(_read_error_perf);
+
+			if (sensor.battery && (hrt_elapsed_time(&sensor.last_sample) > BATTERY_TIMEOUT)) {
+				sensor.battery->setConnected(false);
+				sensor.battery->updateVoltage(0.f);
+				sensor.battery->updateCurrent(-1.f);
+				sensor.battery->updateAndPublishBatteryStatus(hrt_absolute_time());
+			}
 		}
 	}
 
@@ -246,6 +267,13 @@ void ZephyrSensors::publish(Sensor &sensor, const zephyr_sensor_sample &sample)
 		}
 
 		sensor.baro->update(sample.timestamp_us, sample.pressure);
+	}
+
+	if (sensor.battery) {
+		sensor.battery->setConnected(true);
+		sensor.battery->updateVoltage(sample.voltage);
+		sensor.battery->updateCurrent(sample.current);
+		sensor.battery->updateAndPublishBatteryStatus(sample.timestamp_us);
 	}
 }
 
@@ -308,7 +336,8 @@ int ZephyrSensors::print_usage(const char *reason)
 Publishes the Zephyr sensors listed in the px4,sensors devicetree node to uORB.
 
 Each sensor is read through the Zephyr sensor API, at 1 kHz for IMUs, 100 Hz for
-magnetometers and 50 Hz for barometers.
+magnetometers, 50 Hz for barometers and 10 Hz for power monitors, which publish
+the status of a battery.
 
 The sensors whose device has the zephyr,deferred-init devicetree property are
 optional, like the compass of a GPS module: they are initialized when the driver
