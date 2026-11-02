@@ -1,0 +1,84 @@
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+
+/ {
+	euart0: uart-emul {
+		compatible = "zephyr,uart-emul";
+		status = "okay";
+
+		sbus: sbus {
+			compatible = "futaba,sbus";
+
+			roll {
+				channel = <1>;
+				type = <INPUT_EV_ABS>;
+				zephyr,code = <INPUT_ABS_RX>;
+			};
+
+			pitch {
+				channel = <2>;
+				type = <INPUT_EV_ABS>;
+				zephyr,code = <INPUT_ABS_RY>;
+			};
+
+			throttle {
+				channel = <3>;
+				type = <INPUT_EV_ABS>;
+				zephyr,code = <INPUT_ABS_Y>;
+			};
+
+			yaw {
+				channel = <4>;
+				type = <INPUT_EV_ABS>;
+				zephyr,code = <INPUT_ABS_X>;
+			};
+
+			switch {
+				channel = <5>;
+				type = <INPUT_EV_KEY>;
+				zephyr,code = <INPUT_KEY_0>;
+			};
+
+			mode-switch {
+				channel = <6>;
+				type = <INPUT_EV_KEY>;
+				zephyr,code = <INPUT_KEY_2>;
+			};
+
+			aux {
+				channel = <16>;
+				type = <INPUT_EV_MSC>;
+				zephyr,code = <INPUT_MSC_SCAN>;
+			};
+		};
+	};
+
+	/* another input device, with the code of a key of the RC input */
+	euart1: uart-emul-1 {
+		compatible = "zephyr,uart-emul";
+		status = "okay";
+
+		other_sbus: sbus {
+			compatible = "futaba,sbus";
+
+			switch {
+				channel = <5>;
+				type = <INPUT_EV_KEY>;
+				zephyr,code = <INPUT_KEY_0>;
+			};
+		};
+	};
+
+	px4-rc-input {
+		compatible = "px4,rc-input";
+		input = <&sbus>;
+		channels = <INPUT_EV_ABS INPUT_ABS_RX>,
+			   <INPUT_EV_ABS INPUT_ABS_RY>,
+			   <INPUT_EV_ABS INPUT_ABS_Y>,
+			   <INPUT_EV_ABS INPUT_ABS_X>,
+			   <INPUT_EV_KEY INPUT_KEY_0>,
+			   <INPUT_EV_MSC INPUT_MSC_SCAN>,
+			   <INPUT_EV_KEY INPUT_KEY_2>;
+		/* the SBUS driver doesn't report the failsafe flag: the test reports this key */
+		failsafe = <INPUT_EV_KEY INPUT_KEY_1>;
+	};
+};

@@ -1,0 +1,59 @@
+description: |
+  RC input of PX4 from a Zephyr input device, such as an SBUS receiver
+  (futaba,sbus), which the PX4 zephyr_rc_input driver publishes as input_rc.
+
+  The channels property gives the input event of each RC channel, as its
+  type and code, in the order of the RC channels:
+
+    #include <zephyr/dt-bindings/input/input-event-codes.h>
+
+    / {
+      px4-rc-input {
+        compatible = "px4,rc-input";
+        input = <&sbus>;
+        channels = <INPUT_EV_ABS INPUT_ABS_RX>,
+                   <INPUT_EV_ABS INPUT_ABS_RY>,
+                   <INPUT_EV_ABS INPUT_ABS_Y>,
+                   <INPUT_EV_ABS INPUT_ABS_X>,
+                   <INPUT_EV_MSC 5>;
+      };
+    };
+
+  The value of an INPUT_EV_ABS or INPUT_EV_MSC event is scaled from
+  input-min..input-max to 1000..2000 us, as PX4 scales the SBUS channels.
+  A key gives 2000 us while it is pressed and 1000 us while it is released,
+  which it is until its first event.
+
+  The input device sends a sync event after each frame. The channels are
+  published from the first frame after which each of them has been
+  reported.
+
+compatible: "px4,rc-input"
+
+properties:
+  input:
+    type: phandle
+    required: true
+    description: Input device.
+  channels:
+    type: array
+    required: true
+    description: |
+      Type (INPUT_EV_ABS, INPUT_EV_MSC or INPUT_EV_KEY) and code of the input
+      event of each RC channel, from the first one, up to 18 channels.
+  input-min:
+    type: int
+    default: 200
+    description: |
+      Raw value of a channel at 1000 us. Default: the SBUS value at -100%.
+  input-max:
+    type: int
+    default: 1800
+    description: |
+      Raw value of a channel at 2000 us. Default: the SBUS value at +100%.
+  failsafe:
+    type: array
+    description: |
+      Type and code of an input event whose value is not 0 while the
+      receiver is in failsafe, for example because it has lost the
+      transmitter.

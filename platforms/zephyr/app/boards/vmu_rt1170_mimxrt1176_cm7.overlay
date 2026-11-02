@@ -2,6 +2,7 @@
 
 #include <dt-bindings/px4/rotation.h>
 #include <zephyr/dt-bindings/pwm/pwm.h>
+#include <zephyr/dt-bindings/input/input-event-codes.h>
 
 / {
 	px4-sensors {
@@ -198,6 +199,28 @@
 		};
 	};
 
+	/* the 16 channels of the SBUS receiver of the board, as with NuttX */
+	px4-rc-input {
+		compatible = "px4,rc-input";
+		input = <&sbus>;
+		channels = <INPUT_EV_ABS INPUT_ABS_RX>,
+			   <INPUT_EV_ABS INPUT_ABS_RY>,
+			   <INPUT_EV_ABS INPUT_ABS_Y>,
+			   <INPUT_EV_ABS INPUT_ABS_X>,
+			   <INPUT_EV_MSC 5>,
+			   <INPUT_EV_MSC 6>,
+			   <INPUT_EV_MSC 7>,
+			   <INPUT_EV_MSC 8>,
+			   <INPUT_EV_MSC 9>,
+			   <INPUT_EV_MSC 10>,
+			   <INPUT_EV_MSC 11>,
+			   <INPUT_EV_MSC 12>,
+			   <INPUT_EV_MSC 13>,
+			   <INPUT_EV_MSC 14>,
+			   <INPUT_EV_MSC 15>,
+			   <INPUT_EV_MSC 16>;
+	};
+
 	fstab {
 		compatible = "zephyr,fstab";
 
@@ -206,6 +229,86 @@
 			mount-point = "/SD:";
 			automount;
 			disk-access;
+		};
+	};
+};
+
+/*
+ * the sticks of the board on SBUS channels 1 to 4, and channels 5 to 16 as raw values, with the
+ * channel as code, instead of the kill switch key of the board on channel 5, which has no middle
+ * position
+ */
+&lpuart6 {
+	sbus: sbus {
+		kill_switch {
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <5>;
+		};
+
+		channel-6 {
+			channel = <6>;
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <6>;
+		};
+
+		channel-7 {
+			channel = <7>;
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <7>;
+		};
+
+		channel-8 {
+			channel = <8>;
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <8>;
+		};
+
+		channel-9 {
+			channel = <9>;
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <9>;
+		};
+
+		channel-10 {
+			channel = <10>;
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <10>;
+		};
+
+		channel-11 {
+			channel = <11>;
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <11>;
+		};
+
+		channel-12 {
+			channel = <12>;
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <12>;
+		};
+
+		channel-13 {
+			channel = <13>;
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <13>;
+		};
+
+		channel-14 {
+			channel = <14>;
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <14>;
+		};
+
+		channel-15 {
+			channel = <15>;
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <15>;
+		};
+
+		channel-16 {
+			channel = <16>;
+			type = <INPUT_EV_MSC>;
+			zephyr,code = <16>;
 		};
 	};
 };
