@@ -1,0 +1,6 @@
+config PX4_TEST_HWINFO
+	bool "Device ID from the hwinfo driver of the test"
+	depends on HWINFO
+	select HWINFO_HAS_DRIVER
+
+source "Kconfig.zephyr"

@@ -223,6 +223,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
 - [tests/pwm](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/pwm) tests the PWM outputs on the Zephyr fake PWM driver: the disarmed, armed, failsafe and ESC calibration values, a pulse longer than the period, the outputs left without pulses when their functions are removed and disarmed when the driver stops, and the update rate of outputs with different periods.
 - [tests/rc_input](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/rc_input) tests the RC input with the Zephyr SBUS driver, which receives SBUS frames on an emulated UART: the channel values, keys, the failsafe, the loss of RC, and the events of another input device.
+- [tests/identity](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/identity) tests the board identity, from the device ID of a hwinfo driver and from `BOARD_OVERRIDE_UUID`.
 - The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
 
 The tests also run on the MIMXRT1170-EVK, which twister flashes and reads on the serial port of its debug USB port:
@@ -239,6 +240,15 @@ See the overlay for the [NXP VMU RT1170](https://github.com/PX4/PX4-Autopilot/bl
 
 A board that needs its own PX4 modules or startup commands gets a PX4 board configuration in `boards/zephyr/<board>/`, named after the Zephyr board without its qualifiers (for example `vmu_rt1170`).
 Copy [boards/zephyr/generic](https://github.com/PX4/PX4-Autopilot/tree/main/boards/zephyr/generic) as a starting point.
+
+### Board Identity
+
+The unique ID of the board, which PX4 sends in MAVLink, DroneCAN, Cyphal and Remote ID messages and writes in the flight logs, is the device ID of the Zephyr [hwinfo](https://docs.zephyrproject.org/latest/hardware/peripherals/hwinfo.html) driver of the SoC.
+On the i.MX RT, this is the unique ID in the fuses of the chip.
+It can differ from the one NuttX reports on the same board, as Zephyr may read other fuses or order them differently.
+The PX4 GUID starts with the `PX4_SOC_ARCH_ID` of the board, which `src/board_config.h` of its PX4 board configuration defines.
+
+A board without a hwinfo driver, such as `mps2/an386` in QEMU, has the fixed `BOARD_OVERRIDE_UUID` of the generic board instead, as SITL does.
 
 ### Sensors
 
