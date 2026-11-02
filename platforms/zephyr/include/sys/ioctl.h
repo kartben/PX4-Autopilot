@@ -35,6 +35,10 @@
 
 #include_next <sys/ioctl.h>
 
+#include <px4_tty.h>
+
+#define FIONSPACE PX4_TTY_FIONSPACE
+
 #define	IOCPARM_MASK	0x1fff		/* parameter length, at most 13 bits */
 #define	IOC_VOID	0x20000000	/* no parameters */
 

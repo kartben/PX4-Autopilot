@@ -73,6 +73,14 @@ target_compile_options(px4_interface INTERFACE
 )
 add_dependencies(px4_interface uorb_headers)
 
+zephyr_library_named(px4_tty)
+zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_tty.c)
+
+if(CONFIG_PX4_SERIAL)
+	# open() opens the serial ports, see px4_tty.c
+	zephyr_ld_options(-Wl,--wrap=open)
+endif()
+
 zephyr_library_named(px4_pthread)
 # px4_pthread_attr_destroy() keeps the stacks that threads run on, see px4_pthread.c
 zephyr_library_sources(${px4_source_dir}/platforms/zephyr/src/px4/common/px4_pthread.c)

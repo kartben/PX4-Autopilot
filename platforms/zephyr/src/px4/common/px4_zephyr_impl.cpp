@@ -33,10 +33,10 @@
 
 #include <px4_platform_common/defines.h>
 #include <px4_daemon/server_io.h>
+#include <px4_tty.h>
 
 #include <sys/boardctl.h>
 #include <sys/statfs.h>
-#include <sys/termios.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -69,7 +69,12 @@ int boardctl(unsigned int cmd, uintptr_t arg)
 // only the existence of the file is checked
 int access(const char *pathname, int mode)
 {
+	if (px4_tty_exists(pathname)) {
+		return 0;
+	}
+
 	struct stat st;
+
 	return stat(pathname, &st);
 }
 
@@ -108,52 +113,6 @@ int statfs(const char *path, struct statfs *buf)
 	buf->f_bfree = stat.f_bfree;
 	buf->f_bavail = stat.f_bfree;
 	return 0;
-}
-
-speed_t cfgetispeed(const struct termios *termios_p)
-{
-	return termios_p->c_ispeed;
-}
-
-speed_t cfgetospeed(const struct termios *termios_p)
-{
-	return termios_p->c_ospeed;
-}
-
-int cfsetispeed(struct termios *termios_p, speed_t speed)
-{
-	termios_p->c_ispeed = speed;
-	return 0;
-}
-
-int cfsetospeed(struct termios *termios_p, speed_t speed)
-{
-	termios_p->c_ospeed = speed;
-	return 0;
-}
-
-int tcdrain(int fd)
-{
-	errno = ENOTTY;
-	return -1;
-}
-
-int tcflush(int fd, int queue_selector)
-{
-	errno = ENOTTY;
-	return -1;
-}
-
-int tcgetattr(int fd, struct termios *termios_p)
-{
-	errno = ENOTTY;
-	return -1;
-}
-
-int tcsetattr(int fd, int optional_actions, const struct termios *termios_p)
-{
-	errno = ENOTTY;
-	return -1;
 }
 
 int dprintf(int fd, const char *format, ...)

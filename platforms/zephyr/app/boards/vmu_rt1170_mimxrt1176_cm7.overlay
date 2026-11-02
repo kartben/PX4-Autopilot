@@ -1,4 +1,4 @@
-/* Sensor orientation as in boards/px4/fmu-v6xrt/init/rc.board_sensors */
+/* Sensor orientation and serial ports as in boards/px4/fmu-v6xrt/init/rc.board_sensors */
 
 #include <dt-bindings/px4/rotation.h>
 
@@ -52,4 +52,60 @@
 			type = "baro";
 		};
 	};
+
+	/* lpuart6 is the RC input, read by the futaba,sbus input driver */
+	px4-serial-ports {
+		compatible = "px4,serial-ports";
+
+		gps1 {
+			uart = <&lpuart3>;
+			path = "/dev/ttyS1";
+		};
+
+		telem1 {
+			uart = <&lpuart4>;
+			path = "/dev/ttyS2";
+		};
+
+		gps2 {
+			uart = <&lpuart5>;
+			path = "/dev/ttyS3";
+		};
+
+		telem2 {
+			uart = <&lpuart8>;
+			path = "/dev/ttyS5";
+		};
+
+		telem3 {
+			uart = <&lpuart10>;
+			path = "/dev/ttyS6";
+		};
+
+		ext2 {
+			uart = <&lpuart11>;
+			path = "/dev/ttyS7";
+		};
+
+		usb {
+			uart = <&cdc_acm_uart0>;
+			path = "/dev/ttyACM0";
+		};
+	};
+};
+
+&zephyr_udc0 {
+	phy-handle = <&usbphy1>;
+
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};
+
+/* calibration of the MIMXRT1170-EVK */
+&usbphy1 {
+	status = "okay";
+	tx-d-cal = <7>;
+	tx-cal-45-dp-ohms = <6>;
+	tx-cal-45-dm-ohms = <6>;
 };

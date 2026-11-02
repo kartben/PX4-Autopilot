@@ -29,6 +29,21 @@ tests:
     harness_config:
       pytest_root:
         - "pytest/test_sih.py"
+  px4.app.sih.mavlink_serial:
+    platform_allow:
+      - mps2/an386
+    integration_platforms:
+      - mps2/an386
+    extra_args:
+      - FILE_SUFFIX=sih
+      - EXTRA_CONF_FILE=boards/mps2_an386_serial.conf
+      - EXTRA_DTC_OVERLAY_FILE=boards/mps2_an386_serial.overlay
+    timeout: 600
+    harness: pytest
+    harness_config:
+      pytest_root:
+        - "pytest/test_mavlink_serial.py"
+      pytest_dut_scope: session
   px4.app.vmu_rt1170:
     build_only: true
     platform_allow:

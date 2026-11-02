@@ -45,6 +45,26 @@ config PX4_SENSORS
 	  Enable the Zephyr sensor API for the sensors in the px4,sensors
 	  devicetree node, which the PX4 zephyr_sensors driver publishes.
 
+config PX4_SERIAL
+	bool "Serial ports for PX4"
+	default y
+	depends on DT_HAS_PX4_SERIAL_PORTS_ENABLED
+	depends on SERIAL && SERIAL_SUPPORT_INTERRUPT
+	select UART_INTERRUPT_DRIVEN
+	select POLL
+	select XSI_STREAMS
+	select UART_LINE_CTRL if USBD_CDC_ACM_CLASS
+	help
+	  Open the UARTs of the px4,serial-ports devicetree node as device
+	  files, for example /dev/ttyS2, which PX4 configures with termios.
+
+config ZVFS_OPEN_ADD_SIZE_PX4_SERIAL
+	int "Serial ports open at the same time"
+	default 8
+	depends on PX4_SERIAL
+	help
+	  File descriptors added for the serial ports.
+
 config PX4_STACK_OVERHEAD
 	int "Stack overhead"
 	default 1024

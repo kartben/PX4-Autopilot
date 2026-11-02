@@ -1,0 +1,44 @@
+description: |
+  Serial ports that PX4 opens as device files, for MAVLink, GPS receivers
+  and the other PX4 drivers of serial devices.
+
+  Each child node gives the path of a UART, as the PX4 board configuration
+  and the startup script refer to it:
+
+    / {
+      px4-serial-ports {
+        compatible = "px4,serial-ports";
+
+        telem1 {
+          uart = <&lpuart4>;
+          path = "/dev/ttyS2";
+        };
+
+        usb {
+          uart = <&cdc_acm_uart0>;
+          path = "/dev/ttyACM0";
+        };
+      };
+    };
+
+compatible: "px4,serial-ports"
+
+child-binding:
+  description: A serial port.
+  properties:
+    uart:
+      type: phandle
+      required: true
+      description: UART device, which implements the interrupt-driven UART API.
+    path:
+      type: string
+      required: true
+      description: Path of the device file, for example "/dev/ttyS2".
+    rx-buffer-size:
+      type: int
+      default: 512
+      description: Size of the receive buffer, in bytes.
+    tx-buffer-size:
+      type: int
+      default: 1024
+      description: Size of the transmit buffer, in bytes.

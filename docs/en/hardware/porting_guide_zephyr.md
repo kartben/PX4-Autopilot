@@ -36,6 +36,7 @@ The PX4 options of the Zephyr configuration are:
 | `CONFIG_PX4_BOARD_CONFIG`   | PX4 board configuration to build instead of the default one, for example `zephyr_generic_sih`.      |
 | `CONFIG_PX4_SHELL`          | Add the `px4` shell command (enabled with the shell).                                               |
 | `CONFIG_PX4_SENSORS`        | Enable the Zephyr sensor API for the sensors in the devicetree (enabled by the `px4,sensors` node). |
+| `CONFIG_PX4_SERIAL`         | Open the UARTs of the devicetree as device files (enabled by the `px4,serial-ports` node).          |
 | `CONFIG_PX4_STACK_OVERHEAD` | Bytes added to the stack of each PX4 task and work queue.                                           |
 
 ## Setting Up a Workspace
@@ -109,6 +110,17 @@ uart:~$ px4 commander land
 
 or with _QGroundControl_ on the host, which connects automatically: MAVLink is sent over UDP to port 14550 of the host, with [QEMU user networking](https://docs.zephyrproject.org/latest/connectivity/networking/qemu_user_setup.html).
 
+MAVLink also runs over a serial port, as with a telemetry radio.
+`boards/mps2_an386_serial.overlay` makes the second UART of the QEMU board `/dev/ttyS1`, which QEMU connects to TCP port 5760 of the host:
+
+```sh
+west build -b mps2/an386 PX4-Autopilot/platforms/zephyr/app -t run -- -DFILE_SUFFIX=sih \
+  -DEXTRA_CONF_FILE=boards/mps2_an386_serial.conf -DEXTRA_DTC_OVERLAY_FILE=boards/mps2_an386_serial.overlay
+uart:~$ px4 mavlink start -d /dev/ttyS1 -b 115200
+```
+
+Then add a TCP link to `127.0.0.1:5760` in _QGroundControl_.
+
 ## Building for Other Boards
 
 To build the application for another Zephyr board:
@@ -129,7 +141,8 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 
 - [tests/platform](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/platform) tests the platform layer: time, callouts from interrupts, tasks, work queues, uORB and parameters.
 - [tests/sensors](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/sensors) tests the sensor driver with Zephyr's sensor emulators, on emulated SPI and I2C buses.
-- The application tests check that PX4 starts, and fly the SIH quadcopter: take off, hover and land.
+- [tests/serial](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/serial) tests the serial ports, termios and `device::Serial` on an emulated UART.
+- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), and connect to PX4 with MAVLink over a serial port.
 
 ## Adding a Board
 
@@ -188,6 +201,49 @@ The device IDs are made from the bus, the address and the sensor model, as for t
 
 The generic board configuration starts `zephyr_sensors` and the [sensors](../modules/modules_system.md#sensors) module.
 
+### Serial Ports
+
+PX4 opens the UARTs listed in the `px4,serial-ports` devicetree node as device files, for MAVLink, GPS receivers and the other drivers of serial devices:
+
+```dts
+/ {
+	px4-serial-ports {
+		compatible = "px4,serial-ports";
+
+		telem1 {
+			uart = <&lpuart4>;
+			path = "/dev/ttyS2";
+		};
+
+		usb {
+			uart = <&cdc_acm_uart0>;
+			path = "/dev/ttyACM0";
+		};
+	};
+};
+```
+
+| Property         | Description                                                 |
+| ---------------- | ----------------------------------------------------------- |
+| `uart`           | The UART, which must support the interrupt-driven UART API. |
+| `path`           | Path of the device file.                                    |
+| `rx-buffer-size` | Size of the receive buffer, in bytes. Default: 512.         |
+| `tx-buffer-size` | Size of the transmit buffer, in bytes. Default: 1024.       |
+
+Use the paths of the NuttX build for the same hardware, if there is one, so that the startup commands and the serial port parameters stay the same.
+The Zephyr console UART can't be a PX4 serial port.
+
+The termios functions set the speed, data bits, parity and stop bits of the UART with the Zephyr UART configuration API, and RTS/CTS flow control if the UART has `hw-flow-control` in the devicetree.
+A UART that can't be configured at runtime keeps its devicetree settings.
+The `px4_tty` shell command prints the receive statistics of the serial ports: the bytes received, the bytes dropped while the receive buffer was full, and the overrun, framing, noise and parity errors of the UARTs.
+
+A USB CDC ACM UART (`zephyr,cdc-acm-uart`) is a USB serial port.
+Data written to it is dropped while no host has opened it, and MAVLink detects a USB port from its `/dev/ttyACM` path.
+
+The NXP VMU RT1170 has the serial ports of FMU-v6XRT and a USB port.
+Its PX4 board configuration ([boards/zephyr/vmu_rt1170](https://github.com/PX4/PX4-Autopilot/tree/main/boards/zephyr/vmu_rt1170)) starts MAVLink on `/dev/ttyS2` (TELEM1) and USB.
+MAVLink only runs over UDP if the Zephyr configuration has the network stack (`CONFIG_NET_SOCKETS`).
+
 ## Footprint
 
 [Tools/footprint.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/footprint.py) breaks down the flash and static RAM of PX4 firmware by component, for NuttX and Zephyr builds alike.
@@ -205,25 +261,26 @@ At the time of writing, with a commit of Zephyr main after 4.5.0-rc2, this gives
 
 | Component                      | NuttX flash | NuttX RAM | Zephyr flash | Zephyr RAM |
 | ------------------------------ | ----------: | --------: | -----------: | ---------: |
-| Kernel and POSIX API           |          35 |        59 |           39 |         27 |
-| Drivers and HAL                |          67 |        60 |           84 |         39 |
-| Shell and logging              |          48 |         1 |           19 |          8 |
+| Kernel and POSIX API           |          35 |        59 |           46 |         32 |
+| Drivers and HAL                |          67 |        60 |          107 |         48 |
+| Shell and logging              |          48 |         1 |           20 |          6 |
 | File systems                   |          35 |         1 |            3 |          0 |
-| Networking                     |          34 |         9 |           28 |         17 |
+| Networking                     |          34 |         9 |           29 |         17 |
 | C library and compiler runtime |          51 |         6 |           38 |          0 |
-| Operating system               |         271 |       136 |          211 |         92 |
-| PX4 platform layer             |          34 |        17 |            9 |          2 |
+| Operating system               |         271 |       136 |          243 |        104 |
+| PX4 platform layer             |          34 |        17 |           11 |         13 |
 | PX4 startup scripts (ROMFS)    |         177 |         0 |            0 |          0 |
-| PX4 modules and libraries      |        1924 |       224 |          882 |         16 |
-| Other and alignment            |           8 |         1 |            8 |          1 |
-| Total                          |        2414 |       378 |         1109 |        110 |
+| PX4 modules and libraries      |        1924 |       224 |          860 |         15 |
+| Other and alignment            |           8 |         1 |           15 |          9 |
+| Total                          |        2414 |       378 |         1128 |        141 |
 
 Only the operating system rows compare the two systems, as the builds differ in other ways:
 
 - The NuttX build has all the modules and drivers of FMU-v6XRT, and the Zephyr build the multicopter flight stack, with SIH and MAVLink.
   The sensor drivers are PX4 modules with NuttX, and Zephyr drivers with Zephyr, where they take 28 KiB of flash.
 - NuttX is configured with the FAT, compressed ROM and proc file systems, the SD card, USB, CAN, TCP and its shell, nsh.
-  The Zephyr build has Ethernet with UDP, and the Zephyr shell and logging.
+  The Zephyr build has USB, Ethernet with UDP, and the Zephyr shell and logging.
+  The buffers of its 7 serial ports (10.5 KiB) are in the PX4 platform layer.
 - NuttX copies the most used PX4 code (226 KiB) to the ITCM, the fast instruction memory of the Cortex-M7, so that this code also counts as RAM.
 - The RAM is the static RAM.
   NuttX uses the rest of the memory as its heap.
@@ -234,9 +291,10 @@ Only the operating system rows compare the two systems, as the builds differ in 
 ## Limitations
 
 - PX4 only flies in simulation: there are no actuator outputs, RC input or logging.
-- MAVLink is only sent over UDP, not over serial ports.
 - Parameters are kept in RAM only.
 - Sensors are polled: the IMU FIFOs are not used.
+- Serial ports use the interrupt-driven UART API, without DMA, and have no single-wire, inverted or swapped modes.
+- The GPS driver does not build, as its protocol parsers define `MIN` and `MAX`, which Zephyr defines too.
 - Dynamic modules (`DYNAMIC` in `px4_add_module()`) are not supported.
 - `native_sim` is not supported, as its POSIX API uses the host C library.
 - Only the QEMU board is tested at runtime. The NXP VMU RT1170 is only built.
@@ -245,7 +303,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 
 - Read the IMU FIFOs with the Zephyr sensor streaming API.
 - Actuator outputs with the Zephyr PWM API.
-- MAVLink over serial ports.
+- Device files and termios for UARTs in Zephyr itself, instead of the PX4 platform layer.
 - Parameter and log storage on the Zephyr file systems or ZMS.
 - Dynamic modules as Zephyr loadable extensions (below).
 

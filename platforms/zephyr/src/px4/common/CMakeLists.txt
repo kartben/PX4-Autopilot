@@ -35,6 +35,7 @@ add_library(px4_layer
 	${PX4_SOURCE_DIR}/platforms/common/module_base.cpp
 	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/lib_crc32.c
 	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/px4_init.cpp
+	${PX4_SOURCE_DIR}/platforms/posix/src/px4/common/SerialImpl.cpp
 	drv_hrt.cpp
 	px4_sched.c
 	px4_sem.cpp
@@ -42,4 +43,4 @@ add_library(px4_layer
 	tasks.cpp
 )
 target_compile_definitions(px4_layer PRIVATE MODULE_NAME="px4")
-target_link_libraries(px4_layer PRIVATE work_queue px4_work_queue drivers_board)
+target_link_libraries(px4_layer PRIVATE work_queue px4_work_queue drivers_board px4_platform uORB)
