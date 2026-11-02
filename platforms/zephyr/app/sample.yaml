@@ -87,3 +87,12 @@ tests:
       - vmu_rt1170/mimxrt1176/cm7
     extra_args:
       - FILE_SUFFIX=sih
+  px4.app.sih.footprint:
+    build_only: true
+    platform_allow:
+      - vmu_rt1170/mimxrt1176/cm7
+    integration_platforms:
+      - vmu_rt1170/mimxrt1176/cm7
+    extra_args:
+      - FILE_SUFFIX=sih
+      - EXTRA_CONF_FILE=footprint.conf
