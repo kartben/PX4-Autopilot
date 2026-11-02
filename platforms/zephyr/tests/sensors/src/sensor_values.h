@@ -43,10 +43,13 @@ extern "C" {
 #define BARO_CONVERSION_TIME_MS 20
 
 /* SI units, as the Zephyr sensor API */
-int sensor_values_set_imu(const float accel[3], const float gyro[3]);
+void sensor_values_set_imu(const float accel[3], const float gyro[3], float temperature);
 int sensor_values_set_mag(const float mag[3]);
 void sensor_values_set_baro(float pressure_kpa, float temperature);
 void sensor_values_set_power(float voltage, float current);
+
+/* the interrupt pin of IMU 0 or 1 doesn't pulse while it is disconnected */
+void sensor_values_set_imu_interrupt(int imu, bool connected);
 
 /* the power monitor fails to read while it is lost */
 void sensor_values_set_power_lost(bool lost);

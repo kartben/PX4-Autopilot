@@ -56,6 +56,8 @@
 #include <uORB/SubscriptionInterval.hpp>
 #include <uORB/topics/battery_status.h>
 #include <uORB/topics/parameter_update.h>
+#include <uORB/topics/sensor_accel_fifo.h>
+#include <uORB/topics/sensor_gyro_fifo.h>
 
 using namespace time_literals;
 
@@ -85,6 +87,9 @@ private:
 	static constexpr hrt_abstime BARO_INTERVAL{20_ms};
 	static constexpr hrt_abstime BATTERY_INTERVAL{100_ms};
 
+	// an IMU whose FIFO isn't read for this long is polled instead
+	static constexpr hrt_abstime FIFO_TIMEOUT{100_ms};
+
 	// a battery is disconnected when its power monitor or fuel gauge can't be read for this long
 	static constexpr hrt_abstime BATTERY_TIMEOUT{2_s};
 
@@ -104,11 +109,23 @@ private:
 
 		uORB::PublicationMulti<battery_status_s> *fuel_gauge{nullptr};
 		float initial_remaining_capacity{NAN};
+
+		// the FIFO is streamed instead of polling the IMU
+		zephyr_sensor_fifo *fifo{nullptr};
+		bool fifo_data{false};
 	};
 
 	void Run() override;
 
+	void schedule();
+
+	bool start_fifo(Sensor &sensor);
+	void stop_fifo(Sensor &sensor);
+	void read_fifo(Sensor &sensor);
+	static void fifo_ready(void *arg);
+
 	void publish(Sensor &sensor, const zephyr_sensor_sample &sample);
+	void publish_fifo(Sensor &sensor, const zephyr_sensor_fifo &fifo);
 	void publish_fuel_gauge(Sensor &sensor, const zephyr_sensor_sample *sample, hrt_abstime timestamp);
 
 	ZephyrSensors &_module;
@@ -120,6 +137,9 @@ private:
 	size_t _sensor_count{0};
 	hrt_abstime _interval{0};
 
+	bool _started{false};
+	bool _stopped{false};
+
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
 	DEFINE_PARAMETERS(
@@ -130,6 +150,7 @@ private:
 
 	perf_counter_t _cycle_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
 	perf_counter_t _read_error_perf{perf_alloc(PC_COUNT, MODULE_NAME": read error")};
+	perf_counter_t _fifo_overflow_perf{perf_alloc(PC_COUNT, MODULE_NAME": FIFO overflow")};
 };
 
 class ZephyrSensors : public ModuleBase

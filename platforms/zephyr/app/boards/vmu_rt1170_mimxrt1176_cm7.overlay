@@ -3,6 +3,8 @@
 #include <dt-bindings/px4/rotation.h>
 #include <zephyr/dt-bindings/pwm/pwm.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
+#include <zephyr/dt-bindings/sensor/icm42686.h>
+#include <zephyr/dt-bindings/sensor/icm42688.h>
 
 / {
 	px4-sensors {
@@ -231,6 +233,35 @@
 			disk-access;
 		};
 	};
+};
+
+/*
+ * the output data rates and full scales of the IMU drivers of FMU-v6XRT: 8 kHz for the ICM-4268x,
+ * whose FIFO watermark the zephyr_sensors driver sets for IMU_GYRO_RATEMAX, 1600 Hz for the
+ * accelerometer of the BMI088 and 2000 Hz for its gyroscope, with FIFO watermarks for the default
+ * IMU_GYRO_RATEMAX, 400 Hz
+ */
+&icm42686_0 {
+	accel-odr = <ICM42686_DT_ACCEL_ODR_8000>;
+	accel-fs = <ICM42686_DT_ACCEL_FS_32>;
+	gyro-odr = <ICM42686_DT_GYRO_ODR_8000>;
+	gyro-fs = <ICM42686_DT_GYRO_FS_4000>;
+};
+
+&icm42688_0 {
+	accel-odr = <ICM42688_DT_ACCEL_ODR_8000>;
+	gyro-odr = <ICM42688_DT_GYRO_ODR_8000>;
+};
+
+&bmi08x_accel {
+	accel-hz = "1600";
+	fifo-watermark = <4>;
+};
+
+&bmi08x_gyro {
+	gyro-hz = "2000_532";
+	gyro-fs = <2000>;
+	fifo-watermark = <5>;
 };
 
 /*

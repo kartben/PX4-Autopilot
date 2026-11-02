@@ -41,9 +41,20 @@ config PX4_SENSORS
 	depends on DT_HAS_PX4_SENSORS_ENABLED
 	select SENSOR
 	select SENSOR_ASYNC_API
+	select RTIO_CQE_CALLBACK
 	help
 	  Enable the Zephyr sensor API for the sensors in the px4,sensors
 	  devicetree node, which the PX4 zephyr_sensors driver publishes.
+
+config PX4_SENSORS_FIFO_BUFFER_SIZE
+	int "FIFO data buffered for each IMU"
+	default 2048
+	depends on PX4_SENSORS
+	help
+	  Bytes buffered for the FIFO reads of each IMU that has its interrupt
+	  pin in the devicetree, which the zephyr_sensors driver streams if
+	  its Zephyr driver supports it. They hold at least two FIFO reads of
+	  the watermark, while the previous ones are published.
 
 config PX4_SERIAL
 	bool "Serial ports for PX4"

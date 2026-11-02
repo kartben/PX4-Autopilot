@@ -1,6 +1,15 @@
 #include <dt-bindings/px4/rotation.h>
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/sensor/icm42688.h>
 
 / {
+	gpio_emul: gpio-emul {
+		compatible = "zephyr,gpio-emul";
+		gpio-controller;
+		#gpio-cells = <2>;
+		rising-edge;
+	};
+
 	spi_emul: spi@b0000000 {
 		compatible = "zephyr,spi-emul-controller";
 		reg = <0xb0000000 0x100>;
@@ -8,10 +17,33 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		/* its FIFO is streamed at 8 kHz, with 20-bit samples, as on the NXP VMU RT1170 */
 		icm42688: icm42688@0 {
 			compatible = "invensense,icm42688", "invensense,icm4268x";
 			reg = <0>;
 			spi-max-frequency = <24000000>;
+			int-gpios = <&gpio_emul 0 GPIO_ACTIVE_HIGH>;
+			accel-pwr-mode = <ICM42688_DT_ACCEL_LN>;
+			accel-odr = <ICM42688_DT_ACCEL_ODR_8000>;
+			accel-fs = <ICM42688_DT_ACCEL_FS_16>;
+			gyro-pwr-mode = <ICM42688_DT_GYRO_LN>;
+			gyro-odr = <ICM42688_DT_GYRO_ODR_8000>;
+			gyro-fs = <ICM42688_DT_GYRO_FS_2000>;
+			fifo-hires;
+		};
+
+		/* its interrupt pin doesn't pulse: it is polled */
+		icm42688_polled: icm42688@1 {
+			compatible = "invensense,icm42688", "invensense,icm4268x";
+			reg = <1>;
+			spi-max-frequency = <24000000>;
+			int-gpios = <&gpio_emul 1 GPIO_ACTIVE_HIGH>;
+			accel-pwr-mode = <ICM42688_DT_ACCEL_LN>;
+			accel-odr = <ICM42688_DT_ACCEL_ODR_1000>;
+			accel-fs = <ICM42688_DT_ACCEL_FS_16>;
+			gyro-pwr-mode = <ICM42688_DT_GYRO_LN>;
+			gyro-odr = <ICM42688_DT_GYRO_ODR_1000>;
+			gyro-fs = <ICM42688_DT_GYRO_FS_2000>;
 		};
 	};
 
@@ -55,6 +87,12 @@
 
 		imu0 {
 			sensor = <&icm42688>;
+			type = "imu";
+			rotation = <PX4_ROTATION_YAW_90>;
+		};
+
+		imu1 {
+			sensor = <&icm42688_polled>;
 			type = "imu";
 			rotation = <PX4_ROTATION_YAW_90>;
 		};

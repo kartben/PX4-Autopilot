@@ -33,6 +33,7 @@
 
 #include "zephyr_sensors_backend.h"
 
+#include <drivers/drv_hrt.h>
 #include <drivers/drv_sensor.h>
 
 #include <errno.h>
@@ -41,7 +42,9 @@
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/sensor_clock.h>
 #include <zephyr/rtio/rtio.h>
+#include <zephyr/spinlock.h>
 
 #ifdef CONFIG_FUEL_GAUGE
 #include <zephyr/drivers/fuel_gauge.h>
@@ -63,6 +66,8 @@
 #define BARO_CHANNELS {SENSOR_CHAN_PRESS, 0}, {SENSOR_CHAN_AMBIENT_TEMP, 0}
 #define POWER_CHANNELS {SENSOR_CHAN_VOLTAGE, 0}, {SENSOR_CHAN_CURRENT, 0}
 
+#define FIFO_TRIGGERS {SENSOR_TRIG_FIFO_WATERMARK, SENSOR_STREAM_DATA_INCLUDE}
+
 #define READ_BUFFER_SIZE 128
 
 /*
@@ -77,6 +82,71 @@
 		     static uint8_t SENSOR_BUFFER(node)[READ_BUFFER_SIZE] __aligned(8);))
 
 DT_FOREACH_CHILD_STATUS_OKAY(SENSORS_NODE, SENSOR_IODEV_DEFINE)
+
+#define SENSOR_HAS_PROP(node, prop) DT_NODE_HAS_PROP(SENSOR_DEVICE_NODE(node), prop)
+#define IS_IMU(node)                                                                               \
+	UTIL_OR(DT_ENUM_HAS_VALUE(node, type, imu),                                                \
+		UTIL_OR(DT_ENUM_HAS_VALUE(node, type, accel), DT_ENUM_HAS_VALUE(node, type, gyro)))
+#define HAS_INTERRUPT(node)                                                                        \
+	UTIL_OR(UTIL_OR(SENSOR_HAS_PROP(node, int_gpios), SENSOR_HAS_PROP(node, irq_gpios)),       \
+		UTIL_OR(SENSOR_HAS_PROP(node, int1_gpios), SENSOR_HAS_PROP(node, int2_gpios)))
+
+/* the FIFO of an IMU is streamed if its driver supports it, which needs the interrupt pin */
+#define HAS_FIFO(node) UTIL_AND(IS_IMU(node), HAS_INTERRUPT(node))
+
+#define SENSOR_FIFO(node) UTIL_CAT(px4_sensor_fifo_, DT_DEP_ORD(node))
+#define SENSOR_FIFO_IODEV(node) UTIL_CAT(px4_sensor_fifo_iodev_, DT_DEP_ORD(node))
+#define SENSOR_FIFO_RTIO(node) UTIL_CAT(px4_sensor_fifo_rtio_, DT_DEP_ORD(node))
+
+/*
+ * Each FIFO read of a stream takes a buffer of whole blocks until it is read, with a completion
+ * queue event, and fails when there are no blocks left.
+ */
+#define FIFO_BLOCK_SIZE 64
+#define FIFO_BLOCK_COUNT DIV_ROUND_UP(CONFIG_PX4_SENSORS_FIFO_BUFFER_SIZE, FIFO_BLOCK_SIZE)
+#define FIFO_CQ_SIZE (FIFO_BLOCK_COUNT + 1)
+
+#define DECODED_SIZE                                                                               \
+	(sizeof(struct sensor_three_axis_data) +                                                   \
+	 (ZEPHYR_SENSOR_FIFO_MAX_SAMPLES - 1) * sizeof(struct sensor_three_axis_sample_data))
+
+BUILD_ASSERT(sizeof(struct sensor_q31_data) +
+	     (ZEPHYR_SENSOR_FIFO_MAX_SAMPLES - 1) * sizeof(struct sensor_q31_sample_data) <= DECODED_SIZE);
+
+struct fifo_channel {
+	float full_scale;		/* reported by the driver, 0 if unknown */
+	float scale;			/* per count */
+	int8_t shift;
+	uint64_t last_timestamp_ns;
+	float dt_us;
+};
+
+struct sensor_fifo {
+	struct k_spinlock lock;
+	zephyr_sensor_fifo_callback_t callback;
+	void *arg;
+	bool running;
+	struct fifo_channel accel;
+	struct fifo_channel gyro;
+	union {
+		struct sensor_three_axis_data three_axis;
+		struct sensor_q31_data q31;
+		uint8_t buffer[DECODED_SIZE];
+	} decoded;
+};
+
+#define FIFO_RTIO_DEFINE(name)                                                                     \
+	RTIO_DEFINE_WITH_MEMPOOL(name, 1, FIFO_CQ_SIZE, FIFO_BLOCK_COUNT, FIFO_BLOCK_SIZE,          \
+				 sizeof(uint64_t))
+
+#define SENSOR_FIFO_DEFINE(node)                                                                   \
+	IF_ENABLED(HAS_FIFO(node),                                                                 \
+		   (SENSOR_DT_STREAM_IODEV(SENSOR_FIFO_IODEV(node), SENSOR_DEVICE_NODE(node),        \
+					   FIFO_TRIGGERS);                                       \
+		    FIFO_RTIO_DEFINE(SENSOR_FIFO_RTIO(node));                                       \
+		    static struct sensor_fifo SENSOR_FIFO(node);))
+
+DT_FOREACH_CHILD_STATUS_OKAY(SENSORS_NODE, SENSOR_FIFO_DEFINE)
 
 #define FUEL_GAUGE_CHECK(node)                                                                     \
 	BUILD_ASSERT(!IS_FUEL_GAUGE(node) || IS_ENABLED(CONFIG_FUEL_GAUGE),                         \
@@ -125,6 +195,9 @@ struct sensor_entry {
 	uint8_t battery;
 	struct rtio *rtio;
 	uint8_t *buffer;
+	struct rtio_iodev *fifo_iodev;
+	struct rtio *fifo_rtio;
+	struct sensor_fifo *fifo;
 };
 
 #define SENSOR_ENTRY(node)                                                                         \
@@ -143,6 +216,9 @@ struct sensor_entry {
 																				   .battery = DT_PROP(node, battery),                                                \
 																						   .rtio = COND_CODE_1(IS_FUEL_GAUGE(node), (NULL), (&SENSOR_RTIO(node))),           \
 																								   .buffer = COND_CODE_1(IS_FUEL_GAUGE(node), (NULL), (SENSOR_BUFFER(node))),        \
+																										   .fifo_iodev = COND_CODE_1(HAS_FIFO(node), (&SENSOR_FIFO_IODEV(node)), (NULL)),     \
+																												   .fifo_rtio = COND_CODE_1(HAS_FIFO(node), (&SENSOR_FIFO_RTIO(node)), (NULL)),       \
+																														   .fifo = COND_CODE_1(HAS_FIFO(node), (&SENSOR_FIFO(node)), (NULL)),                 \
 	},
 
 static const struct sensor_entry sensors[] = {
@@ -430,6 +506,351 @@ int zephyr_sensors_read(size_t index, struct zephyr_sensor_sample *sample)
 	return ret;
 }
 
+static void fifo_cqe_callback(struct rtio *r, void *arg)
+{
+	struct sensor_fifo *fifo = arg;
+
+	K_SPINLOCK(&fifo->lock) {
+		if (fifo->callback != NULL) {
+			fifo->callback(fifo->arg);
+		}
+	}
+}
+
+/*
+ * A FIFO watermark of at most 1 / rate_hz, for the drivers that set it from the batch duration,
+ * which they round up to whole samples.
+ * @return 0, or -ENOTSUP if the kernel tick is too long for the batch duration
+ */
+static int set_batch_duration(const struct sensor_entry *sensor, uint32_t rate_hz)
+{
+	const enum sensor_channel channel = (sensor->type == ZEPHYR_SENSOR_TYPE_ACCEL) ?
+					    SENSOR_CHAN_ACCEL_XYZ : SENSOR_CHAN_GYRO_XYZ;
+	struct sensor_value odr;
+
+	if ((sensor_attr_get(sensor->dev, channel, SENSOR_ATTR_SAMPLING_FREQUENCY, &odr) != 0) ||
+	    (odr.val1 <= 0) || (rate_hz == 0)) {
+		/* a watermark of the devicetree */
+		return 0;
+	}
+
+	const uint64_t ticks_per_second = CONFIG_SYS_CLOCK_TICKS_PER_SEC;
+	const uint32_t odr_hz = odr.val1;
+	uint32_t samples = CLAMP(odr_hz / rate_hz, 1, ZEPHYR_SENSOR_FIFO_MAX_SAMPLES);
+
+	while ((samples > 1) && ((samples * ticks_per_second) % odr_hz != 0)) {
+		samples--;
+	}
+
+	const uint64_t duration = samples * ticks_per_second / odr_hz;
+	const struct sensor_value ticks = {.val1 = (int32_t)duration};
+
+	if (duration == 0) {
+		return -ENOTSUP;
+	}
+
+	struct sensor_value current;
+
+	if ((sensor_attr_get(sensor->dev, SENSOR_CHAN_ALL, SENSOR_ATTR_BATCH_DURATION, &current) != 0) ||
+	    (current.val1 != ticks.val1)) {
+		(void)sensor_attr_set(sensor->dev, SENSOR_CHAN_ALL, SENSOR_ATTR_BATCH_DURATION, &ticks);
+	}
+
+	return 0;
+}
+
+static void fifo_channel_init(struct fifo_channel *channel, const struct device *dev,
+			      enum sensor_channel sensor_channel)
+{
+	struct sensor_value full_scale;
+
+	*channel = (struct fifo_channel) {};
+
+	if (sensor_attr_get(dev, sensor_channel, SENSOR_ATTR_FULL_SCALE, &full_scale) == 0) {
+		channel->full_scale = sensor_value_to_float(&full_scale);
+	}
+}
+
+/* the FIFO data that is read before a stream starts or fails is dropped */
+static void fifo_drain(const struct sensor_entry *sensor)
+{
+	struct rtio *rtio = sensor->fifo_rtio;
+	struct rtio_cqe *cqe;
+
+	while ((cqe = rtio_cqe_consume(rtio)) != NULL) {
+		const int result = cqe->result;
+		uint8_t *buffer = NULL;
+		uint32_t buffer_len = 0;
+
+		if (result >= 0) {
+			(void)rtio_cqe_get_mempool_buffer(rtio, cqe, &buffer, &buffer_len);
+		}
+
+		rtio_cqe_release(rtio, cqe);
+
+		if (result < 0) {
+			/* the buffer of a failed stream is released by RTIO */
+			sensor->fifo->running = false;
+
+		} else if (buffer != NULL) {
+			rtio_release_buffer(rtio, buffer, buffer_len);
+		}
+	}
+}
+
+int zephyr_sensors_fifo_start(size_t index, uint32_t rate_hz, zephyr_sensor_fifo_callback_t callback,
+			      void *arg)
+{
+	if ((index >= ARRAY_SIZE(sensors)) || (sensors[index].fifo == NULL)) {
+		return -ENOTSUP;
+	}
+
+	const struct sensor_entry *sensor = &sensors[index];
+	struct sensor_fifo *fifo = sensor->fifo;
+
+	fifo_drain(sensor);
+
+	if (!fifo->running) {
+		int ret = set_batch_duration(sensor, rate_hz);
+
+		if (ret != 0) {
+			return ret;
+		}
+
+		fifo_channel_init(&fifo->accel, sensor->dev, SENSOR_CHAN_ACCEL_XYZ);
+		fifo_channel_init(&fifo->gyro, sensor->dev, SENSOR_CHAN_GYRO_XYZ);
+		(void)rtio_set_cqe_callback(sensor->fifo_rtio, fifo_cqe_callback, fifo);
+
+		ret = sensor_stream(sensor->fifo_iodev, sensor->fifo_rtio, NULL, NULL);
+
+		if (ret != 0) {
+			return ret;
+		}
+
+		/* drivers without streaming fail when the stream is submitted */
+		fifo->running = true;
+		fifo_drain(sensor);
+
+		if (!fifo->running) {
+			return -ENOTSUP;
+		}
+	}
+
+	K_SPINLOCK(&fifo->lock) {
+		fifo->callback = callback;
+		fifo->arg = arg;
+	}
+
+	return 0;
+}
+
+void zephyr_sensors_fifo_stop(size_t index)
+{
+	if ((index >= ARRAY_SIZE(sensors)) || (sensors[index].fifo == NULL)) {
+		return;
+	}
+
+	struct sensor_fifo *fifo = sensors[index].fifo;
+
+	K_SPINLOCK(&fifo->lock) {
+		fifo->callback = NULL;
+		fifo->arg = NULL;
+	}
+}
+
+struct time_reference {
+	uint64_t hrt_us;
+	uint64_t sensor_ns;
+};
+
+static void time_reference_get(struct time_reference *reference)
+{
+	uint64_t cycles;
+
+	reference->hrt_us = hrt_absolute_time();
+	reference->sensor_ns = (sensor_clock_get_cycles(&cycles) == 0) ? sensor_clock_cycles_to_ns(cycles) : 0;
+}
+
+/* the sensor clock, which drivers timestamp the FIFO reads with, wraps if it has 32 bits */
+static uint64_t time_reference_to_hrt(const struct time_reference *reference, uint64_t timestamp_ns)
+{
+	const uint64_t age_us = (reference->sensor_ns > timestamp_ns) ?
+				(reference->sensor_ns - timestamp_ns) / NSEC_PER_USEC : 0;
+
+	return (reference->hrt_us > age_us) ? (reference->hrt_us - age_us) : reference->hrt_us;
+}
+
+static int16_t to_count(float value)
+{
+	return (int16_t)CLAMP(lroundf(value), INT16_MIN, INT16_MAX);
+}
+
+static void decode_fifo_samples(struct sensor_fifo *fifo, const struct sensor_decoder_api *decoder,
+				const uint8_t *buffer, enum sensor_channel sensor_channel,
+				struct fifo_channel *channel, const struct time_reference *reference,
+				struct zephyr_sensor_fifo_samples *samples, bool *overflow)
+{
+	const struct sensor_chan_spec spec = {sensor_channel, 0};
+	struct sensor_three_axis_data *data = &fifo->decoded.three_axis;
+	uint16_t frames = ZEPHYR_SENSOR_FIFO_MAX_SAMPLES;
+	uint32_t fit = 0;
+
+	/* some decoders read past the frames of the FIFO read */
+	if ((decoder->get_frame_count(buffer, spec, &frames) == 0) && (frames > ZEPHYR_SENSOR_FIFO_MAX_SAMPLES)) {
+		/* more samples than a FIFO message of PX4 */
+		*overflow = true;
+		frames = ZEPHYR_SENSOR_FIFO_MAX_SAMPLES;
+	}
+
+	const int count = (frames > 0) ? decoder->decode(buffer, spec, &fit, frames, data) : 0;
+
+	samples->count = 0;
+
+	if (count <= 0) {
+		return;
+	}
+
+	if (!(channel->scale > 0.f) || (data->shift != channel->shift)) {
+		float range = ldexpf(1.f, data->shift);
+
+		if (channel->full_scale > 0.f) {
+			/*
+			 * the drivers take the shift from the full scale of the data, which is larger than
+			 * the configured one for the high resolution FIFO data of some IMUs
+			 */
+			range = channel->full_scale;
+
+			while (range <= ldexpf(1.f, data->shift - 1)) {
+				range *= 2.f;
+			}
+		}
+
+		channel->scale = range / 32768.f;
+		channel->shift = data->shift;
+	}
+
+	const float to_counts = ldexpf(1.f, data->shift - 31) / channel->scale;
+
+	for (int i = 0; i < count; i++) {
+		samples->x[i] = to_count(data->readings[i].x * to_counts);
+		samples->y[i] = to_count(data->readings[i].y * to_counts);
+		samples->z[i] = to_count(data->readings[i].z * to_counts);
+	}
+
+	const uint64_t first_ns = data->header.base_timestamp_ns + data->readings[0].timestamp_delta;
+	const uint64_t last_ns = data->header.base_timestamp_ns + data->readings[count - 1].timestamp_delta;
+
+	if ((count > 1) && (last_ns > first_ns)) {
+		channel->dt_us = (float)(last_ns - first_ns) / (float)(count - 1) / 1e3f;
+
+	} else if ((channel->last_timestamp_ns != 0) && (last_ns > channel->last_timestamp_ns)) {
+		channel->dt_us = (float)(last_ns - channel->last_timestamp_ns) / (float)count / 1e3f;
+	}
+
+	channel->last_timestamp_ns = last_ns;
+
+	samples->timestamp_us = time_reference_to_hrt(reference, last_ns);
+	samples->dt_us = channel->dt_us;
+	samples->scale = channel->scale;
+
+	/* the time between samples is known after the second sample */
+	samples->count = (channel->dt_us > 0.f) ? count : 0;
+}
+
+static float decode_fifo_temperature(struct sensor_fifo *fifo, const struct sensor_decoder_api *decoder,
+				     const uint8_t *buffer)
+{
+	const struct sensor_chan_spec spec = {SENSOR_CHAN_DIE_TEMP, 0};
+	struct sensor_q31_data *data = &fifo->decoded.q31;
+	uint16_t frames = ZEPHYR_SENSOR_FIFO_MAX_SAMPLES;
+	uint32_t fit = 0;
+
+	if (decoder->get_frame_count(buffer, spec, &frames) != 0) {
+		return NAN;
+	}
+
+	const int count = decoder->decode(buffer, spec, &fit, MIN(frames, ZEPHYR_SENSOR_FIFO_MAX_SAMPLES), data);
+
+	if (count <= 0) {
+		return NAN;
+	}
+
+	float sum = 0.f;
+
+	for (int i = 0; i < count; i++) {
+		sum += q31_to_float(data->readings[i].temperature, data->shift);
+	}
+
+	return sum / (float)count;
+}
+
+int zephyr_sensors_fifo_read(size_t index, struct zephyr_sensor_fifo *samples)
+{
+	if ((index >= ARRAY_SIZE(sensors)) || (sensors[index].fifo == NULL)) {
+		return -EINVAL;
+	}
+
+	const struct sensor_entry *sensor = &sensors[index];
+	struct sensor_fifo *fifo = sensor->fifo;
+	struct rtio_cqe *cqe = rtio_cqe_consume(sensor->fifo_rtio);
+
+	if (cqe == NULL) {
+		return 0;
+	}
+
+	const int result = cqe->result;
+	uint8_t *buffer = NULL;
+	uint32_t buffer_len = 0;
+
+	if (result >= 0) {
+		(void)rtio_cqe_get_mempool_buffer(sensor->fifo_rtio, cqe, &buffer, &buffer_len);
+	}
+
+	rtio_cqe_release(sensor->fifo_rtio, cqe);
+
+	if (result < 0) {
+		/* the stream stops when it fails, and its buffer is released by RTIO */
+		fifo->running = false;
+		return result;
+	}
+
+	const struct sensor_decoder_api *decoder;
+	struct time_reference reference;
+
+	time_reference_get(&reference);
+
+	samples->accel.count = 0;
+	samples->gyro.count = 0;
+	samples->temperature = NAN;
+	samples->overflow = false;
+
+	if ((buffer != NULL) && (sensor_get_decoder(sensor->dev, &decoder) == 0)) {
+		if ((decoder->has_trigger != NULL) && decoder->has_trigger(buffer, SENSOR_TRIG_FIFO_FULL)) {
+			samples->overflow = true;
+		}
+
+		if (sensor->type != ZEPHYR_SENSOR_TYPE_GYRO) {
+			decode_fifo_samples(fifo, decoder, buffer, SENSOR_CHAN_ACCEL_XYZ, &fifo->accel, &reference,
+					    &samples->accel, &samples->overflow);
+		}
+
+		if (sensor->type != ZEPHYR_SENSOR_TYPE_ACCEL) {
+			decode_fifo_samples(fifo, decoder, buffer, SENSOR_CHAN_GYRO_XYZ, &fifo->gyro, &reference,
+					    &samples->gyro, &samples->overflow);
+		}
+
+		if (sensor->type == ZEPHYR_SENSOR_TYPE_IMU) {
+			samples->temperature = decode_fifo_temperature(fifo, decoder, buffer);
+		}
+	}
+
+	if (buffer != NULL) {
+		rtio_release_buffer(sensor->fifo_rtio, buffer, buffer_len);
+	}
+
+	return 1;
+}
+
 #else
 
 size_t zephyr_sensors_count(void)
@@ -443,6 +864,21 @@ int zephyr_sensors_get_info(size_t index, struct zephyr_sensor_info *info)
 }
 
 int zephyr_sensors_read(size_t index, struct zephyr_sensor_sample *sample)
+{
+	return -EINVAL;
+}
+
+int zephyr_sensors_fifo_start(size_t index, uint32_t rate_hz, zephyr_sensor_fifo_callback_t callback,
+			      void *arg)
+{
+	return -ENOTSUP;
+}
+
+void zephyr_sensors_fifo_stop(size_t index)
+{
+}
+
+int zephyr_sensors_fifo_read(size_t index, struct zephyr_sensor_fifo *samples)
 {
 	return -EINVAL;
 }
