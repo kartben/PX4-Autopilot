@@ -1,0 +1,91 @@
+/* USB serial port on USB OTG1, RC receiver on the Arduino UART, the microSD card and the CAN bus of
+ * the MIMXRT1170-EVK
+ */
+
+/ {
+	chosen {
+		zephyr,sram = &ocram;
+	};
+
+	px4-serial-ports {
+		compatible = "px4,serial-ports";
+
+		usb {
+			uart = <&cdc_acm_uart0>;
+			path = "/dev/ttyACM0";
+		};
+
+		rc {
+			uart = <&lpuart2>;
+			path = "/dev/ttyS1";
+		};
+	};
+
+	px4-can-buses {
+		compatible = "px4,can-buses";
+
+		can1 {
+			can = <&flexcan3>;
+		};
+	};
+
+	fstab {
+		compatible = "zephyr,fstab";
+
+		sd {
+			compatible = "zephyr,fstab,fatfs";
+			mount-point = "/SD:";
+			automount;
+			disk-access;
+		};
+	};
+};
+
+&zephyr_udc0 {
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};
+
+/* Arduino D0 (RX) and D1 (TX), without the RTS and CTS of the M.2 Bluetooth module of the EVKB */
+&lpuart2 {
+	pinctrl-0 = <&pinmux_lpuart2>;
+	status = "okay";
+};
+
+/* in 1.8 V signalling, the SD card often fails to initialize after a warm reset */
+&usdhc1 {
+	no-1-8-v;
+};
+
+/* RAM in the OCRAM of the M4, OCRAM1 and half of OCRAM2, 1 MiB in one MPU region, instead of the
+ * slower SDRAM
+ */
+&ocram {
+	reg = <0x20200000 DT_SIZE_M(1)>;
+};
+
+/* the GPIO ports that nothing uses */
+&gpio1 {
+	status = "disabled";
+};
+
+&gpio3 {
+	status = "disabled";
+};
+
+&gpio4 {
+	status = "disabled";
+};
+
+&gpio7 {
+	status = "disabled";
+};
+
+&fgpio2 {
+	status = "disabled";
+};
+
+&fgpio3 {
+	status = "disabled";
+};

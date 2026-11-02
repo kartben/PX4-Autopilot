@@ -285,7 +285,7 @@ zephyr_sih:
 	@west build -b mps2/an386 -d "$(SRC_DIR)/build/zephyr_mps2_an386_sih" "$(SRC_DIR)/platforms/zephyr/app" -t run -- -DFILE_SUFFIX=sih
 
 zephyr_tests:
-	@west twister -T "$(SRC_DIR)/platforms/zephyr" -p mps2/an386 -p vmu_rt1170/mimxrt1176/cm7 -O "$(SRC_DIR)/build/zephyr_twister"
+	@west twister -T "$(SRC_DIR)/platforms/zephyr" -p mps2/an386 -p vmu_rt1170/mimxrt1176/cm7 -p mimxrt1170_evk@B/mimxrt1176/cm7 -O "$(SRC_DIR)/build/zephyr_twister"
 
 # board reorganization deprecation warnings (2018-11-22)
 define deprecation_warning

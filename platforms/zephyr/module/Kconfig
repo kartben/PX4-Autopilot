@@ -124,6 +124,18 @@ config PX4_STACK_OVERHEAD
 	  Bytes added to the stack size of every PX4 task and work queue, for
 	  the kernel, the C library and the floating point context.
 
+DT_CHOSEN_PX4_ITCM := zephyr,itcm
+
+config PX4_ITCM
+	bool "Run the most used code from ITCM"
+	depends on XIP
+	depends on $(dt_chosen_enabled,$(DT_CHOSEN_PX4_ITCM))
+	select CODE_DATA_RELOCATION
+	help
+	  Copy the code that runs at the rate of the IMU to the ITCM at boot,
+	  and run it from there instead of in place from the flash. For boards
+	  whose flash is slow to fetch instructions from.
+
 endif # PX4
 
 choice STD_CPP
