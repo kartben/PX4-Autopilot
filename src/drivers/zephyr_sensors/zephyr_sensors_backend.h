@@ -71,6 +71,7 @@ struct zephyr_sensor_info {
 	uint8_t devtype;
 	uint8_t rotation;
 	bool external;
+	bool optional;
 };
 
 struct zephyr_sensor_sample {
@@ -85,7 +86,8 @@ struct zephyr_sensor_sample {
 size_t zephyr_sensors_count(void);
 
 /**
- * Get the description of a sensor.
+ * Get the description of a sensor, after initializing its device if the
+ * initialization is deferred in the devicetree, which makes the sensor optional.
  * @return 0, or -ENODEV if the sensor device is not ready
  */
 int zephyr_sensors_get_info(size_t index, struct zephyr_sensor_info *info);

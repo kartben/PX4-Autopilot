@@ -91,7 +91,10 @@ bool ZephyrSensors::add_sensor(size_t index)
 	const int ret = zephyr_sensors_get_info(index, &sensor.info);
 
 	if (ret != 0) {
-		PX4_ERR("%s not ready (%d)", sensor.info.name, ret);
+		if (!sensor.info.optional) {
+			PX4_ERR("%s not ready (%d)", sensor.info.name, ret);
+		}
+
 		return false;
 	}
 
@@ -306,6 +309,10 @@ Publishes the Zephyr sensors listed in the px4,sensors devicetree node to uORB.
 
 Each sensor is read through the Zephyr sensor API, at 1 kHz for IMUs, 100 Hz for
 magnetometers and 50 Hz for barometers.
+
+The sensors whose device has the zephyr,deferred-init devicetree property are
+optional, like the compass of a GPS module: they are initialized when the driver
+starts, and left out if they don't respond.
 
 )DESCR_STR");
 
