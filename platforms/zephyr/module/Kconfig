@@ -87,6 +87,26 @@ config ZVFS_OPEN_ADD_SIZE_PX4_STORAGE
 	help
 	  File descriptors added for the files of PX4.
 
+config PX4_CAN
+	bool "CAN buses for PX4"
+	default y
+	depends on DT_HAS_PX4_CAN_BUSES_ENABLED
+	select CAN
+	help
+	  Give PX4 the CAN controllers of the px4,can-buses devicetree node, as
+	  CAN1, CAN2 and so on, for DroneCAN.
+
+config PX4_CAN_RX_QUEUE_SIZE
+	int "Received frames queued per CAN bus"
+	default 32
+	depends on PX4_CAN
+
+config PX4_CAN_TX_SLOTS
+	int "Frames sent at the same time per CAN bus"
+	default 8
+	range 1 255
+	depends on PX4_CAN
+
 config PX4_STACK_OVERHEAD
 	int "Stack overhead"
 	default 1024

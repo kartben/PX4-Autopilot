@@ -35,12 +35,15 @@
 
 #if defined(__PX4_NUTTX)
 #include <nuttx/irq.h>
+#elif defined(__PX4_ZEPHYR)
+#include <zephyr/irq.h>
 #elif defined(__PX4_POSIX)
 #include <mutex>
 #endif
 
 /**
  * Masks the interrupts in its scope, or, on POSIX, which has no interrupts, holds a process-wide lock.
+ * Zephyr, which also defines __PX4_POSIX, masks the interrupts.
  */
 class UavcanCriticalSection
 {
@@ -51,6 +54,12 @@ public:
 
 private:
 	const irqstate_t _flags;
+#elif defined(__PX4_ZEPHYR)
+	UavcanCriticalSection() : _key(irq_lock()) {}
+	~UavcanCriticalSection() { irq_unlock(_key); }
+
+private:
+	const unsigned int _key;
 #elif defined(__PX4_POSIX)
 	UavcanCriticalSection() { mutex().lock(); }
 	~UavcanCriticalSection() { mutex().unlock(); }

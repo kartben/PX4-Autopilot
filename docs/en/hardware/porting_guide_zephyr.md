@@ -126,6 +126,18 @@ PX4 keeps its parameters there, and the SIH configuration also its missions and 
 QEMU keeps the files when the board reboots (`px4 reboot`), but not when QEMU restarts.
 List them with `fs ls /SD:`.
 
+DroneCAN runs in QEMU on the Zephyr loopback CAN controller, which receives the frames sent on it (`boards/mps2_an386_can.overlay`), with the `zephyr_generic_can` PX4 board configuration.
+Put the controller in loopback mode before starting DroneCAN, and send the frames of other nodes with the [CAN shell](https://docs.zephyrproject.org/latest/hardware/peripherals/can/shell.html), here the static pressure of node 10:
+
+```sh
+west build -b mps2/an386 PX4-Autopilot/platforms/zephyr/app -t run -- \
+  -DEXTRA_CONF_FILE=boards/mps2_an386_can.conf -DEXTRA_DTC_OVERLAY_FILE=boards/mps2_an386_can.overlay
+uart:~$ can mode can_loopback0 loopback
+uart:~$ px4 uavcan start
+uart:~$ can send can_loopback0 -e 1004040a 80 e6 c5 47 00 00 c0
+uart:~$ px4 listener sensor_baro
+```
+
 ## Building for Other Boards
 
 To build the application for another Zephyr board:
@@ -148,7 +160,8 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/sensors](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/sensors) tests the sensor driver with Zephyr's sensor emulators, on emulated SPI and I2C buses.
 - [tests/serial](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/serial) tests the serial ports, termios and `device::Serial` on an emulated UART.
 - [tests/storage](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/storage) tests the parameter file and the file functions of PX4 on a RAM disk.
-- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log and that a parameter is kept across a reboot, and connect to PX4 with MAVLink over a serial port.
+- [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
+- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN with another node on a loopback CAN bus.
 
 ## Adding a Board
 
@@ -279,6 +292,32 @@ Without storage, the parameters are kept in RAM only.
 
 The NXP VMU RT1170 mounts its microSD card.
 
+### CAN Buses
+
+PX4 numbers the CAN buses of the `px4,can-buses` devicetree node CAN1, CAN2 and so on, in the order of its child nodes:
+
+```dts
+/ {
+	px4-can-buses {
+		compatible = "px4,can-buses";
+
+		can1 {
+			can = <&flexcan1>;
+		};
+
+		can2 {
+			can = <&flexcan2>;
+		};
+	};
+};
+```
+
+The [DroneCAN](../dronecan/index.md) driver runs on them with the Zephyr CAN API: add `CONFIG_DRIVERS_UAVCAN` and `CONFIG_BOARD_UAVCAN_INTERFACES` to the PX4 board configuration.
+Frames are sent in order of priority, and received with the time of their reception.
+
+The NXP VMU RT1170 has DroneCAN on its three CAN buses.
+Its startup script doesn't start it, as Zephyr startup scripts can't check `UAVCAN_ENABLE`: start it with `px4 uavcan start`.
+
 ## Footprint
 
 [Tools/footprint.py](https://github.com/PX4/PX4-Autopilot/blob/main/Tools/footprint.py) breaks down the flash and static RAM of PX4 firmware by component, for NuttX and Zephyr builds alike.
@@ -329,6 +368,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 - Storage is on FAT file systems only, and the logs have no CPU load of the tasks.
 - Sensors are polled: the IMU FIFOs are not used.
 - Serial ports use the interrupt-driven UART API, without DMA, and have no single-wire, inverted or swapped modes.
+- DroneCAN isn't started at boot, and a frame that a CAN controller has started to send is sent even once its deadline has passed. Cyphal is not supported.
 - The GPS driver does not build, as its protocol parsers define `MIN` and `MAX`, which Zephyr defines too.
 - Dynamic modules (`DYNAMIC` in `px4_add_module()`) are not supported.
 - `native_sim` is not supported, as its POSIX API uses the host C library.
@@ -339,6 +379,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 - Read the IMU FIFOs with the Zephyr sensor streaming API.
 - Actuator outputs with the Zephyr PWM API.
 - Device files and termios for UARTs in Zephyr itself, instead of the PX4 platform layer.
+- Cyphal on the CAN buses.
 - Parameters in flash, with ZMS, on boards without an SD card.
 - Dynamic modules as Zephyr loadable extensions (below).
 

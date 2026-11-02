@@ -1,0 +1,14 @@
+/ {
+	can_loopback0: can_loopback0 {
+		compatible = "zephyr,can-loopback";
+		status = "okay";
+	};
+
+	px4-can-buses {
+		compatible = "px4,can-buses";
+
+		can1 {
+			can = <&can_loopback0>;
+		};
+	};
+};

@@ -1,0 +1,16 @@
+/* A CAN bus on the loopback controller, which receives the frames sent on it, see mps2_an386_can.conf */
+
+/ {
+	can_loopback0: can_loopback0 {
+		compatible = "zephyr,can-loopback";
+		status = "okay";
+	};
+
+	px4-can-buses {
+		compatible = "px4,can-buses";
+
+		can1 {
+			can = <&can_loopback0>;
+		};
+	};
+};

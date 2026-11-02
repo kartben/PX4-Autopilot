@@ -1,4 +1,4 @@
-/* Sensor orientation and serial ports as in boards/px4/fmu-v6xrt/init/rc.board_sensors, and the SD card */
+/* Sensor orientation and serial ports as in boards/px4/fmu-v6xrt/init/rc.board_sensors, the SD card and CAN buses */
 
 #include <dt-bindings/px4/rotation.h>
 
@@ -90,6 +90,22 @@
 		usb {
 			uart = <&cdc_acm_uart0>;
 			path = "/dev/ttyACM0";
+		};
+	};
+
+	px4-can-buses {
+		compatible = "px4,can-buses";
+
+		can1 {
+			can = <&flexcan1>;
+		};
+
+		can2 {
+			can = <&flexcan2>;
+		};
+
+		can3 {
+			can = <&flexcan3>;
 		};
 	};
 

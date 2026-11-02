@@ -86,7 +86,8 @@ endif()
 #	px4_add_git_submodule
 #
 #	This function adds a target for a git submodule, which
-#	Tools/check_submodules.sh has already checked out.
+#	Tools/check_submodules.sh has already checked out. A build that only
+#	checks the submodules of PX4_GIT_SUBMODULES checks this one here.
 #
 #	Usage:
 #		px4_add_git_submodule(TARGET <target> PATH <path>)
@@ -107,13 +108,21 @@ function(px4_add_git_submodule)
 		REQUIRED TARGET PATH
 		ARGN ${ARGN})
 
-	# With PX4_GIT_SUBMODULES set, a submodule the build uses but that is not
-	# listed is not fetched: stop here rather than on a missing header later.
+	# With PX4_GIT_SUBMODULES set, only the listed submodules are checked out
+	# beforehand: check out here the others that the build uses.
 	if(PX4_GIT_SUBMODULES)
 		get_filename_component(abs_path ${PATH} ABSOLUTE BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-		if(NOT EXISTS ${abs_path}/.git)
-			file(RELATIVE_PATH rel_path ${PX4_SOURCE_DIR} ${abs_path})
-			message(FATAL_ERROR "Submodule ${rel_path} is used by this build but not checked out, add it to PX4_GIT_SUBMODULES")
+		file(RELATIVE_PATH rel_path ${PX4_SOURCE_DIR} ${abs_path})
+
+		if(NOT rel_path IN_LIST PX4_GIT_SUBMODULES)
+			execute_process(
+				COMMAND Tools/check_submodules.sh ${rel_path}
+				WORKING_DIRECTORY ${PX4_SOURCE_DIR}
+				RESULT_VARIABLE check_submodules_result
+				)
+			if(NOT check_submodules_result EQUAL 0)
+				message(FATAL_ERROR "Tools/check_submodules.sh ${rel_path} failed")
+			endif()
 		endif()
 	endif()
 

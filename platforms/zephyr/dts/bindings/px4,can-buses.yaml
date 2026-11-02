@@ -1,0 +1,28 @@
+description: |
+  CAN buses of PX4, numbered in the order of the child nodes: the first one
+  is CAN1, the second CAN2 and so on, as the PX4 parameters and drivers
+  number them.
+
+    / {
+      px4-can-buses {
+        compatible = "px4,can-buses";
+
+        can1 {
+          can = <&flexcan1>;
+        };
+
+        can2 {
+          can = <&flexcan2>;
+        };
+      };
+    };
+
+compatible: "px4,can-buses"
+
+child-binding:
+  description: A CAN bus.
+  properties:
+    can:
+      type: phandle
+      required: true
+      description: CAN controller.

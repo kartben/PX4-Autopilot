@@ -6,3 +6,4 @@ packaging
 pymavlink
 pyros-genmsg
 pyyaml
+setuptools>=39.2.0,<=81.0.0

@@ -44,6 +44,8 @@
 #  include <uavcan_stm32/uavcan_stm32.hpp>
 #elif defined(UAVCAN_STM32H7_NUTTX)
 #  include <uavcan_stm32h7/uavcan_stm32h7.hpp>
+#elif defined(UAVCAN_ZEPHYR_ZEPHYR)
+#  include <uavcan_zephyr/uavcan_zephyr.hpp>
 #else
 #  error "Unsupported driver"
 #endif

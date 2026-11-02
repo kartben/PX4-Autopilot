@@ -1,0 +1,3 @@
+# DroneCAN, which the test starts once the CAN bus is in loopback mode
+ver all
+param set-default UAVCAN_SUB_BARO 1
