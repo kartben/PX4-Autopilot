@@ -219,7 +219,9 @@ The `zephyr_sensors` driver publishes the sensors listed in the `px4,sensors` de
 [SensorBaro]: ../msg_docs/SensorBaro.md
 [BatteryStatus]: ../msg_docs/BatteryStatus.md
 
-The driver reads the sensors with the Zephyr sensor API, which works with any Zephyr sensor driver, at 1 kHz for IMUs, 100 Hz for magnetometers, 50 Hz for barometers and 10 Hz for power monitors.
+The driver reads the sensors with the Zephyr sensor API, which works with any Zephyr sensor driver: the IMUs at the rate of the rate controller, [IMU_GYRO_RATEMAX](../advanced_config/parameter_reference.md#IMU_GYRO_RATEMAX), the magnetometers at 100 Hz, the barometers at 50 Hz and the power monitors at 10 Hz.
+The sensors of each bus are read in turn on the work queue of the bus, as with the PX4 drivers, so that a slow sensor, such as a barometer that converts, doesn't delay the IMUs of the other buses.
+Most Zephyr sensor drivers read on the RTIO work queue, which has 8 threads with PX4 so that 8 buses can be read at the same time: a board with more sensor buses raises `CONFIG_RTIO_WORKQ_THREADS_POOL` and `CONFIG_RTIO_WORKQ_POOL_ITEMS`.
 The device IDs are made from the bus, the address and the sensor model, as for the PX4 drivers.
 
 A sensor that may not be connected, such as the compass of a GPS module, has the `zephyr,deferred-init` property on its device, so that Zephyr doesn't initialize it at boot.

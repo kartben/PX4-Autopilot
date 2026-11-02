@@ -107,7 +107,8 @@ size_t zephyr_sensors_count(void);
 int zephyr_sensors_get_info(size_t index, struct zephyr_sensor_info *info);
 
 /**
- * Read a sample from a sensor, blocking until the read completes.
+ * Read a sample from a sensor, blocking until the read completes. Different
+ * sensors can be read concurrently, but each from a single thread.
  * @return 0 or a negative error code
  */
 int zephyr_sensors_read(size_t index, struct zephyr_sensor_sample *sample);

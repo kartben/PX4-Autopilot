@@ -52,6 +52,8 @@
 #define SENSORS_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(px4_sensors)
 #define SENSOR_DEVICE_NODE(node) DT_PHANDLE(node, sensor)
 #define SENSOR_IODEV(node) UTIL_CAT(px4_sensor_iodev_, DT_DEP_ORD(node))
+#define SENSOR_RTIO(node) UTIL_CAT(px4_sensor_rtio_, DT_DEP_ORD(node))
+#define SENSOR_BUFFER(node) UTIL_CAT(px4_sensor_buffer_, DT_DEP_ORD(node))
 #define IS_FUEL_GAUGE(node) DT_ENUM_HAS_VALUE(node, type, fuel_gauge)
 
 #define IMU_CHANNELS {SENSOR_CHAN_ACCEL_XYZ, 0}, {SENSOR_CHAN_GYRO_XYZ, 0}, {SENSOR_CHAN_DIE_TEMP, 0}
@@ -61,11 +63,18 @@
 #define BARO_CHANNELS {SENSOR_CHAN_PRESS, 0}, {SENSOR_CHAN_AMBIENT_TEMP, 0}
 #define POWER_CHANNELS {SENSOR_CHAN_VOLTAGE, 0}, {SENSOR_CHAN_CURRENT, 0}
 
-/* fuel gauges are read with the fuel gauge API instead */
+#define READ_BUFFER_SIZE 128
+
+/*
+ * Each sensor has its own RTIO context and buffer, as the sensors of different buses are read
+ * concurrently. Fuel gauges are read with the fuel gauge API instead.
+ */
 #define SENSOR_IODEV_DEFINE(node)                                                                  \
 	COND_CODE_1(IS_FUEL_GAUGE(node), (),                                                       \
 		    (SENSOR_DT_READ_IODEV(SENSOR_IODEV(node), SENSOR_DEVICE_NODE(node),            \
-					  UTIL_CAT(DT_STRING_UPPER_TOKEN(node, type), _CHANNELS));))
+					  UTIL_CAT(DT_STRING_UPPER_TOKEN(node, type), _CHANNELS));   \
+		     RTIO_DEFINE(SENSOR_RTIO(node), 1, 1);                                         \
+		     static uint8_t SENSOR_BUFFER(node)[READ_BUFFER_SIZE] __aligned(8);))
 
 DT_FOREACH_CHILD_STATUS_OKAY(SENSORS_NODE, SENSOR_IODEV_DEFINE)
 
@@ -114,6 +123,8 @@ struct sensor_entry {
 	bool external;
 	bool deferred;
 	uint8_t battery;
+	struct rtio *rtio;
+	uint8_t *buffer;
 };
 
 #define SENSOR_ENTRY(node)                                                                         \
@@ -130,16 +141,13 @@ struct sensor_entry {
 																   .external = DT_PROP(node, external),                                               \
 																		   .deferred = DT_PROP_OR(SENSOR_DEVICE_NODE(node), zephyr_deferred_init, false),     \
 																				   .battery = DT_PROP(node, battery),                                                \
+																						   .rtio = COND_CODE_1(IS_FUEL_GAUGE(node), (NULL), (&SENSOR_RTIO(node))),           \
+																								   .buffer = COND_CODE_1(IS_FUEL_GAUGE(node), (NULL), (SENSOR_BUFFER(node))),        \
 	},
 
 static const struct sensor_entry sensors[] = {
 	DT_FOREACH_CHILD_STATUS_OKAY(SENSORS_NODE, SENSOR_ENTRY)
 };
-
-/* reads are synchronous and come from a single work queue */
-RTIO_DEFINE(px4_sensors_rtio, 1, 1);
-
-static uint8_t read_buffer[128] __aligned(8);
 
 size_t zephyr_sensors_count(void)
 {
@@ -297,13 +305,13 @@ static float q31_to_float(q31_t value, int8_t shift)
 	return ldexpf((float)value, shift - 31);
 }
 
-static int decode_three_axis(const struct sensor_decoder_api *decoder, enum sensor_channel channel,
-			     float values[3], uint64_t *timestamp_ns)
+static int decode_three_axis(const struct sensor_decoder_api *decoder, const uint8_t *buffer,
+			     enum sensor_channel channel, float values[3], uint64_t *timestamp_ns)
 {
 	const struct sensor_chan_spec spec = {channel, 0};
 	struct sensor_three_axis_data data;
 	uint32_t fit = 0;
-	const int ret = decoder->decode(read_buffer, spec, &fit, 1, &data);
+	const int ret = decoder->decode(buffer, spec, &fit, 1, &data);
 
 	if (ret <= 0) {
 		return (ret < 0) ? ret : -ENODATA;
@@ -317,13 +325,13 @@ static int decode_three_axis(const struct sensor_decoder_api *decoder, enum sens
 	return 0;
 }
 
-static int decode_q31(const struct sensor_decoder_api *decoder, enum sensor_channel channel,
-		      float *value, uint64_t *timestamp_ns)
+static int decode_q31(const struct sensor_decoder_api *decoder, const uint8_t *buffer,
+		      enum sensor_channel channel, float *value, uint64_t *timestamp_ns)
 {
 	const struct sensor_chan_spec spec = {channel, 0};
 	struct sensor_q31_data data;
 	uint32_t fit = 0;
-	const int ret = decoder->decode(read_buffer, spec, &fit, 1, &data);
+	const int ret = decoder->decode(buffer, spec, &fit, 1, &data);
 
 	if (ret <= 0) {
 		return (ret < 0) ? ret : -ENODATA;
@@ -351,7 +359,7 @@ int zephyr_sensors_read(size_t index, struct zephyr_sensor_sample *sample)
 	int ret = sensor_get_decoder(sensor->dev, &decoder);
 
 	if (ret == 0) {
-		ret = sensor_read(sensor->iodev, &px4_sensors_rtio, read_buffer, sizeof(read_buffer));
+		ret = sensor_read(sensor->iodev, sensor->rtio, sensor->buffer, READ_BUFFER_SIZE);
 	}
 
 	if (ret != 0) {
@@ -366,47 +374,47 @@ int zephyr_sensors_read(size_t index, struct zephyr_sensor_sample *sample)
 
 	switch (sensor->type) {
 	case ZEPHYR_SENSOR_TYPE_IMU:
-		ret = decode_three_axis(decoder, SENSOR_CHAN_ACCEL_XYZ, sample->accel, &timestamp_ns);
+		ret = decode_three_axis(decoder, sensor->buffer, SENSOR_CHAN_ACCEL_XYZ, sample->accel, &timestamp_ns);
 
 		if (ret == 0) {
-			ret = decode_three_axis(decoder, SENSOR_CHAN_GYRO_XYZ, sample->gyro, &timestamp_ns);
+			ret = decode_three_axis(decoder, sensor->buffer, SENSOR_CHAN_GYRO_XYZ, sample->gyro, &timestamp_ns);
 		}
 
 		if (ret == 0) {
-			decode_q31(decoder, SENSOR_CHAN_DIE_TEMP, &sample->temperature,
+			decode_q31(decoder, sensor->buffer, SENSOR_CHAN_DIE_TEMP, &sample->temperature,
 				   &temperature_timestamp_ns);
 		}
 
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_ACCEL:
-		ret = decode_three_axis(decoder, SENSOR_CHAN_ACCEL_XYZ, sample->accel, &timestamp_ns);
+		ret = decode_three_axis(decoder, sensor->buffer, SENSOR_CHAN_ACCEL_XYZ, sample->accel, &timestamp_ns);
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_GYRO:
-		ret = decode_three_axis(decoder, SENSOR_CHAN_GYRO_XYZ, sample->gyro, &timestamp_ns);
+		ret = decode_three_axis(decoder, sensor->buffer, SENSOR_CHAN_GYRO_XYZ, sample->gyro, &timestamp_ns);
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_MAG:
-		ret = decode_three_axis(decoder, SENSOR_CHAN_MAGN_XYZ, sample->mag, &timestamp_ns);
+		ret = decode_three_axis(decoder, sensor->buffer, SENSOR_CHAN_MAGN_XYZ, sample->mag, &timestamp_ns);
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_BARO:
-		ret = decode_q31(decoder, SENSOR_CHAN_PRESS, &pressure_kpa, &timestamp_ns);
+		ret = decode_q31(decoder, sensor->buffer, SENSOR_CHAN_PRESS, &pressure_kpa, &timestamp_ns);
 		sample->pressure = pressure_kpa * 1000.f;
 
 		if (ret == 0) {
-			decode_q31(decoder, SENSOR_CHAN_AMBIENT_TEMP, &sample->temperature,
+			decode_q31(decoder, sensor->buffer, SENSOR_CHAN_AMBIENT_TEMP, &sample->temperature,
 				   &temperature_timestamp_ns);
 		}
 
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_POWER:
-		ret = decode_q31(decoder, SENSOR_CHAN_VOLTAGE, &sample->voltage, &timestamp_ns);
+		ret = decode_q31(decoder, sensor->buffer, SENSOR_CHAN_VOLTAGE, &sample->voltage, &timestamp_ns);
 
 		if (ret == 0) {
-			ret = decode_q31(decoder, SENSOR_CHAN_CURRENT, &sample->current, &timestamp_ns);
+			ret = decode_q31(decoder, sensor->buffer, SENSOR_CHAN_CURRENT, &sample->current, &timestamp_ns);
 		}
 
 		break;

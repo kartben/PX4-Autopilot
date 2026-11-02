@@ -39,6 +39,9 @@
 extern "C" {
 #endif
 
+/* the barometer converts for this long when it is read, as the MS5611 at its highest resolution */
+#define BARO_CONVERSION_TIME_MS 20
+
 /* SI units, as the Zephyr sensor API */
 int sensor_values_set_imu(const float accel[3], const float gyro[3]);
 int sensor_values_set_mag(const float mag[3]);
