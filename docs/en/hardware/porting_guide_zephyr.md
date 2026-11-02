@@ -138,6 +138,8 @@ uart:~$ can send can_loopback0 -e 1004040a 80 e6 c5 47 00 00 c0
 uart:~$ px4 listener sensor_baro
 ```
 
+Cyphal runs the same way with the `zephyr_generic_cyphal` board configuration (`-DEXTRA_CONF_FILE=boards/mps2_an386_cyphal.conf`), started with `px4 cyphal start`.
+
 ## Building for Other Boards
 
 To build the application for another Zephyr board:
@@ -161,7 +163,7 @@ or `make zephyr_tests`, which also builds the application for the boards that ar
 - [tests/serial](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/serial) tests the serial ports, termios and `device::Serial` on an emulated UART.
 - [tests/storage](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/storage) tests the parameter file and the file functions of PX4 on a RAM disk.
 - [tests/can](https://github.com/PX4/PX4-Autopilot/tree/main/platforms/zephyr/tests/can) tests the CAN buses on the Zephyr loopback CAN controller.
-- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN with another node on a loopback CAN bus.
+- The application tests check that PX4 starts, fly the SIH quadcopter (take off, hover and land), check the flight log and that a parameter is kept across a reboot, connect to PX4 with MAVLink over a serial port, and run DroneCAN and Cyphal with another node on a loopback CAN bus.
 
 ## Adding a Board
 
@@ -315,6 +317,9 @@ PX4 numbers the CAN buses of the `px4,can-buses` devicetree node CAN1, CAN2 and 
 The [DroneCAN](../dronecan/index.md) driver runs on them with the Zephyr CAN API: add `CONFIG_DRIVERS_UAVCAN` and `CONFIG_BOARD_UAVCAN_INTERFACES` to the PX4 board configuration.
 Frames are sent in order of priority, and received with the time of their reception.
 
+[Cyphal](../can/index.md) runs on CAN1, with classic CAN frames at `CYPHAL_BAUD`: add `CONFIG_DRIVERS_CYPHAL` to the PX4 board configuration.
+It is supported as a flight controller (`CONFIG_CYPHAL_FMU`), not as a CAN node, and doesn't share a CAN bus with DroneCAN.
+
 The NXP VMU RT1170 has DroneCAN on its three CAN buses.
 Its startup script doesn't start it, as Zephyr startup scripts can't check `UAVCAN_ENABLE`: start it with `px4 uavcan start`.
 
@@ -368,7 +373,7 @@ Only the operating system rows compare the two systems, as the builds differ in 
 - Storage is on FAT file systems only, and the logs have no CPU load of the tasks.
 - Sensors are polled: the IMU FIFOs are not used.
 - Serial ports use the interrupt-driven UART API, without DMA, and have no single-wire, inverted or swapped modes.
-- DroneCAN isn't started at boot, and a frame that a CAN controller has started to send is sent even once its deadline has passed. Cyphal is not supported.
+- DroneCAN isn't started at boot, and a frame that a CAN controller has started to send is sent even once its deadline has passed. Cyphal uses classic CAN frames only.
 - The GPS driver does not build, as its protocol parsers define `MIN` and `MAX`, which Zephyr defines too.
 - Dynamic modules (`DYNAMIC` in `px4_add_module()`) are not supported.
 - `native_sim` is not supported, as its POSIX API uses the host C library.
@@ -379,7 +384,6 @@ Only the operating system rows compare the two systems, as the builds differ in 
 - Read the IMU FIFOs with the Zephyr sensor streaming API.
 - Actuator outputs with the Zephyr PWM API.
 - Device files and termios for UARTs in Zephyr itself, instead of the PX4 platform layer.
-- Cyphal on the CAN buses.
 - Parameters in flash, with ZMS, on boards without an SD card.
 - Dynamic modules as Zephyr loadable extensions (below).
 
