@@ -79,6 +79,8 @@ tests:
       - vmu_rt1170/mimxrt1176/cm7
     integration_platforms:
       - vmu_rt1170/mimxrt1176/cm7
+    extra_args:
+      - SHIELD=holybro_m10
   px4.app.sih.vmu_rt1170:
     build_only: true
     platform_allow:
@@ -86,6 +88,7 @@ tests:
     integration_platforms:
       - vmu_rt1170/mimxrt1176/cm7
     extra_args:
+      - SHIELD=holybro_m10
       - FILE_SUFFIX=sih
   px4.app.sih.footprint:
     build_only: true
@@ -94,6 +97,7 @@ tests:
     integration_platforms:
       - vmu_rt1170/mimxrt1176/cm7
     extra_args:
+      - SHIELD=holybro_m10
       - FILE_SUFFIX=sih
       - EXTRA_CONF_FILE=footprint.conf
   px4.app.mimxrt1170_evk:

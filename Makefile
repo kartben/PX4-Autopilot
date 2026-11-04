@@ -273,10 +273,11 @@ updateconfig:
 .PHONY: zephyr zephyr_qemu zephyr_sih zephyr_tests
 
 ZEPHYR_BOARD ?= mps2/an386
+ZEPHYR_SHIELD ?=
 ZEPHYR_BUILD_DIR = $(SRC_DIR)/build/zephyr_$(subst /,_,$(ZEPHYR_BOARD))
 
 zephyr:
-	@west build -b $(ZEPHYR_BOARD) -d "$(ZEPHYR_BUILD_DIR)" "$(SRC_DIR)/platforms/zephyr/app"
+	@west build -b $(ZEPHYR_BOARD) $(if $(ZEPHYR_SHIELD),--shield $(ZEPHYR_SHIELD)) -d "$(ZEPHYR_BUILD_DIR)" "$(SRC_DIR)/platforms/zephyr/app"
 
 zephyr_qemu:
 	@west build -b mps2/an386 -d "$(SRC_DIR)/build/zephyr_mps2_an386" "$(SRC_DIR)/platforms/zephyr/app" -t run

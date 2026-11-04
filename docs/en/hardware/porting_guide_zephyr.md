@@ -156,7 +156,7 @@ Cyphal runs the same way with the `zephyr_generic_cyphal` board configuration (`
 To build the application for another Zephyr board:
 
 ```sh
-make zephyr ZEPHYR_BOARD=vmu_rt1170/mimxrt1176/cm7
+make zephyr ZEPHYR_BOARD=vmu_rt1170/mimxrt1176/cm7 ZEPHYR_SHIELD=holybro_m10
 ```
 
 ## Running on the NXP MIMXRT1170-EVK
@@ -481,7 +481,8 @@ Data written to it is dropped while no host has opened it, and MAVLink detects a
 MAVLink would otherwise build its streams for nobody, which takes 23% of the CPU of the MIMXRT1170-EVK at 400 Hz.
 
 The NXP VMU RT1170 has the serial ports of FMU-v6XRT and a USB port.
-Its PX4 board configuration ([boards/zephyr/vmu_rt1170](https://github.com/PX4/PX4-Autopilot/tree/main/boards/zephyr/vmu_rt1170)) starts the GPS driver on `/dev/ttyS1` (GPS1), and MAVLink on `/dev/ttyS2` (TELEM1) and USB.
+Its PX4 board configuration ([boards/zephyr/vmu_rt1170](https://github.com/PX4/PX4-Autopilot/tree/main/boards/zephyr/vmu_rt1170)) starts the GPS driver on `/dev/ttyS1` (GPS1), `crsf_rc` on `/dev/ttyS2` (TELEM1), and MAVLink on `/dev/ttyS5` (TELEM2) and USB.
+Its overlay needs the `holybro_m10` shield, for the GPS module on GPS1.
 MAVLink only runs over UDP if the Zephyr configuration has the network stack (`CONFIG_NET_SOCKETS`).
 
 ### Storage
@@ -879,8 +880,8 @@ For example, to compare the two operating systems on the NXP i.MX RT1176, with t
 
 ```sh
 make -C PX4-Autopilot px4_fmu-v6xrt_default
-west build -b vmu_rt1170/mimxrt1176/cm7 -d build-sih PX4-Autopilot/platforms/zephyr/app -- -DFILE_SUFFIX=sih -DCONFIG_SIZE_OPTIMIZATIONS=y
-west build -b vmu_rt1170/mimxrt1176/cm7 -d build-matched PX4-Autopilot/platforms/zephyr/app -- -DFILE_SUFFIX=sih -DEXTRA_CONF_FILE=footprint.conf -DCONFIG_SIZE_OPTIMIZATIONS=y
+west build -b vmu_rt1170/mimxrt1176/cm7 --shield holybro_m10 -d build-sih PX4-Autopilot/platforms/zephyr/app -- -DFILE_SUFFIX=sih -DCONFIG_SIZE_OPTIMIZATIONS=y
+west build -b vmu_rt1170/mimxrt1176/cm7 --shield holybro_m10 -d build-matched PX4-Autopilot/platforms/zephyr/app -- -DFILE_SUFFIX=sih -DEXTRA_CONF_FILE=footprint.conf -DCONFIG_SIZE_OPTIMIZATIONS=y
 PX4-Autopilot/Tools/footprint.py PX4-Autopilot/build/px4_fmu-v6xrt_default/px4_fmu-v6xrt_default.elf build-sih/zephyr/zephyr.elf build-matched/zephyr/zephyr.elf
 ```
 
