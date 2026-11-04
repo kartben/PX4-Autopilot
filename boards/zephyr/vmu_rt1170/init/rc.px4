@@ -1,17 +1,56 @@
-# Serial ports as on the FMUv6X-RT, see platforms/zephyr/app/boards/vmu_rt1170_mimxrt1176_cm7.overlay
+# Quadcopter on FMU_CH1 to FMU_CH4, serial ports as on the FMUv6X-RT, a Holybro M10 GPS on GPS1 and an
+# ExpressLRS receiver on TELEM1, see platforms/zephyr/app/boards/vmu_rt1170_mimxrt1176_cm7.overlay
+# the airframe that ground stations show, the quadcopter X below: there is no airframe script to apply on Zephyr
+param set-default SYS_AUTOSTART 4001
+param set-default MAV_TYPE 2
+param set-default CA_AIRFRAME 0
+param set-default CA_ROTOR_COUNT 4
+param set-default CA_ROTOR0_PX 0.15
+param set-default CA_ROTOR0_PY 0.25
+param set-default CA_ROTOR1_PX -0.15
+param set-default CA_ROTOR1_PY -0.25
+param set-default CA_ROTOR2_PX 0.15
+param set-default CA_ROTOR2_PY -0.25
+param set-default CA_ROTOR2_KM -0.05
+param set-default CA_ROTOR3_PX -0.15
+param set-default CA_ROTOR3_PY 0.25
+param set-default CA_ROTOR3_KM -0.05
+param set-default PWM_MAIN_FUNC1 101
+param set-default PWM_MAIN_FUNC2 102
+param set-default PWM_MAIN_FUNC3 103
+param set-default PWM_MAIN_FUNC4 104
 ver all
+# missions in RAM, as the microSD card is optional
+dataman start -r
 safety_button start
 load_mon start
 tone_alarm start
 zephyr_rgbled start
 board_adc start
 zephyr_sensors start
-zephyr_rc_input start
 sensors start
-zephyr_pwm_out start
+commander start
+# ExpressLRS receiver on TELEM1
+crsf_rc start -d /dev/ttyS2
+rc_update start
+manual_control start
 gps start -d /dev/ttyS1
-mavlink start -d /dev/ttyS2 -b 57600 -x
+ekf2 start
+mag_bias_estimator start
+gyro_calibration start
+control_allocator start
+zephyr_pwm_out start
+mc_rate_control start
+mc_att_control start
+mc_hover_thrust_estimator start
+flight_mode_manager start
+mc_pos_control start
+land_detector start multicopter
+navigator start
+# TELEM1 has the receiver: MAVLink on TELEM2
+mavlink start -d /dev/ttyS5 -b 57600 -x
 # MAVLink on the USB port, while a ground station has it open
 cdcacm_autostart start
+logger start
 tune_control play -t 1
 mavlink boot_complete
