@@ -255,8 +255,9 @@ void SensorBus::read_fifo(Sensor &sensor)
 		sensor.error_count++;
 		perf_count(_read_error_perf);
 
-		// a stream that fails before it reads the FIFO isn't restarted
-		if (!sensor.fifo_data || !start_fifo(sensor)) {
+		// a stream that keeps failing before it reads the FIFO isn't restarted: the first read of the
+		// BMI088 can fail, as the interrupt line is high from before the stream
+		if ((!sensor.fifo_data && (++sensor.fifo_start_retries > FIFO_START_RETRIES)) || !start_fifo(sensor)) {
 			PX4_WARN("%s: FIFO failed (%d), polling instead", sensor.info.name, ret);
 			stop_fifo(sensor);
 			return;

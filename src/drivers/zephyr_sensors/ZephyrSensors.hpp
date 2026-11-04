@@ -89,6 +89,7 @@ private:
 
 	// an IMU whose FIFO isn't read for this long is polled instead
 	static constexpr hrt_abstime FIFO_TIMEOUT{100_ms};
+	static constexpr uint8_t FIFO_START_RETRIES{3};
 
 	// a battery is disconnected when its power monitor or fuel gauge can't be read for this long
 	static constexpr hrt_abstime BATTERY_TIMEOUT{2_s};
@@ -113,6 +114,7 @@ private:
 		// the FIFO is streamed instead of polling the IMU
 		zephyr_sensor_fifo *fifo{nullptr};
 		bool fifo_data{false};
+		uint8_t fifo_start_retries{0};
 	};
 
 	void Run() override;
