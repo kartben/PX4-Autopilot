@@ -7,10 +7,10 @@ manifest:
 
   projects:
     - name: zephyr
-      # vmu-px4-support: the 3DR Control N1 board and its carriers, and the VMU RT1170 with the
+      # vmu-px4-main: the 3DR Control N1 board and its carriers, and the VMU RT1170 with the
       # Pixhawk connectors and the Holybro M10 shield of zephyrproject-rtos/zephyr#124402 and #124410
       remote: kartben
-      revision: 594cb9bb22a96f8646b49be821baece073b665dc
+      revision: c5bb1c6cb26fd49f09f6818465f9d91c4b76f919
       import:
         name-allowlist:
           - cmsis
