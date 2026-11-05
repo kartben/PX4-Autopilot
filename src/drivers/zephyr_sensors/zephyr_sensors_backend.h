@@ -74,6 +74,7 @@ struct zephyr_sensor_info {
 	uint8_t rotation;
 	uint8_t battery;
 	bool external;
+	uint32_t mag_range_mgauss;
 	bool optional;
 };
 
