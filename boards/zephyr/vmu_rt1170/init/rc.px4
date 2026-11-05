@@ -1,21 +1,30 @@
-# Quadcopter on FMU_CH1 to FMU_CH4, serial ports as on the FMUv6X-RT, a Holybro M10 GPS on GPS1 and an
+# NXP HoverGames quadcopter on FMU_CH1 to FMU_CH4, serial ports as on the FMUv6X-RT, a Holybro M10 GPS on GPS1 and an
 # ExpressLRS receiver on TELEM1, see platforms/zephyr/app/boards/vmu_rt1170_mimxrt1176_cm7.overlay
-# the airframe that ground stations show, the quadcopter X below: there is no airframe script to apply on Zephyr
-param set-default SYS_AUTOSTART 4001
+# the NXP HoverGames airframe, from ROMFS/px4fmu_common/init.d/airframes/4017_nxp_hovergames and rc.mc_defaults:
+# there is no airframe script to apply on Zephyr
+param set-default SYS_AUTOSTART 4017
 # ground stations expect it, but no script reads it on Zephyr: setting it does not reset the parameters
 param set-default SYS_AUTOCONFIG 0
 param set-default MAV_TYPE 2
+param set-default RTL_RETURN_ALT 30
+param set-default RTL_DESCEND_ALT 10
+param set-default EKF2_RNG_FOG 1
+param set-default IMU_DGYRO_CUTOFF 20
+param set-default MC_ROLLRATE_P 0.18
+param set-default MC_ROLLRATE_I 0.15
+param set-default MC_PITCHRATE_P 0.18
+param set-default MC_PITCHRATE_I 0.15
 param set-default CA_AIRFRAME 0
 param set-default CA_ROTOR_COUNT 4
-param set-default CA_ROTOR0_PX 0.15
-param set-default CA_ROTOR0_PY 0.25
-param set-default CA_ROTOR1_PX -0.15
-param set-default CA_ROTOR1_PY -0.25
-param set-default CA_ROTOR2_PX 0.15
-param set-default CA_ROTOR2_PY -0.25
+param set-default CA_ROTOR0_PX 1
+param set-default CA_ROTOR0_PY 1
+param set-default CA_ROTOR1_PX -1
+param set-default CA_ROTOR1_PY -1
+param set-default CA_ROTOR2_PX 1
+param set-default CA_ROTOR2_PY -1
 param set-default CA_ROTOR2_KM -0.05
-param set-default CA_ROTOR3_PX -0.15
-param set-default CA_ROTOR3_PY 0.25
+param set-default CA_ROTOR3_PX -1
+param set-default CA_ROTOR3_PY 1
 param set-default CA_ROTOR3_KM -0.05
 param set-default PWM_MAIN_FUNC1 101
 param set-default PWM_MAIN_FUNC2 102
