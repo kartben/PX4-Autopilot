@@ -193,6 +193,7 @@ struct sensor_entry {
 	uint8_t devtype;
 	uint8_t rotation;
 	bool external;
+	bool mirror_z;
 	bool deferred;
 	uint8_t battery;
 	struct rtio *rtio;
@@ -214,6 +215,7 @@ struct sensor_entry {
 												   .devtype = SENSOR_DEVTYPE(node),                                                   \
 														   .rotation = DT_PROP(node, rotation),                                               \
 																   .external = DT_PROP(node, external),                                               \
+																   .mirror_z = DT_PROP(node, mirror_z), \
 																		   .deferred = DT_PROP_OR(SENSOR_DEVICE_NODE(node), zephyr_deferred_init, false),     \
 																				   .battery = DT_PROP(node, battery),                                                \
 																						   .rtio = COND_CODE_1(IS_FUEL_GAUGE(node), (NULL), (&SENSOR_RTIO(node))),           \
@@ -475,6 +477,11 @@ int zephyr_sensors_read(size_t index, struct zephyr_sensor_sample *sample)
 
 	case ZEPHYR_SENSOR_TYPE_MAG:
 		ret = decode_three_axis(decoder, sensor->buffer, SENSOR_CHAN_MAGN_XYZ, sample->mag, &timestamp_ns);
+
+		if (sensor->mirror_z) {
+			sample->mag[2] = -sample->mag[2];
+		}
+
 		break;
 
 	case ZEPHYR_SENSOR_TYPE_BARO:

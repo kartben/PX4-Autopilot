@@ -45,6 +45,7 @@
 			type = "mag";
 			rotation = <PX4_ROTATION_ROLL_180_YAW_90>;
 			external;
+			mirror-z;
 		};
 
 		mag1 {
@@ -207,7 +208,7 @@
 	};
 
 	/*
-	 * the board LEDs of FMU-v6XRT, and the LED of the safety switch and the RGB LED of the GPS module
+	 * the board LEDs of FMU-v6XRT, and the LED of the safety switch of the GPS module
 	 */
 	px4-leds {
 		compatible = "px4,leds";
@@ -215,7 +216,6 @@
 		red = <&red_led>;
 		green = <&green_led>;
 		safety = <&holybro_m10_safety_led>;
-		rgb = <&gnss_led>;
 	};
 
 	/* the safety switch of the GPS module */
@@ -384,12 +384,12 @@
 	compatible = "bosch,bmp390";
 };
 
-/* the IS31FL3195 of the GPS module, used if it responds */
+/*
+ * the IS31FL3195 of the GPS module: with it in use, the bus stays busy after about a second and its
+ * compass stops answering
+ */
 &holybro_m10_rgb_led {
-	zephyr,deferred-init;
-
-	gnss_led: led_0 {
-	};
+	status = "disabled";
 };
 
 &pinctrl {

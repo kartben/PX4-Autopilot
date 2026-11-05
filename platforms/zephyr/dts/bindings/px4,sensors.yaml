@@ -62,6 +62,11 @@ child-binding:
     external:
       type: boolean
       description: The sensor is not on the flight controller board.
+    mirror-z:
+      type: boolean
+      description: |
+        The axes of the sensor form a left-handed frame, which no rotation can
+        correct: negate its z axis before applying the rotation.
     battery:
       type: int
       default: 1
