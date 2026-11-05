@@ -279,8 +279,16 @@ config PX4_ITCM
 	help
 	  Copy the code that runs most to the ITCM at boot, and run it from
 	  there instead of in place from the flash. The build takes the code of
-	  module/itcm_functions.ld, ranked by Tools/itcm_profile.py, in order
-	  while it fits in the ITCM.
+	  PX4_ITCM_FUNCTIONS, ranked by Tools/itcm_profile.py, in order while
+	  it fits in the ITCM.
+
+config PX4_ITCM_FUNCTIONS
+	string "Ranked list of the code for the ITCM"
+	default "itcm_functions.ld"
+	depends on PX4_ITCM
+	help
+	  File of platforms/zephyr/module, for a board whose drivers the shared
+	  list does not cover.
 
 config PX4_ITCM_LIBRARIES
 	bool "Whole libraries in ITCM"

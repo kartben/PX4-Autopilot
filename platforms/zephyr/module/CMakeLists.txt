@@ -137,7 +137,7 @@ if(CONFIG_PX4_ITCM)
 	dt_chosen(itcm_node PROPERTY "zephyr,itcm")
 	dt_reg_size(itcm_size PATH ${itcm_node})
 	math(EXPR itcm_budget "(${itcm_size} - ${CONFIG_PX4_ITCM_RESERVE}) * ${CONFIG_PX4_ITCM_FILL} / 100")
-	set(itcm_ranked ${CMAKE_CURRENT_LIST_DIR}/itcm_functions.ld)
+	set(itcm_ranked ${CMAKE_CURRENT_LIST_DIR}/${CONFIG_PX4_ITCM_FUNCTIONS})
 	set(itcm_fitted ${CMAKE_CURRENT_BINARY_DIR}/itcm_functions.ld)
 	execute_process(
 		COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/itcm_fit.py ${itcm_ranked} ${itcm_budget} ${itcm_fitted}
