@@ -193,6 +193,7 @@ struct sensor_entry {
 	uint8_t devtype;
 	uint8_t rotation;
 	bool external;
+	uint32_t mag_range_mgauss;
 	bool deferred;
 	uint8_t battery;
 	struct rtio *rtio;
@@ -214,6 +215,7 @@ struct sensor_entry {
 												   .devtype = SENSOR_DEVTYPE(node),                                                   \
 														   .rotation = DT_PROP(node, rotation),                                               \
 																   .external = DT_PROP(node, external),                                               \
+																   .mag_range_mgauss = DT_PROP(node, mag_range_mgauss), \
 																		   .deferred = DT_PROP_OR(SENSOR_DEVICE_NODE(node), zephyr_deferred_init, false),     \
 																				   .battery = DT_PROP(node, battery),                                                \
 																						   .rtio = COND_CODE_1(IS_FUEL_GAUGE(node), (NULL), (&SENSOR_RTIO(node))),           \
@@ -357,6 +359,7 @@ int zephyr_sensors_get_info(size_t index, struct zephyr_sensor_info *info)
 	info->rotation = sensor->rotation;
 	info->battery = sensor->battery;
 	info->external = sensor->external;
+	info->mag_range_mgauss = sensor->mag_range_mgauss;
 	info->optional = sensor->deferred;
 
 	if (sensor->deferred && !device_is_ready(sensor->dev)) {

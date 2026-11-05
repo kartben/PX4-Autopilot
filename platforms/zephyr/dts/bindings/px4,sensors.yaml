@@ -62,6 +62,12 @@ child-binding:
     external:
       type: boolean
       description: The sensor is not on the flight controller board.
+    mag-range-mgauss:
+      type: int
+      default: 0
+      description: |
+        Full-scale range of a magnetometer in milligauss, which sets how large
+        an offset its calibration accepts. 0 if unknown.
     battery:
       type: int
       default: 1

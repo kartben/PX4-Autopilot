@@ -32,6 +32,7 @@
 		mag0 {
 			sensor = <&ak09940a>;
 			type = "mag";
+			mag-range-mgauss = <12000>;
 			rotation = <PX4_ROTATION_YAW_180>;
 		};
 

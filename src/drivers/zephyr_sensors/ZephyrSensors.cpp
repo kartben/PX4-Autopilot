@@ -149,6 +149,7 @@ bool SensorBus::add_sensor(size_t index, const zephyr_sensor_info &info)
 
 	case ZEPHYR_SENSOR_TYPE_MAG:
 		sensor->mag = new PX4Magnetometer(id, rotation, external);
+		sensor->mag->set_range(info.mag_range_mgauss / 1000.f);
 		sensor->interval = MAG_INTERVAL;
 		break;
 
