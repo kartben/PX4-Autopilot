@@ -2,6 +2,8 @@
 # ExpressLRS receiver on TELEM1, see platforms/zephyr/app/boards/vmu_rt1170_mimxrt1176_cm7.overlay
 # the airframe that ground stations show, the quadcopter X below: there is no airframe script to apply on Zephyr
 param set-default SYS_AUTOSTART 4001
+# ground stations expect it, but no script reads it on Zephyr: setting it does not reset the parameters
+param set-default SYS_AUTOCONFIG 0
 param set-default MAV_TYPE 2
 param set-default CA_AIRFRAME 0
 param set-default CA_ROTOR_COUNT 4
