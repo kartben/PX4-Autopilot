@@ -1,6 +1,7 @@
 /*
- * VMU RT1170 with a Holybro M10 GPS on GPS1 (--shield holybro_m10), sensor orientation and serial
- * ports as in boards/px4/fmu-v6xrt/init/rc.board_sensors, the SD card and CAN buses
+ * VMU RT1170 with a Holybro M10 GPS on GPS1 (--shield holybro_m10), serial ports as in
+ * boards/px4/fmu-v6xrt/init/rc.board_sensors, the SD card and CAN buses. The IMU rotations are
+ * measured on the board, from the raw axes of the chips that zephyr_sensors passes on.
  */
 
 #include <dt-bindings/px4/rotation.h>
@@ -18,25 +19,25 @@
 		imu0 {
 			sensor = <&icm42686_0>;
 			type = "imu";
-			rotation = <PX4_ROTATION_PITCH_180>;
+			rotation = <PX4_ROTATION_ROLL_180>;
 		};
 
 		imu1 {
 			sensor = <&icm42688_0>;
 			type = "imu";
-			rotation = <PX4_ROTATION_YAW_270>;
+			rotation = <PX4_ROTATION_ROLL_180>;
 		};
 
 		accel2 {
 			sensor = <&bmi08x_accel>;
 			type = "accel";
-			rotation = <PX4_ROTATION_YAW_180>;
+			rotation = <PX4_ROTATION_PITCH_180>;
 		};
 
 		gyro2 {
 			sensor = <&bmi08x_gyro>;
 			type = "gyro";
-			rotation = <PX4_ROTATION_YAW_180>;
+			rotation = <PX4_ROTATION_PITCH_180>;
 		};
 
 		mag0 {
